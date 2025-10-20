@@ -5,6 +5,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.filter.ForwardedHeaderFilter;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -44,6 +51,33 @@ public class SecurityConfig {
             );
 
         return http.build();
+    }
+
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
+
+    /**
+     * Simple request-logging filter to help debug what the app sees when building redirect URIs.
+     * Logs scheme, server name, server port, request URL and common X-Forwarded headers at DEBUG.
+     */
+    @Bean
+    public Filter requestDebugLoggingFilter() {
+        return new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, java.io.IOException {
+                if (org.slf4j.LoggerFactory.getLogger(SecurityConfig.class).isDebugEnabled()) {
+                    StringBuffer url = request.getRequestURL();
+                    String forwardedProto = request.getHeader("X-Forwarded-Proto");
+                    String forwardedHost = request.getHeader("X-Forwarded-Host");
+                    String forwardedPort = request.getHeader("X-Forwarded-Port");
+                    org.slf4j.LoggerFactory.getLogger(SecurityConfig.class).debug("Request URL: {} | scheme={} | server={}:{} | X-Forwarded-Proto={} | X-Forwarded-Host={} | X-Forwarded-Port={}",
+                            url, request.getScheme(), request.getServerName(), request.getServerPort(), forwardedProto, forwardedHost, forwardedPort);
+                }
+                filterChain.doFilter(request, response);
+            }
+        };
     }
 
     @Bean
