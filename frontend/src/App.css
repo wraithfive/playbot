@@ -1,0 +1,740 @@
+:root {
+  --discord-blue: #5865F2;
+  --discord-hover: #4752C4;
+  --background: #0f0f0f;
+  --surface: #1a1a1a;
+  --surface-hover: #242424;
+  --border: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --success: #3ba55d;
+  --danger: #ed4245;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navbar */
+.navbar {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #5865F2 0%, #9b59b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: var(--discord-blue);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--discord-hover);
+}
+
+.btn-secondary {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: #2f2f2f;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c23538;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-discord {
+  background-color: var(--discord-blue);
+  color: white;
+  font-size: 1.125rem;
+  padding: 1rem 2rem;
+}
+
+.btn-discord:hover {
+  background-color: var(--discord-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+}
+
+.btn-back {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.5rem 1rem;
+}
+
+.btn-back:hover {
+  color: var(--text-primary);
+  background-color: var(--surface-hover);
+}
+
+/* Login Page */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+}
+
+.login-card {
+  background-color: var(--surface);
+  padding: 3rem;
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.login-card h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #5865F2 0%, #9b59b6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-card h2 {
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+
+.login-description {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+.login-footer {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.login-footer p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.login-legal-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.legal-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: color 0.2s;
+}
+
+.legal-link:hover {
+  color: var(--discord-blue);
+}
+
+.legal-separator {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+/* Server List */
+.server-list-container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+}
+
+.servers-section {
+  margin-bottom: 3rem;
+}
+
+.servers-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.section-description {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.server-grid.unavailable {
+  opacity: 0.6;
+}
+
+.server-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.server-card:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--discord-blue);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.server-card-invite {
+  cursor: default;
+}
+
+.server-card-invite:hover {
+  transform: translateY(-2px);
+  border-color: var(--border);
+}
+
+.bot-status {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: -0.5rem 0 0.25rem 0;
+}
+
+.invite-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.invite-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.server-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.server-icon-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5865F2 0%, #9b59b6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.server-card h3 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--danger);
+  color: white;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Role Manager */
+.role-manager-container .header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.header-info {
+  flex: 1;
+  margin-top: 1rem;
+}
+
+.btn-remove {
+  margin-top: 1rem;
+}
+
+.header-info h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.role-count {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.rarity-section {
+  margin-bottom: 3rem;
+}
+
+.rarity-header {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rarity-count {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.role-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.role-card:hover {
+  background-color: var(--surface-hover);
+  transform: translateX(4px);
+}
+
+.role-color-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.role-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.role-name {
+  font-size: 1.125rem;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-hex {
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.role-full-name {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background-color: var(--surface);
+  border-radius: 1rem;
+  border: 2px dashed var(--border);
+}
+
+.empty-state h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+}
+
+.role-format-info {
+  max-width: 500px;
+  margin: 2rem auto 0;
+  text-align: left;
+  background-color: var(--background);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+}
+
+.role-format-info h3 {
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.role-format-info ul {
+  list-style: none;
+  margin-bottom: 1.5rem;
+}
+
+.role-format-info li {
+  padding: 0.5rem 0;
+  color: var(--text-secondary);
+}
+
+.role-format-info code {
+  background-color: var(--surface);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  color: var(--discord-blue);
+}
+
+/* Notice Boxes */
+.info-notice,
+.warning-notice {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid;
+}
+
+.info-notice {
+  background-color: rgba(88, 101, 242, 0.1);
+  border-left-color: var(--discord-blue);
+}
+
+.info-notice h3 {
+  color: var(--discord-blue);
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+}
+
+.warning-notice {
+  background-color: rgba(250, 166, 26, 0.1);
+  border-left-color: #faa61a;
+}
+
+.warning-notice h3 {
+  color: #faa61a;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+}
+
+.info-notice p,
+.warning-notice p {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.info-notice p:last-child,
+.warning-notice p:last-child {
+  margin-bottom: 0;
+}
+
+.info-notice code,
+.warning-notice code {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  color: var(--text-primary);
+  font-size: 0.9em;
+}
+
+/* Loading & Error States */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+}
+
+.error {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.error h2 {
+  color: var(--danger);
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.error p {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+  }
+
+  .server-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-card {
+    padding: 2rem;
+  }
+
+  .nav-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+}
+
+.modal-content p {
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.warning-text {
+  color: var(--danger) !important;
+  font-weight: 600;
+  margin-top: 1rem !important;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  justify-content: flex-end;
+}
+
+.modal-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Legal Pages */
+.legal-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.legal-page h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.legal-page .last-updated {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 2rem;
+}
+
+.legal-page section {
+  margin-bottom: 2rem;
+}
+
+.legal-page h2 {
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--discord-blue);
+}
+
+.legal-page h3 {
+  font-size: 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.legal-page p {
+  line-height: 1.8;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+.legal-page ul {
+  margin: 1rem 0 1rem 2rem;
+  line-height: 1.8;
+}
+
+.legal-page li {
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.legal-page a {
+  color: var(--discord-blue);
+  text-decoration: none;
+}
+
+.legal-page a:hover {
+  text-decoration: underline;
+}
+
+.legal-page strong {
+  color: var(--text-primary);
+}
+
+/* Footer */
+.footer {
+  background-color: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 2rem;
+  margin-top: auto;
+  text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+}
+
+.footer-link:hover {
+  color: var(--discord-blue);
+}
+
+.footer-text {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}

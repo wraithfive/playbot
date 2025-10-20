@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Maven
+target/
+!target/discord-bot-1.0.0.jar
+dependency-reduced-pom.xml
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+DEPLOYMENT.md
+
+# Scripts
+create-roles.sh
+*.postman_collection.json
+
+# Test files
+src/test/

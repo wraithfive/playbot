@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: .
+    image: color-gacha-bot:latest
+    container_name: discord-bot
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+
+    # Optional: Use .env file instead of environment variables
+    env_file:
+      - .env
+
+    # Mount logs directory to persist logs on host
+    volumes:
+      - ./logs:/app/logs
+
+    # Resource limits (optional - adjust based on your Docker host)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
