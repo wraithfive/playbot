@@ -50,6 +50,8 @@ export default function RoleManager() {
     mutationFn: () => serverApi.initializeDefaultRoles(guildId!),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
       const result = response.data;
       setUploadMessage(`✓ Created ${result.successCount} roles. ${result.failureCount > 0 ? `Failed: ${result.failureCount}` : ''}`);
     },
@@ -62,6 +64,8 @@ export default function RoleManager() {
     mutationFn: (file: File) => serverApi.uploadCsv(guildId!, file),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
       const result = response.data;
       setUploadMessage(`✓ Created ${result.successCount} roles. ${result.failureCount > 0 ? `Failed: ${result.failureCount}` : ''}`);
       setSelectedFile(null);
@@ -74,7 +78,9 @@ export default function RoleManager() {
   const removeBotMutation = useMutation({
     mutationFn: () => serverApi.removeBot(guildId!),
     onSuccess: () => {
-      // Navigate back to server list after successful removal
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
       navigate('/');
     },
     onError: () => {

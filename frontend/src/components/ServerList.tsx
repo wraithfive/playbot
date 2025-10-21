@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { serverApi } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import type { GuildInfo } from '../types';
@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 export default function ServerList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [invitingGuildId, setInvitingGuildId] = useState<string | null>(null);
   const { data: servers, isLoading, error } = useQuery({
     queryKey: ['servers'],
@@ -28,6 +29,10 @@ export default function ServerList() {
         // Fallback if popup blocked
         window.location.href = response.data.inviteUrl;
       }
+      // Refetch server list after invite (user may complete OAuth in new tab)
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['servers'] });
+      }, 2000);
     } catch (err) {
       console.error('Failed to get bot invite URL:', err);
       // Close placeholder popup if opened
