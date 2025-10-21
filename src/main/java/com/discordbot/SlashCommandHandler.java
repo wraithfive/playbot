@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
@@ -59,6 +60,20 @@ public class SlashCommandHandler extends ListenerAdapter {
             success -> logger.info("Registered slash commands for guild: {}", event.getGuild().getName()),
             error -> logger.error("Failed to register slash commands for guild {}: {}",
                 event.getGuild().getName(), error.getMessage())
+        );
+    }
+
+    @Override
+    public void onGuildJoin(GuildJoinEvent event) {
+        event.getGuild().updateCommands().addCommands(
+            Commands.slash("roll", "Roll for a random gacha role (once per day)"),
+            Commands.slash("testroll", "Test roll without cooldown (admin only)"),
+            Commands.slash("mycolor", "Check your current gacha role"),
+            Commands.slash("colors", "View all available gacha roles"),
+            Commands.slash("help", "Show help information")
+        ).queue(
+            success -> logger.info("Registered slash commands for newly joined guild: {}", event.getGuild().getName()),
+            error -> logger.error("Failed to register slash commands on guild join for {}: {}", event.getGuild().getName(), error.getMessage())
         );
     }
 
