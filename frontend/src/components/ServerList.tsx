@@ -19,11 +19,22 @@ export default function ServerList() {
     e.stopPropagation();
     try {
       setInvitingGuildId(guildId);
+      // Open a window synchronously to avoid popup blockers
+      const popup = window.open('about:blank', '_blank');
       const response = await serverApi.getBotInviteUrl(guildId);
-      // Open Discord OAuth in new window
-      window.open(response.data.inviteUrl, '_blank');
+      if (popup) {
+        popup.location.href = response.data.inviteUrl;
+      } else {
+        // Fallback if popup blocked
+        window.location.href = response.data.inviteUrl;
+      }
     } catch (err) {
       console.error('Failed to get bot invite URL:', err);
+      // Close placeholder popup if opened
+      try {
+        const popups = window.open('', '_blank');
+        popups?.close();
+      } catch {}
       alert('Failed to generate invite link. Please try again.');
     } finally {
       setInvitingGuildId(null);

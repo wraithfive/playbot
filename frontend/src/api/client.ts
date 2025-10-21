@@ -6,11 +6,27 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Add interceptor to include CSRF token from cookie in requests
-api.interceptors.request.use((config) => {
+// Ensure CSRF token is available before mutating requests (POST/PUT/PATCH/DELETE)
+api.interceptors.request.use(async (config) => {
+  const method = (config.method || 'get').toLowerCase();
+  const isMutating = ['post', 'put', 'patch', 'delete'].includes(method);
+
+  if (isMutating && !hasCsrfToken()) {
+    // Trigger server to set XSRF-TOKEN cookie without recursion into axios interceptors
+    try {
+      await fetch('/api/health', { credentials: 'include' });
+    } catch {
+      // ignore; we'll still attempt the request and let server respond
+    }
+  }
+
   const csrfToken = getCsrfTokenFromCookie();
   if (csrfToken) {
-    config.headers['X-XSRF-TOKEN'] = csrfToken;
+    if (!config.headers) {
+      config.headers = {} as any;
+    }
+    // Axios v1 Headers can be AxiosHeaders or a plain object
+    (config.headers as any)['X-XSRF-TOKEN'] = csrfToken;
   }
   return config;
 });
@@ -28,6 +44,10 @@ function getCsrfTokenFromCookie(): string | null {
     }
   }
   return null;
+}
+
+function hasCsrfToken(): boolean {
+  return getCsrfTokenFromCookie() !== null;
 }
 
 export const healthApi = {
