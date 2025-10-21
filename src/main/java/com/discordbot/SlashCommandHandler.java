@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -75,6 +76,17 @@ public class SlashCommandHandler extends ListenerAdapter {
             success -> logger.info("Registered slash commands for newly joined guild: {}", event.getGuild().getName()),
             error -> logger.error("Failed to register slash commands on guild join for {}: {}", event.getGuild().getName(), error.getMessage())
         );
+    }
+
+    @Override
+    public void onGuildLeave(@NotNull GuildLeaveEvent event) {
+        String guildId = event.getGuild().getId();
+        try {
+            cooldownRepository.deleteByGuildId(guildId);
+            logger.info("Cleaned up guild-specific data for guild {} on bot leave", event.getGuild().getName());
+        } catch (Exception e) {
+            logger.error("Failed to clean up data for guild {} ({}): {}", event.getGuild().getName(), guildId, e.getMessage());
+        }
     }
 
     @Override
