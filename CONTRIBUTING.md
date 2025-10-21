@@ -88,7 +88,7 @@ Feature suggestions are welcome! Please:
    DISCORD_TOKEN=your_bot_token_here
    DISCORD_CLIENT_ID=your_client_id_here
    DISCORD_CLIENT_SECRET=your_client_secret_here
-   ADMIN_PANEL_URL=http://localhost:8080
+   ADMIN_PANEL_URL=http://localhost:3000
    ```
 
 3. **Build the project**:

@@ -323,7 +323,7 @@ public class ColorGachaHandler extends ListenerAdapter {
         embed.addField("", "**Valid Rarities:** common, uncommon, rare, epic, legendary", false);
 
         // Add admin panel and legal links
-        String adminPanelUrl = System.getProperty("ADMIN_PANEL_URL", "http://localhost:8080");
+        String adminPanelUrl = System.getProperty("ADMIN_PANEL_URL", "http://localhost:3000");
         embed.addField("📋 Links",
             String.format("**Admin Panel:** %s\n**Privacy Policy:** %s/privacy\n**Terms of Service:** %s/terms",
                 adminPanelUrl, adminPanelUrl, adminPanelUrl),

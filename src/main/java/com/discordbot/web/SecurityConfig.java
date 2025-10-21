@@ -22,10 +22,17 @@ import java.util.Arrays;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private String getAdminPanelUrl() {
+        String adminPanelUrl = System.getenv("ADMIN_PANEL_URL");
+        return adminPanelUrl != null ? adminPanelUrl : "http://localhost:3000";
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        final String adminPanelUrl = getAdminPanelUrl();
+
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(cors -> cors.configurationSource(corsConfigurationSource(adminPanelUrl)))
             .csrf(csrf -> csrf
                 .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler())
@@ -41,11 +48,11 @@ public class SecurityConfig {
                 .anyRequest().permitAll()
             )
             .oauth2Login(oauth2 -> oauth2
-                .defaultSuccessUrl("http://localhost:3000", true)
-                .failureUrl("http://localhost:3000/login?error=true")
+                .defaultSuccessUrl(adminPanelUrl, true)
+                .failureUrl(adminPanelUrl + "/login?error=true")
             )
             .logout(logout -> logout
-                .logoutSuccessUrl("http://localhost:3000")
+                .logoutSuccessUrl(adminPanelUrl)
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")
             );
@@ -81,9 +88,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(String adminPanelUrl) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://localhost:8080"));
+        configuration.setAllowedOrigins(Arrays.asList(adminPanelUrl));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

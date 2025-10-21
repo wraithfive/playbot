@@ -346,7 +346,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         embed.addField("", "**Valid Rarities:** common, uncommon, rare, epic, legendary", false);
 
         // Add admin panel and legal links
-        String adminPanelUrl = System.getProperty("ADMIN_PANEL_URL", "http://localhost:8080");
+        String adminPanelUrl = System.getProperty("ADMIN_PANEL_URL", "http://localhost:3000");
 
         // Build links section - only include admin panel for admins
         StringBuilder linksText = new StringBuilder();
