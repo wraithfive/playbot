@@ -1,0 +1,42 @@
+name: Question
+description: Ask a question about using or developing Playbot
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in Playbot!
+        
+        Before asking:
+        - Check the [README](../blob/master/README.md) and existing issues
+        - For security concerns, see our [Security Policy](../security)
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: What area is your question about?
+      options:
+        - Installation & Setup
+        - Bot Usage
+        - Development
+        - Admin Panel
+        - Contributing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any additional context that might help us answer your question
+      placeholder: "Version numbers, environment details, etc."

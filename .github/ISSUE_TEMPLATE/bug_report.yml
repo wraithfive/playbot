@@ -1,0 +1,72 @@
+name: Bug Report
+description: Create a report to help us improve Playbot
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        
+        Before submitting, please:
+        - Check if a similar issue already exists
+        - Make sure you're using the latest version
+        - Read our [Security Policy](../security) for reporting security vulnerabilities
+
+  - type: input
+    id: discord_server
+    attributes:
+      label: Discord Server
+      description: Which server did this happen in? (Optional, but helpful)
+      placeholder: "Server Name or ID"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: What area of Playbot is the issue in?
+      options:
+        - Color Gacha (rolling, cooldowns)
+        - Role Management (creating, deleting roles)
+        - Admin Panel (web interface)
+        - Bot Commands
+        - OAuth/Authentication
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or errors
+      description: Please copy and paste any relevant log output or error messages
+      render: shell
+
+  - type: input
+    id: bot_version
+    attributes:
+      label: Bot Version
+      description: What version of Playbot are you running?
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here
+      placeholder: "Environment details, browser version if web-related, etc."
