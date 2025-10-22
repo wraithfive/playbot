@@ -3,6 +3,7 @@
 *-roles.sh
 cookies.txt
 *.pem
+deploy.sh
 
 # Claude AI assistant
 .claude/
