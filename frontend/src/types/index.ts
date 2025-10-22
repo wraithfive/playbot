@@ -15,6 +15,37 @@ export interface GachaRoleInfo {
   position: number;
 }
 
+export interface BulkRoleCreationResult {
+  successCount: number;
+  skippedCount: number;
+  failureCount: number;
+  createdRoles: GachaRoleInfo[];
+  skippedRoles: string[];
+  errors: string[];
+}
+
+export interface RoleDeletionResult {
+  roleId: string;
+  roleName: string | null;
+  success: boolean;
+  error: string | null;
+}
+
+export interface BulkRoleDeletionResult {
+  successCount: number;
+  failureCount: number;
+  deletedRoles: RoleDeletionResult[];
+  errors: string[];
+}
+
+export interface RoleHierarchyStatus {
+  isValid: boolean;
+  botRoleName: string;
+  botRolePosition: number;
+  highestGachaRolePosition: number;
+  conflictingRoles: string[];
+}
+
 export interface HealthResponse {
   status: string;
   bot: {

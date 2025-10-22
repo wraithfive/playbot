@@ -77,6 +77,36 @@ body {
   gap: 0.5rem;
 }
 
+/* Compact/small button variant */
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 0.35rem;
+  white-space: nowrap;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+/* Ensure labels styled as buttons match button sizing */
+label.btn {
+  display: inline-flex;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* Link-style button variant */
+.btn-link {
+  background: transparent;
+  color: var(--discord-blue);
+  padding: 0.25rem 0.5rem;
+  font-weight: 500;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+  background: transparent;
+}
+
 .btn-primary {
   background-color: var(--discord-blue);
   color: white;
@@ -432,6 +462,175 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Inline Add Role form */
+.add-role-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 0.5rem 0 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.add-role-form .form-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.add-role-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.add-role-form .field-name {
+  flex: 1;
+  min-width: 180px;
+}
+
+.add-role-form .field-hex {
+  width: 140px;
+}
+
+.add-role-form .field-picker {
+  width: 60px;
+}
+
+label.field-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.input {
+  background: var(--background);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.95rem;
+}
+
+.input.color {
+  font-family: 'Courier New', monospace;
+}
+
+.color-picker-input {
+  width: 100%;
+  height: 38px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--background);
+  cursor: pointer;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Rarity header adjustments */
+.btn-add-role {
+  margin-left: auto; /* push + Add to right end */
+}
+
+/* Inline actions alignment */
+.role-actions-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 1rem 0;
+}
+
+.role-actions-compact .btn {
+  min-width: 200px;
+  justify-content: center;
+}
+
+.csv-upload-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.csv-upload-inline .btn {
+  min-width: 200px;
+  justify-content: center;
+}
+
+.csv-upload-inline .file-name {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.upload-message-inline {
+  margin-left: auto;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+}
+
+.upload-message-inline.success { color: var(--success); }
+.upload-message-inline.error { color: var(--danger); }
+
+/* Bulk selection & actions */
+.bulk-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem 0;
+}
+
+.selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.selection-count {
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* Role list preview in delete modal */
+.role-list-preview {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin: 0.75rem 0 1rem 0;
+  background: var(--surface);
+}
+
+.role-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.35rem;
+}
+
+.role-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Checkbox alignment in role cards */
+.role-checkbox {
+  transform: translateY(2px);
 }
 
 /* Empty State */

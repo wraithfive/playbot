@@ -1,10 +1,15 @@
 package com.discordbot.web.controller;
 
 import com.discordbot.web.dto.BulkRoleCreationResult;
+import com.discordbot.web.dto.BulkRoleDeletionRequest;
+import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.CreateRoleRequest;
 import com.discordbot.web.dto.GachaRoleInfo;
+import com.discordbot.web.dto.RoleDeletionResult;
+import com.discordbot.web.dto.RoleHierarchyStatus;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.RateLimitService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -36,6 +41,35 @@ public class RoleController {
     }
 
     /**
+     * POST /api/servers/{guildId}/roles
+     * Create a single gatcha role
+     */
+    @PostMapping
+    public ResponseEntity<GachaRoleInfo> createRole(
+            @PathVariable String guildId,
+            @jakarta.validation.Valid @RequestBody CreateRoleRequest request,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        try {
+            GachaRoleInfo created = adminService.createGatchaRole(guildId, request);
+            return ResponseEntity.ok(created);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception ex) {
+            logger.error("Failed to create role for guild {}: {}", guildId, ex.getMessage());
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    /**
      * GET /api/servers/{guildId}/roles
      * Returns all gatcha roles for a specific server
      * SECURED: Requires OAuth2 authentication + user must be admin in that server
@@ -60,6 +94,29 @@ public class RoleController {
         List<GachaRoleInfo> roles = adminService.getGatchaRoles(guildId);
 
         return ResponseEntity.ok(roles);
+    }
+
+    /**
+     * GET /api/servers/{guildId}/roles/hierarchy-check
+     * Check if bot's role is positioned correctly above gacha roles
+     */
+    @GetMapping("/hierarchy-check")
+    public ResponseEntity<RoleHierarchyStatus> checkRoleHierarchy(
+            @PathVariable String guildId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        logger.info("Checking role hierarchy for guild: {}", guildId);
+        RoleHierarchyStatus status = adminService.checkRoleHierarchy(guildId);
+
+        return ResponseEntity.ok(status);
     }
 
     /**
@@ -205,5 +262,64 @@ public class RoleController {
 
         logger.info("Parsed {} roles from CSV", requests.size());
         return requests;
+    }
+
+    /**
+     * DELETE /api/servers/{guildId}/roles/{roleId}
+     * Delete a single gacha role
+     */
+    @DeleteMapping("/{roleId}")
+    public ResponseEntity<RoleDeletionResult> deleteRole(
+            @PathVariable String guildId,
+            @PathVariable String roleId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        logger.info("Deleting role {} from guild: {}", roleId, guildId);
+        RoleDeletionResult result = adminService.deleteGatchaRole(guildId, roleId);
+
+        if (!result.success()) {
+            logger.warn("Failed to delete role {}: {}", roleId, result.error());
+            return ResponseEntity.status(400).body(result);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * POST /api/servers/{guildId}/roles/bulk-delete
+     * Delete multiple gacha roles
+     */
+    @PostMapping("/bulk-delete")
+    public ResponseEntity<BulkRoleDeletionResult> bulkDeleteRoles(
+            @PathVariable String guildId,
+            @Valid @RequestBody BulkRoleDeletionRequest request,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        // Rate limiting check for bulk operations
+        if (!rateLimitService.allowBulkOperation(authentication)) {
+            logger.warn("Rate limit exceeded for bulk delete: guildId={}", guildId);
+            return ResponseEntity.status(429).build(); // 429 Too Many Requests
+        }
+
+        logger.info("Bulk deleting {} roles from guild: {}", request.roleIds().size(), guildId);
+        BulkRoleDeletionResult result = adminService.deleteBulkGatchaRoles(guildId, request.roleIds());
+
+        return ResponseEntity.ok(result);
     }
 }

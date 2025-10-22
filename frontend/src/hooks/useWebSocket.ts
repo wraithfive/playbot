@@ -3,9 +3,10 @@ import SockJS from 'sockjs-client';
 import { Client, over } from 'stompjs';
 
 interface GuildUpdateMessage {
-  type: 'GUILD_JOINED' | 'GUILD_LEFT';
+  type: 'GUILD_JOINED' | 'GUILD_LEFT' | 'ROLES_CHANGED';
   guildId: string;
-  guildName: string;
+  guildName?: string;
+  action?: string; // For ROLES_CHANGED: "created", "deleted", "updated"
 }
 
 export function useWebSocket(onGuildUpdate: (message: GuildUpdateMessage) => void) {

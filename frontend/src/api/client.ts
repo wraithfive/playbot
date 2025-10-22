@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GuildInfo, GachaRoleInfo, HealthResponse } from '../types';
+import type { GuildInfo, GachaRoleInfo, HealthResponse, BulkRoleCreationResult, RoleDeletionResult, BulkRoleDeletionResult, RoleHierarchyStatus } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -54,13 +54,6 @@ export const healthApi = {
   check: () => api.get<HealthResponse>('/health'),
 };
 
-interface BulkRoleCreationResult {
-  successCount: number;
-  failureCount: number;
-  createdRoles: GachaRoleInfo[];
-  errors: string[];
-}
-
 export const serverApi = {
   getServers: () => api.get<GuildInfo[]>('/servers'),
   getServer: (guildId: string) => api.get<GuildInfo>(`/servers/${guildId}`),
@@ -71,6 +64,9 @@ export const serverApi = {
     return result;
   },
   getRoles: (guildId: string) => api.get<GachaRoleInfo[]>(`/servers/${guildId}/roles`),
+  createRole: (guildId: string, payload: { name: string; rarity: string; colorHex: string }) =>
+    api.post<GachaRoleInfo>(`/servers/${guildId}/roles`, payload),
+  checkRoleHierarchy: (guildId: string) => api.get<RoleHierarchyStatus>(`/servers/${guildId}/roles/hierarchy-check`),
   initializeDefaultRoles: (guildId: string) =>
     api.post<BulkRoleCreationResult>(`/servers/${guildId}/roles/init-defaults`),
   uploadCsv: (guildId: string, file: File) => {
@@ -86,6 +82,10 @@ export const serverApi = {
     api.get(`/servers/${guildId}/roles/download-example`, {
       responseType: 'blob',
     }),
+  deleteRole: (guildId: string, roleId: string) =>
+    api.delete<RoleDeletionResult>(`/servers/${guildId}/roles/${roleId}`),
+  bulkDeleteRoles: (guildId: string, roleIds: string[]) =>
+    api.post<BulkRoleDeletionResult>(`/servers/${guildId}/roles/bulk-delete`, { roleIds }),
   /**
    * Force refresh the backend guilds cache for the current user
    */

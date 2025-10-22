@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serverApi } from '../api/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { GachaRoleInfo } from '../types';
+import type { GachaRoleInfo, BulkRoleCreationResult } from '../types';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 const rarityEmojis: Record<string, string> = {
   common: '⚪',
@@ -27,6 +28,73 @@ export default function RoleManager() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string>('');
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [openRarity, setOpenRarity] = useState<string | null>(null);
+  const [newRoleName, setNewRoleName] = useState<string>('');
+  const [newRoleColor, setNewRoleColor] = useState<string>('');
+
+  // Simple color name suggestion: pick nearest from a small palette
+  const COMMON_COLORS: Array<{ name: string; hex: string }> = [
+    { name: 'Black', hex: '#000000' },
+    { name: 'White', hex: '#FFFFFF' },
+    { name: 'Gray', hex: '#808080' },
+    { name: 'Silver', hex: '#C0C0C0' },
+    { name: 'Maroon', hex: '#800000' },
+    { name: 'Red', hex: '#FF0000' },
+    { name: 'Orange', hex: '#FFA500' },
+    { name: 'Gold', hex: '#FFD700' },
+    { name: 'Yellow', hex: '#FFFF00' },
+    { name: 'Olive', hex: '#808000' },
+    { name: 'Lime', hex: '#00FF00' },
+    { name: 'Green', hex: '#008000' },
+    { name: 'Teal', hex: '#008080' },
+    { name: 'Cyan', hex: '#00FFFF' },
+    { name: 'Sky Blue', hex: '#87CEEB' },
+    { name: 'Dodger Blue', hex: '#1E90FF' },
+    { name: 'Blue', hex: '#0000FF' },
+    { name: 'Indigo', hex: '#4B0082' },
+    { name: 'Purple', hex: '#800080' },
+    { name: 'Violet', hex: '#EE82EE' },
+    { name: 'Magenta', hex: '#FF00FF' },
+    { name: 'Pink', hex: '#FFC0CB' },
+    { name: 'Rose', hex: '#FF007F' },
+    { name: 'Brown', hex: '#A52A2A' },
+    { name: 'Chocolate', hex: '#D2691E' },
+    { name: 'Tan', hex: '#D2B48C' },
+  ];
+
+  function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const cleaned = hex.trim().startsWith('#') ? hex.trim().slice(1) : hex.trim();
+    if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return null;
+    const r = parseInt(cleaned.slice(0, 2), 16);
+    const g = parseInt(cleaned.slice(2, 4), 16);
+    const b = parseInt(cleaned.slice(4, 6), 16);
+    return { r, g, b };
+  }
+
+  function distanceSq(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number {
+    const dr = a.r - b.r;
+    const dg = a.g - b.g;
+    const db = a.b - b.b;
+    return dr * dr + dg * dg + db * db;
+  }
+
+  function suggestColorName(hex: string): string | null {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return null;
+    let bestName = COMMON_COLORS[0].name;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const c of COMMON_COLORS) {
+      const base = hexToRgb(c.hex)!;
+      const d = distanceSq(rgb, base);
+      if (d < bestDist) {
+        bestDist = d;
+        bestName = c.name;
+      }
+    }
+    return bestName;
+  }
 
   const { data: server, isLoading: serverLoading } = useQuery({
     queryKey: ['server', guildId],
@@ -46,28 +114,52 @@ export default function RoleManager() {
     enabled: !!guildId,
   });
 
-  const initDefaultsMutation = useMutation({
+  const { data: hierarchyStatus } = useQuery({
+    queryKey: ['hierarchy', guildId],
+    queryFn: async () => {
+      const response = await serverApi.checkRoleHierarchy(guildId!);
+      return response.data;
+    },
+    enabled: !!guildId && !!roles && roles.length > 0,
+  });
+
+  // Listen for real-time role updates via WebSocket
+  useWebSocket((message) => {
+    if (message.type === 'ROLES_CHANGED' && message.guildId === guildId) {
+      console.log('[RoleManager] Received ROLES_CHANGED event, refreshing roles...');
+      queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+    }
+  });
+
+  const initDefaultsMutation = useMutation<{ data: BulkRoleCreationResult }>({
     mutationFn: () => serverApi.initializeDefaultRoles(guildId!),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
       queryClient.invalidateQueries({ queryKey: ['server', guildId] });
       queryClient.invalidateQueries({ queryKey: ['servers'] });
       const result = response.data;
-      setUploadMessage(`✓ Created ${result.successCount} roles. ${result.failureCount > 0 ? `Failed: ${result.failureCount}` : ''}`);
+      const parts = [`✓ Created ${result.successCount} roles`];
+      if (result.skippedCount > 0) parts.push(`${result.skippedCount} already existed`);
+      if (result.failureCount > 0) parts.push(`${result.failureCount} failed`);
+      setUploadMessage(parts.join(', '));
     },
     onError: () => {
       setUploadMessage('✗ Failed to initialize default roles');
     },
   });
 
-  const uploadCsvMutation = useMutation({
+  const uploadCsvMutation = useMutation<{ data: BulkRoleCreationResult }, Error, File>({
     mutationFn: (file: File) => serverApi.uploadCsv(guildId!, file),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
       queryClient.invalidateQueries({ queryKey: ['server', guildId] });
       queryClient.invalidateQueries({ queryKey: ['servers'] });
       const result = response.data;
-      setUploadMessage(`✓ Created ${result.successCount} roles. ${result.failureCount > 0 ? `Failed: ${result.failureCount}` : ''}`);
+      const parts = [`✓ Created ${result.successCount} roles`];
+      if (result.skippedCount > 0) parts.push(`${result.skippedCount} already existed`);
+      if (result.failureCount > 0) parts.push(`${result.failureCount} failed`);
+      setUploadMessage(parts.join(', '));
       setSelectedFile(null);
     },
     onError: () => {
@@ -86,6 +178,65 @@ export default function RoleManager() {
     onError: () => {
       alert('Failed to remove bot. Please try again or remove it manually from Discord Server Settings.');
       setShowRemoveConfirm(false);
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (roleIds: string[]) => serverApi.bulkDeleteRoles(guildId!, roleIds),
+    onSuccess: (response) => {
+      const result = response.data;
+      
+      // Build detailed message
+      let message = `✓ Deleted ${result.successCount} role${result.successCount !== 1 ? 's' : ''}`;
+      
+      if (result.failureCount > 0) {
+        message += ` | ✗ ${result.failureCount} failed`;
+        // Add first error as detail
+        if (result.errors.length > 0) {
+          const firstError = result.errors[0];
+          // Extract just the error message part after "Role <id>: "
+          const errorDetail = firstError.includes(': ') 
+            ? firstError.split(': ').slice(1).join(': ')
+            : firstError;
+          message += `: ${errorDetail}`;
+        }
+      }
+      
+      setUploadMessage(message);
+      setSelectedRoleIds(new Set());
+      setShowDeleteConfirm(false);
+      
+      // Force refetch of roles to update UI
+      queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+    onError: (error: any) => {
+      const errorMsg = error?.response?.data?.message || error?.message || 'Failed to delete roles';
+      setUploadMessage(`✗ ${errorMsg}`);
+      setShowDeleteConfirm(false);
+      
+      // Still refresh to show current state
+      queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+    },
+  });
+
+  const createRoleMutation = useMutation({
+    mutationFn: (payload: { name: string; rarity: string; colorHex: string }) =>
+      serverApi.createRole(guildId!, payload),
+    onSuccess: (response) => {
+      const created = response.data;
+      setUploadMessage(`✓ Created role ${created.displayName}`);
+      setOpenRarity(null);
+      setNewRoleName('');
+      setNewRoleColor('');
+      // Refresh lists
+      queryClient.invalidateQueries({ queryKey: ['roles', guildId] });
+      queryClient.invalidateQueries({ queryKey: ['server', guildId] });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.message || 'Failed to create role';
+      setUploadMessage(`✗ ${msg}`);
     },
   });
 
@@ -119,6 +270,36 @@ export default function RoleManager() {
     }
   };
 
+  const handleToggleRole = (roleId: string) => {
+    setSelectedRoleIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(roleId)) {
+        newSet.delete(roleId);
+      } else {
+        newSet.add(roleId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (roles) {
+      setSelectedRoleIds(new Set(roles.map(r => r.id)));
+    }
+  };
+
+  const handleSelectNone = () => {
+    setSelectedRoleIds(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = () => {
+    bulkDeleteMutation.mutate(Array.from(selectedRoleIds));
+  };
+
   if (serverLoading || rolesLoading) {
     return <div className="loading">Loading...</div>;
   }
@@ -137,7 +318,6 @@ export default function RoleManager() {
 
   // Group roles by rarity
   const rolesByRarity: Record<string, GachaRoleInfo[]> = {};
-  const noRarityRoles: GachaRoleInfo[] = [];
 
   roles?.forEach((role: GachaRoleInfo) => {
     if (role.rarity) {
@@ -146,8 +326,6 @@ export default function RoleManager() {
         rolesByRarity[rarityKey] = [];
       }
       rolesByRarity[rarityKey].push(role);
-    } else {
-      noRarityRoles.push(role);
     }
   });
 
@@ -181,11 +359,10 @@ export default function RoleManager() {
             <p className="warning-text">
               ⚠️ This will remove the bot from your server. Users won't be able to use gacha commands until you re-invite it.
             </p>
-            <div className="modal-actions">
+            <div className="modal-buttons">
               <button
                 onClick={() => setShowRemoveConfirm(false)}
                 className="btn btn-secondary"
-                disabled={removeBotMutation.isPending}
               >
                 Cancel
               </button>
@@ -197,6 +374,75 @@ export default function RoleManager() {
                 {removeBotMutation.isPending ? 'Removing...' : 'Yes, Remove Bot'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Delete Selected Roles?</h2>
+            <p>Are you sure you want to delete <strong>{selectedRoleIds.size}</strong> role(s)?</p>
+            <p className="warning-text">
+              ⚠️ This action cannot be undone. The roles will be permanently removed from Discord.
+            </p>
+            <div className="role-list-preview">
+              {roles?.filter(r => selectedRoleIds.has(r.id)).map(r => (
+                <div key={r.id} className="role-preview-item">
+                  <div className="role-color-dot" style={{ backgroundColor: r.colorHex || '#666' }} />
+                  {r.displayName}
+                </div>
+              ))}
+            </div>
+            <div className="modal-buttons">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                className="btn btn-danger"
+                disabled={bulkDeleteMutation.isPending}
+              >
+                {bulkDeleteMutation.isPending ? 'Deleting...' : 'Yes, Delete Roles'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Hierarchy Warning */}
+      {hierarchyStatus && !hierarchyStatus.isValid && (
+        <div className="error-notice hierarchy-warning">
+          <h3>⚠️ CRITICAL: Role Hierarchy Problem Detected</h3>
+          <p>
+            <strong>The bot cannot manage gacha roles because its role is positioned below them!</strong>
+          </p>
+          <p>
+            Bot's role: <code>{hierarchyStatus.botRoleName}</code> (position {hierarchyStatus.botRolePosition})
+          </p>
+          <p>
+            {hierarchyStatus.conflictingRoles.length} role(s) are above the bot and cannot be managed:
+          </p>
+          <ul className="conflicting-roles-list">
+            {hierarchyStatus.conflictingRoles.slice(0, 5).map((roleName, idx) => (
+              <li key={idx}><code>{roleName}</code></li>
+            ))}
+            {hierarchyStatus.conflictingRoles.length > 5 && (
+              <li>... and {hierarchyStatus.conflictingRoles.length - 5} more</li>
+            )}
+          </ul>
+          <div className="fix-instructions">
+            <strong>How to fix:</strong>
+            <ol>
+              <li>Go to Discord Server Settings → Roles</li>
+              <li>Find the <code>{hierarchyStatus.botRoleName}</code> role</li>
+              <li>Drag it ABOVE all <code>gacha:</code> roles in the list</li>
+              <li>Save and refresh this page</li>
+            </ol>
           </div>
         </div>
       )}
@@ -326,6 +572,29 @@ export default function RoleManager() {
             )}
           </div>
 
+          <div className="bulk-actions">
+            <div className="selection-controls">
+              <button onClick={handleSelectAll} className="btn btn-link">
+                Select All
+              </button>
+              <button onClick={handleSelectNone} className="btn btn-link">
+                Select None
+              </button>
+              <span className="selection-count">
+                {selectedRoleIds.size} selected
+              </span>
+            </div>
+            {selectedRoleIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="btn btn-danger btn-sm"
+                disabled={bulkDeleteMutation.isPending}
+              >
+                🗑️ Delete Selected ({selectedRoleIds.size})
+              </button>
+            )}
+          </div>
+
           <div className="roles-content">
             {rarityOrder.map((rarity) => {
               const rarityRoles = rolesByRarity[rarity];
@@ -336,14 +605,101 @@ export default function RoleManager() {
                   <h2 className="rarity-header" style={{ color: rarityColors[rarity] }}>
                     {rarityEmojis[rarity]} {rarity.toUpperCase()}
                     <span className="rarity-count">({rarityRoles.length})</span>
+                    <button
+                      className="btn btn-link btn-add-role"
+                      onClick={() => {
+                        setOpenRarity(rarity);
+                        setNewRoleName('');
+                        // Default to this rarity's color if available
+                        const def = rarityColors[rarity] || '#666666';
+                        setNewRoleColor(def.startsWith('#') ? def : `#${def}`);
+                      }}
+                    >
+                      + Add
+                    </button>
                   </h2>
+
+                  {openRarity === rarity && (
+                    <div className="add-role-form">
+                      <div className="form-row">
+                        <div className="field field-name">
+                          <label className="field-label" htmlFor={`name-${rarity}`}>Display name</label>
+                          <input
+                            id={`name-${rarity}`}
+                            type="text"
+                            placeholder="e.g., Ocean Wave"
+                            value={newRoleName}
+                            onChange={(e) => setNewRoleName(e.target.value)}
+                            className="input"
+                          />
+                        </div>
+                        <div className="field field-hex">
+                          <label className="field-label" htmlFor={`color-${rarity}`}>Color hex</label>
+                          <input
+                            id={`color-${rarity}`}
+                            type="text"
+                            placeholder="#RRGGBB"
+                            value={newRoleColor}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setNewRoleColor(v);
+                              // Auto-suggest name when hex looks valid
+                              const hex = v.startsWith('#') ? v : `#${v}`;
+                              if (/^#?[0-9a-fA-F]{6}$/.test(v) || /^#[0-9a-fA-F]{6}$/.test(hex)) {
+                                const suggested = suggestColorName(hex);
+                                if (suggested) setNewRoleName(suggested);
+                              }
+                            }}
+                            className="input color"
+                          />
+                        </div>
+                        <div className="field field-picker">
+                          <label className="field-label">Color picker</label>
+                          <input
+                            id={`picker-${rarity}`}
+                            aria-label="Pick color"
+                            type="color"
+                            value={newRoleColor && /^#?[0-9a-fA-F]{6}$/.test(newRoleColor) ? (newRoleColor.startsWith('#') ? newRoleColor : `#${newRoleColor}`) : '#666666'}
+                            onChange={(e) => {
+                              const v = e.target.value; // always #RRGGBB
+                              setNewRoleColor(v);
+                              // Always auto-suggest name from color
+                              const suggested = suggestColorName(v);
+                              if (suggested) setNewRoleName(suggested);
+                            }}
+                            className="color-picker-input"
+                          />
+                        </div>
+                      </div>
+                      <div className="form-actions">
+                        <button
+                          className="btn btn-primary btn-sm"
+                          disabled={createRoleMutation.isPending || !newRoleName || !/^#?[0-9a-fA-F]{6}$/.test(newRoleColor)}
+                          onClick={() => {
+                            // Normalize color to have leading '#'
+                            const hex = newRoleColor.startsWith('#') ? newRoleColor : `#${newRoleColor}`;
+                            createRoleMutation.mutate({ name: newRoleName.trim(), rarity, colorHex: hex });
+                          }}
+                        >
+                          {createRoleMutation.isPending ? 'Creating…' : 'Create Role'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setOpenRarity(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                   <div className="role-grid">
                     {rarityRoles.map((role: GachaRoleInfo) => (
                       <div
                         key={role.id}
-                        className="role-card"
+                        className={`role-card ${selectedRoleIds.has(role.id) ? 'selected' : ''}`}
                         style={{ borderLeftColor: role.colorHex || '#666' }}
                       >
+                        <input
+                          type="checkbox"
+                          className="role-checkbox"
+                          checked={selectedRoleIds.has(role.id)}
+                          onChange={() => handleToggleRole(role.id)}
+                        />
                         <div className="role-color-preview" style={{ backgroundColor: role.colorHex || '#666' }} />
                         <div className="role-info">
                           <h3 className="role-name">{role.displayName}</h3>
@@ -357,27 +713,7 @@ export default function RoleManager() {
               );
             })}
 
-            {noRarityRoles.length > 0 && (
-              <div className="rarity-section">
-                <h2 className="rarity-header">No Rarity <span className="rarity-count">({noRarityRoles.length})</span></h2>
-                <div className="role-grid">
-                  {noRarityRoles.map((role: GachaRoleInfo) => (
-                    <div
-                      key={role.id}
-                      className="role-card"
-                      style={{ borderLeftColor: role.colorHex || '#666' }}
-                    >
-                      <div className="role-color-preview" style={{ backgroundColor: role.colorHex || '#666' }} />
-                      <div className="role-info">
-                        <h3 className="role-name">{role.displayName}</h3>
-                        <p className="role-hex">{role.colorHex || 'No color'}</p>
-                        <p className="role-full-name">{role.fullName}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Roles require a rarity; no additional sections */}
           </div>
         </>
       )}

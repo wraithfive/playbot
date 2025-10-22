@@ -1,9 +1,12 @@
 package com.discordbot.web.service;
 
 import com.discordbot.web.dto.BulkRoleCreationResult;
+import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.CreateRoleRequest;
 import com.discordbot.web.dto.GachaRoleInfo;
 import com.discordbot.web.dto.GuildInfo;
+import com.discordbot.web.dto.RoleDeletionResult;
+import com.discordbot.web.dto.RoleHierarchyStatus;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -37,12 +40,15 @@ public class AdminService {
     private final RestTemplate restTemplate;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final GuildsCache guildsCache;
+    private final WebSocketNotificationService webSocketNotificationService;
 
-    public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, GuildsCache guildsCache) {
+    public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, 
+                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService) {
         this.jda = jda;
         this.restTemplate = new RestTemplate();
         this.authorizedClientService = authorizedClientService;
         this.guildsCache = guildsCache;
+        this.webSocketNotificationService = webSocketNotificationService;
     }
 
     /**
@@ -210,6 +216,63 @@ public class AdminService {
     }
 
     /**
+     * Check if the bot's role is positioned correctly in the hierarchy
+     * (must be above all gacha roles to manage them)
+     */
+    public RoleHierarchyStatus checkRoleHierarchy(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.warn("Guild not found: {}", guildId);
+            return new RoleHierarchyStatus(false, "Unknown", 0, 0, List.of("Guild not found"));
+        }
+
+        // Get the bot's role (the highest role assigned to the bot member)
+        net.dv8tion.jda.api.entities.Member botMember = guild.getSelfMember();
+        List<Role> botRoles = botMember.getRoles();
+        
+        if (botRoles.isEmpty()) {
+            return new RoleHierarchyStatus(false, "No role assigned", 0, 0, 
+                List.of("Bot has no roles assigned"));
+        }
+
+        // Get the highest role (lowest position number = highest in hierarchy)
+        Role botHighestRole = botRoles.get(0);
+        int botPosition = botHighestRole.getPosition();
+
+        // Find all gacha roles and check if any are above the bot's role
+        List<String> conflictingRoles = new ArrayList<>();
+        int highestGachaPosition = -1;
+
+        for (Role role : guild.getRoles()) {
+            if (role.getName().toLowerCase().startsWith(GATCHA_PREFIX)) {
+                if (highestGachaPosition == -1 || role.getPosition() > highestGachaPosition) {
+                    highestGachaPosition = role.getPosition();
+                }
+                
+                // If gacha role position > bot position, it's above the bot (conflicting)
+                if (role.getPosition() > botPosition) {
+                    conflictingRoles.add(role.getName());
+                }
+            }
+        }
+
+        boolean isValid = conflictingRoles.isEmpty();
+        
+        if (!isValid) {
+            logger.warn("Role hierarchy issue in guild {}: Bot role '{}' (pos {}) is below {} gacha role(s)", 
+                guild.getName(), botHighestRole.getName(), botPosition, conflictingRoles.size());
+        }
+
+        return new RoleHierarchyStatus(
+            isValid,
+            botHighestRole.getName(),
+            botPosition,
+            highestGachaPosition,
+            conflictingRoles
+        );
+    }
+
+    /**
      * Create a single gatcha role in a guild
      */
     public GachaRoleInfo createGatchaRole(String guildId, CreateRoleRequest request) {
@@ -233,6 +296,13 @@ public class AdminService {
                 .complete();
 
             logger.info("Created role {} in guild {}", fullName, guild.getName());
+            // Notify connected clients so UIs refresh role list in real-time
+            try {
+                webSocketNotificationService.notifyRolesChanged(guildId, "created");
+            } catch (Exception wsEx) {
+                logger.warn("Failed to send websocket notification for created role {}: {}", fullName, wsEx.getMessage());
+            }
+
             return mapRoleToDto(createdRole);
         } catch (Exception e) {
             logger.error("Failed to create role {} in guild {}: {}", fullName, guildId, e.getMessage());
@@ -242,13 +312,33 @@ public class AdminService {
 
     /**
      * Create multiple gatcha roles from a list of requests
+     * Skips roles that already exist (duplicate detection by full name)
      */
     public BulkRoleCreationResult createBulkGatchaRoles(String guildId, List<CreateRoleRequest> requests) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            throw new IllegalArgumentException("Guild not found: " + guildId);
+        }
+
         List<GachaRoleInfo> createdRoles = new ArrayList<>();
+        List<String> skippedRoles = new ArrayList<>();
         List<String> errors = new ArrayList<>();
 
         for (CreateRoleRequest request : requests) {
             try {
+                // Build full role name to check for duplicates
+                String fullName = GATCHA_PREFIX + request.rarity() + ":" + request.name();
+                
+                // Check if role already exists
+                Role existingRole = guild.getRolesByName(fullName, true).stream().findFirst().orElse(null);
+                
+                if (existingRole != null) {
+                    skippedRoles.add(request.name());
+                    logger.debug("Skipped duplicate role '{}' in guild {}", fullName, guild.getName());
+                    continue;
+                }
+                
+                // Create new role
                 GachaRoleInfo created = createGatchaRole(guildId, request);
                 createdRoles.add(created);
             } catch (Exception e) {
@@ -258,16 +348,24 @@ public class AdminService {
             }
         }
 
-        logger.info("Bulk role creation in guild {}: {} succeeded, {} failed",
-            guildId, createdRoles.size(), errors.size());
+        logger.info("Bulk role creation in guild {}: {} created, {} skipped, {} failed",
+            guildId, createdRoles.size(), skippedRoles.size(), errors.size());
 
         BulkRoleCreationResult result = new BulkRoleCreationResult(
             createdRoles.size(),
+            skippedRoles.size(),
             errors.size(),
             createdRoles,
+            skippedRoles,
             errors
         );
         guildsCache.evictAll();
+        
+        // Notify connected clients to refresh role list
+        if (createdRoles.size() > 0) {
+            webSocketNotificationService.notifyRolesChanged(guildId, "created");
+        }
+        
         return result;
     }
 
@@ -352,6 +450,84 @@ public class AdminService {
     public void evictGuildsCache(Authentication authentication) {
         String accessToken = getAccessToken(authentication);
         guildsCache.evictForToken(accessToken);
+    }
+
+    /**
+     * Delete a single gacha role by ID
+     */
+    public RoleDeletionResult deleteGatchaRole(String guildId, String roleId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.error("Guild not found: {}", guildId);
+            return new RoleDeletionResult(roleId, null, false, "Guild not found");
+        }
+
+        Role role = guild.getRoleById(roleId);
+        if (role == null) {
+            logger.warn("Role not found: {} in guild: {}", roleId, guildId);
+            return new RoleDeletionResult(roleId, null, false, "Role not found");
+        }
+
+        // Only allow deletion of gacha roles
+        if (!role.getName().startsWith("gacha:")) {
+            logger.warn("Attempted to delete non-gacha role: {} in guild: {}", role.getName(), guildId);
+            return new RoleDeletionResult(roleId, role.getName(), false, "Can only delete gacha roles");
+        }
+
+        String roleName = role.getName();
+        try {
+            // Use .complete() to wait for the deletion and catch errors synchronously
+            role.delete().complete();
+            logger.info("Deleted role: {} (ID: {}) from guild: {}", roleName, roleId, guild.getName());
+            return new RoleDeletionResult(roleId, roleName, true, null);
+        } catch (Exception e) {
+            String errorMsg = e.getMessage();
+            // Provide more specific error message for permission issues
+            if (errorMsg != null && (errorMsg.contains("Missing Permissions") || errorMsg.contains("50013"))) {
+                errorMsg = "Bot lacks permission (role hierarchy issue - bot's role must be above this role)";
+            }
+            logger.error("Failed to delete role: {} (ID: {}) from guild: {}: {}", roleName, roleId, guild.getName(), errorMsg, e);
+            return new RoleDeletionResult(roleId, roleName, false, errorMsg);
+        }
+    }
+
+    /**
+     * Delete multiple gacha roles by their IDs
+     */
+    public BulkRoleDeletionResult deleteBulkGatchaRoles(String guildId, List<String> roleIds) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.error("Guild not found: {}", guildId);
+            return new BulkRoleDeletionResult(0, roleIds.size(), List.of(), 
+                List.of("Guild not found"));
+        }
+
+        List<RoleDeletionResult> deletedRoles = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+        int failureCount = 0;
+
+        for (String roleId : roleIds) {
+            RoleDeletionResult result = deleteGatchaRole(guildId, roleId);
+            
+            if (result.success()) {
+                successCount++;
+                deletedRoles.add(result);
+            } else {
+                failureCount++;
+                errors.add(String.format("Role %s: %s", roleId, result.error()));
+            }
+        }
+
+        logger.info("Bulk delete complete for guild {}: {} succeeded, {} failed", 
+            guild.getName(), successCount, failureCount);
+
+        // Notify connected clients to refresh role list
+        if (successCount > 0) {
+            webSocketNotificationService.notifyRolesChanged(guildId, "deleted");
+        }
+
+        return new BulkRoleDeletionResult(successCount, failureCount, deletedRoles, errors);
     }
 
     // Helper methods
