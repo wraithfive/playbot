@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
   return (
     <div className="legal-page">
       <h1>Privacy Policy</h1>
-      <p className="last-updated">Last Updated: [DATE]</p>
+  <p className="last-updated">Last Updated: October 20, 2025</p>
 
       <section>
         <h2>1. Introduction</h2>
@@ -45,6 +45,7 @@ export default function PrivacyPolicy() {
           <li>Server/Guild IDs where you have admin permissions</li>
           <li>Server names and icons (for display purposes)</li>
           <li>OAuth2 access tokens (temporarily, for authentication)</li>
+          <li>OAuth2 refresh tokens (securely stored, for persistent login)</li>
         </ul>
 
         <h3>3.2 For All Users (Including Server Members)</h3>
@@ -98,8 +99,13 @@ export default function PrivacyPolicy() {
         <ul>
           <li><strong>Roll Cooldowns:</strong> Stored in a database to persist across bot restarts. This includes your Discord User ID, Server ID, username, and timestamp of your last roll. Cooldown data is retained indefinitely but only used to enforce the once-per-day roll limit.</li>
           <li><strong>Role Assignments:</strong> Managed by Discord; we only read current roles when needed. No role data is permanently stored by Playbot.</li>
-          <li><strong>Admin Authentication:</strong> OAuth2 tokens cached briefly (10 seconds) and then discarded</li>
+          <li><strong>Admin Authentication:</strong> OAuth2 access tokens cached briefly (10 seconds) and then discarded. OAuth2 refresh tokens are stored securely in an encrypted database to allow persistent login for server administrators. Refresh tokens are only used to obtain new access tokens and are never shared with third parties.</li>
         </ul>
+        <h3>5.4 Persistent Login and Session Management</h3>
+        <p>
+          If you log in to the admin panel, your session may remain valid for up to 30 days unless you log out or clear your cookies. We use secure session cookies and store OAuth2 refresh tokens in our database to maintain your login. Refresh tokens are used only to obtain new access tokens and are never shared with third parties. You can revoke access at any time by removing the bot from your server or revoking Playbot's access in your Discord Authorized Apps settings.
+        </p>
+
         <p>
           We do NOT permanently store:
         </p>

@@ -30,11 +30,22 @@ public class HealthController {
         health.put("status", "UP");
         health.put("bot", Map.of(
             "connected", jda.getStatus().name(),
-            "guilds", jda.getGuilds().size(),
-            "username", jda.getSelfUser().getName()
+            "username", jda.getSelfUser().getName(),
+            "guilds", jda.getGuilds().size()
         ));
         health.put("timestamp", System.currentTimeMillis());
 
         return ResponseEntity.ok(health);
+    }
+
+    /**
+     * GET /api/csrf
+     * Endpoint to trigger CSRF token generation
+     * REQUIRES AUTHENTICATION - this ensures CSRF token is set
+     */
+    @GetMapping("/csrf")
+    public ResponseEntity<Map<String, String>> csrf(org.springframework.security.web.csrf.CsrfToken csrfToken) {
+        // Simply accepting CsrfToken as parameter causes Spring to generate and set the cookie
+        return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
     }
 }

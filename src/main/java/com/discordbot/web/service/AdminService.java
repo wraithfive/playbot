@@ -24,10 +24,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+ 
 
 @Service
 public class AdminService {
@@ -39,21 +36,13 @@ public class AdminService {
     private final JDA jda;
     private final RestTemplate restTemplate;
     private final OAuth2AuthorizedClientService authorizedClientService;
+    private final GuildsCache guildsCache;
 
-    // High-performance cache with automatic eviction to prevent memory leaks
-    // - Expires entries 10 seconds after write (prevents stale data)
-    // - Maximum 1000 entries (prevents unbounded growth)
-    // - Automatically cleans up expired entries
-    private final Cache<String, List<Map<String, Object>>> guildsCache = Caffeine.newBuilder()
-            .expireAfterWrite(10, TimeUnit.SECONDS)
-            .maximumSize(1000)
-            .recordStats()  // Enable statistics for monitoring
-            .build();
-
-    public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService) {
+    public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, GuildsCache guildsCache) {
         this.jda = jda;
         this.restTemplate = new RestTemplate();
         this.authorizedClientService = authorizedClientService;
+        this.guildsCache = guildsCache;
     }
 
     /**
@@ -272,12 +261,14 @@ public class AdminService {
         logger.info("Bulk role creation in guild {}: {} succeeded, {} failed",
             guildId, createdRoles.size(), errors.size());
 
-        return new BulkRoleCreationResult(
+        BulkRoleCreationResult result = new BulkRoleCreationResult(
             createdRoles.size(),
             errors.size(),
             createdRoles,
             errors
         );
+        guildsCache.evictAll();
+        return result;
     }
 
     /**
@@ -307,7 +298,9 @@ public class AdminService {
         );
 
         logger.info("Initializing {} default roles in guild {}", defaultRoles.size(), guildId);
-        return createBulkGatchaRoles(guildId, defaultRoles);
+        BulkRoleCreationResult result = createBulkGatchaRoles(guildId, defaultRoles);
+        guildsCache.evictAll();
+        return result;
     }
 
     /**
@@ -353,14 +346,20 @@ public class AdminService {
         return deleteRolesByPrefix(guildId, "gacha:");
     }
 
+    /**
+     * Evict the guilds cache for the current user's access token
+     */
+    public void evictGuildsCache(Authentication authentication) {
+        String accessToken = getAccessToken(authentication);
+        guildsCache.evictForToken(accessToken);
+    }
+
     // Helper methods
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> getUserGuildsFromDiscord(String accessToken) {
         // Use Caffeine's get() with loader function to handle caching automatically
         return guildsCache.get(accessToken, key -> {
-            logger.debug("Cache miss - fetching guilds from Discord API");
-
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + key);
 
@@ -374,13 +373,15 @@ public class AdminService {
 
                 List<Map<String, Object>> guilds = response.getBody();
                 if (guilds == null) {
+                    logger.warn("Discord API returned null guilds list");
                     guilds = new ArrayList<>();
                 }
-                logger.debug("Fetched and cached {} guilds (TTL: 10 seconds)", guilds.size());
+                logger.info("Successfully fetched {} guilds from Discord API", guilds.size());
                 return guilds;
             } catch (Exception e) {
-                logger.error("Failed to fetch user guilds from Discord", e);
-                return new ArrayList<>();
+                logger.error("Failed to fetch user guilds from Discord API - this may indicate an invalid/expired token or API issue", e);
+                // Don't cache failures - let it retry on next request
+                throw new RuntimeException("Discord API call failed", e);
             }
         });
     }

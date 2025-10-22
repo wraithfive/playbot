@@ -2,19 +2,41 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { serverApi } from '../api/client';
 import { useNavigate } from 'react-router-dom';
 import type { GuildInfo } from '../types';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export default function ServerList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [invitingGuildId, setInvitingGuildId] = useState<string | null>(null);
+  
   const { data: servers, isLoading, error } = useQuery({
     queryKey: ['servers'],
     queryFn: async () => {
       const response = await serverApi.getServers();
       return response.data;
     },
+    refetchInterval: 30000, // Reduced polling frequency since WebSocket handles real-time updates
+    refetchOnWindowFocus: true, // Still refetch when tab regains focus
   });
+
+  // WebSocket handler for real-time guild updates
+  const handleGuildUpdate = useCallback((message: any) => {
+    console.log('Guild update received:', message);
+    // Invalidate and refetch server list immediately
+    queryClient.invalidateQueries({ queryKey: ['servers'] });
+    
+    // If bot was just added and we were inviting to this guild, navigate to role management
+    if (message.type === 'GUILD_JOINED' && invitingGuildId === message.guildId) {
+      console.log('Bot joined guild after invite - navigating to role management');
+      setTimeout(() => {
+        navigate(`/servers/${message.guildId}`);
+      }, 500); // Small delay to let the UI update
+    }
+  }, [queryClient, navigate, invitingGuildId]);
+
+  // Connect to WebSocket for real-time updates
+  useWebSocket(handleGuildUpdate);
 
   const handleInviteBot = async (guildId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -29,10 +51,8 @@ export default function ServerList() {
         // Fallback if popup blocked
         window.location.href = response.data.inviteUrl;
       }
-      // Refetch server list after invite (user may complete OAuth in new tab)
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['servers'] });
-      }, 2000);
+      // WebSocket will automatically notify us when the bot joins
+      // No need for manual refresh - real-time updates!
     } catch (err) {
       console.error('Failed to get bot invite URL:', err);
       // Close placeholder popup if opened
@@ -43,6 +63,17 @@ export default function ServerList() {
       alert('Failed to generate invite link. Please try again.');
     } finally {
       setInvitingGuildId(null);
+    }
+  };
+
+  const handleRemoveBot = async (guildId: string) => {
+    try {
+      await serverApi.removeBot(guildId);
+      // WebSocket will automatically notify us when the bot leaves
+      // No need for manual refresh - real-time updates!
+    } catch (err) {
+      alert('Failed to remove bot. Please try again.');
+      console.error('Failed to remove bot:', err);
     }
   };
 
@@ -85,6 +116,16 @@ export default function ServerList() {
                   </div>
                 )}
                 <h3>{server.name}</h3>
+                <button
+                  className="btn btn-danger remove-bot-btn"
+                  style={{ marginTop: '0.5rem' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveBot(server.id);
+                  }}
+                >
+                  Remove Bot
+                </button>
               </div>
             ))}
           </div>

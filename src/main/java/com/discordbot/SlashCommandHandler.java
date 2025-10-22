@@ -2,6 +2,8 @@ package com.discordbot;
 
 import com.discordbot.entity.UserCooldown;
 import com.discordbot.repository.UserCooldownRepository;
+import com.discordbot.web.service.GuildsCache;
+import com.discordbot.web.service.WebSocketNotificationService;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
@@ -17,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.awt.Color;
 import java.time.Instant;
@@ -35,12 +38,21 @@ public class SlashCommandHandler extends ListenerAdapter {
     private static final String GACHA_PREFIX = "gacha:";
 
     private final UserCooldownRepository cooldownRepository;
+    private final GuildsCache guildsCache;
+    private final WebSocketNotificationService webSocketNotificationService;
     private final Random random = new Random();
 
-    public SlashCommandHandler(UserCooldownRepository cooldownRepository) {
+    @Autowired
+    public SlashCommandHandler(
+            UserCooldownRepository cooldownRepository, 
+            GuildsCache guildsCache,
+            WebSocketNotificationService webSocketNotificationService) {
         this.cooldownRepository = cooldownRepository;
-        logger.info("SlashCommandHandler initialized with database persistence");
+        this.guildsCache = guildsCache;
+        this.webSocketNotificationService = webSocketNotificationService;
+        logger.info("SlashCommandHandler initialized with database persistence and WebSocket notifications");
     }
+
 
     @Override
     public void onReady(@NotNull ReadyEvent event) {
@@ -66,6 +78,15 @@ public class SlashCommandHandler extends ListenerAdapter {
 
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
+        String guildId = event.getGuild().getId();
+        String guildName = event.getGuild().getName();
+        
+        // Evict cache so backend reflects the change immediately
+        if (guildsCache != null) guildsCache.evictAll();
+        
+        // Notify all connected WebSocket clients
+        webSocketNotificationService.notifyGuildJoined(guildId, guildName);
+        
         event.getGuild().updateCommands().addCommands(
             Commands.slash("roll", "Roll for a random gacha role (once per day)"),
             Commands.slash("testroll", "Test roll without cooldown (admin only)"),
@@ -73,19 +94,27 @@ public class SlashCommandHandler extends ListenerAdapter {
             Commands.slash("colors", "View all available gacha roles"),
             Commands.slash("help", "Show help information")
         ).queue(
-            success -> logger.info("Registered slash commands for newly joined guild: {}", event.getGuild().getName()),
-            error -> logger.error("Failed to register slash commands on guild join for {}: {}", event.getGuild().getName(), error.getMessage())
+            success -> logger.info("Registered slash commands for newly joined guild: {}", guildName),
+            error -> logger.error("Failed to register slash commands on guild join for {}: {}", guildName, error.getMessage())
         );
     }
 
     @Override
     public void onGuildLeave(@NotNull GuildLeaveEvent event) {
         String guildId = event.getGuild().getId();
+        String guildName = event.getGuild().getName();
+        
+        // Evict cache so backend reflects the change immediately
+        if (guildsCache != null) guildsCache.evictAll();
+        
+        // Notify all connected WebSocket clients
+        webSocketNotificationService.notifyGuildLeft(guildId, guildName);
+        
         try {
             cooldownRepository.deleteByGuildId(guildId);
-            logger.info("Cleaned up guild-specific data for guild {} on bot leave", event.getGuild().getName());
+            logger.info("Cleaned up guild-specific data for guild {} on bot leave", guildName);
         } catch (Exception e) {
-            logger.error("Failed to clean up data for guild {} ({}): {}", event.getGuild().getName(), guildId, e.getMessage());
+            logger.error("Failed to clean up data for guild {} ({}): {}", guildName, guildId, e.getMessage());
         }
     }
 

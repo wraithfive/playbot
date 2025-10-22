@@ -132,4 +132,20 @@ public class ServerController {
             return ResponseEntity.internalServerError().body(Map.of("error", "Failed to remove bot"));
         }
     }
+
+    /**
+     * POST /api/servers/refresh
+     * Force refresh the user's guilds cache (for instant UI update after bot add/remove)
+     * SECURED: Requires OAuth2 authentication
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshGuildsCache(Authentication authentication) {
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/refresh");
+            return ResponseEntity.status(401).build();
+        }
+        adminService.evictGuildsCache(authentication);
+        logger.info("Force-refreshed guilds cache for user");
+        return ResponseEntity.ok(Map.of("message", "Guilds cache cleared"));
+    }
 }

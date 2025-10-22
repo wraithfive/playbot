@@ -121,6 +121,9 @@ export default function TermsOfService() {
             <strong>Data Location:</strong> Data is stored on cloud infrastructure ([YOUR HOSTING PROVIDER]) in [LOCATION/COUNTRY] and is not shared with third parties except as disclosed in our Privacy Policy.
           </li>
           <li>
+            <strong>Persistent Login:</strong> If you log in to the admin panel, your session may remain valid for up to 30 days unless you log out or clear your cookies. We use secure session cookies and store OAuth2 refresh tokens in our database to maintain your login and avoid repeated Discord authentication. You can revoke access at any time by removing the bot from your server or revoking Playbot's access in your Discord Authorized Apps settings.
+          </li>
+          <li>
             <strong>Privacy:</strong> For complete details on data collection, storage, and your rights, see our <a href="/privacy">Privacy Policy</a>.
           </li>
         </ul>

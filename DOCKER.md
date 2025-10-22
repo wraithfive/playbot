@@ -1,28 +1,39 @@
 # Docker Deployment Guide
 
-Quick guide to run the Color Gacha Bot using Docker.
+Quick guide to run Playbot (Discord bot + web admin panel) using Docker.
 
 ## Prerequisites
 
 - Docker installed on your host
 - Docker Compose (usually comes with Docker)
-- Your Discord bot token
+- Your Discord bot credentials (token, client ID, client secret)
+- A public URL for the admin panel (for production)
 
 ## Quick Start
 
 ### 1. Build the JAR (if not already built)
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 mvn clean package -DskipTests
 ```
 
-### 2. Make sure .env file exists with your bot token
+### 2. Configure environment variables
 
 ```bash
-# Create .env file
+# Create .env file with all required credentials
 cat > .env << EOF
+# Discord Bot Configuration
 DISCORD_TOKEN=your_bot_token_here
+DISCORD_CLIENT_ID=your_client_id_here
+DISCORD_CLIENT_SECRET=your_client_secret_here
+
+# Admin Panel URL (use your public domain in production)
+ADMIN_PANEL_URL=https://yourdomain.com
+
+# Cookie Security (set to true in production with HTTPS)
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=Lax
 EOF
 ```
 
@@ -32,12 +43,14 @@ EOF
 # Build the Docker image
 docker-compose build
 
-# Start the bot
+# Start the bot and web server
 docker-compose up -d
 
 # View logs
 docker-compose logs -f
 ```
+
+The web admin panel will be available at http://localhost:8080 (or your ADMIN_PANEL_URL in production).
 
 ## Manual Docker Commands (Alternative)
 
@@ -45,46 +58,54 @@ If you prefer not to use docker-compose:
 
 ```bash
 # Build the image
-docker build -t color-gacha-bot:latest .
+docker build -t playbot:latest .
 
 # Run the container
 docker run -d \
-  --name discord-bot \
+  --name playbot \
   --restart unless-stopped \
+  -p 8080:8080 \
   -e DISCORD_TOKEN="your_bot_token_here" \
+  -e DISCORD_CLIENT_ID="your_client_id_here" \
+  -e DISCORD_CLIENT_SECRET="your_client_secret_here" \
+  -e ADMIN_PANEL_URL="https://yourdomain.com" \
   -v $(pwd)/logs:/app/logs \
-  color-gacha-bot:latest
+  -v $(pwd)/data:/app/data \
+  playbot:latest
 ```
 
 ## Management Commands
 
 ```bash
 # View logs
-docker-compose logs -f discord-bot
+docker-compose logs -f playbot
 
-# Stop the bot
+# Stop the application
 docker-compose stop
 
-# Start the bot
+# Start the application
 docker-compose start
 
-# Restart the bot
+# Restart the application
 docker-compose restart
 
 # Stop and remove container
 docker-compose down
 
-# View bot status
+# View application status
 docker-compose ps
 
+# Check health
+docker-compose exec playbot wget --no-verbose --tries=1 --spider http://localhost:8080/api/health
+
 # Execute commands in the container
-docker-compose exec discord-bot sh
+docker-compose exec playbot sh
 ```
 
-## Updating the Bot
+## Updating the Application
 
 ```bash
-# 1. Stop the bot
+# 1. Stop the application
 docker-compose down
 
 # 2. Rebuild the JAR (if you made code changes)
@@ -93,8 +114,60 @@ mvn clean package -DskipTests
 # 3. Rebuild the Docker image
 docker-compose build
 
-# 4. Start the bot
+# 4. Start the application
 docker-compose up -d
+```
+
+## Production Deployment
+
+### Reverse Proxy Setup (Nginx)
+
+For production, use a reverse proxy like Nginx with SSL:
+
+```nginx
+# /etc/nginx/sites-available/playbot
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    # WebSocket support
+    location /ws {
+        proxy_pass http://localhost:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 86400;
+    }
+
+    # API and admin panel
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Environment Variables for Production
+
+Update your `.env` file:
+
+```bash
+DISCORD_TOKEN=your_production_token
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+ADMIN_PANEL_URL=https://yourdomain.com
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=Lax
 ```
 
 ## Logs
