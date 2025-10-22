@@ -35,18 +35,18 @@
             <version>${jda.version}</version>
         </dependency>
 
-        <!-- Logback Classic (includes SLF4J) - Latest version for Java 25 -->
+        <!-- Logback Classic (includes SLF4J) - Updated to 1.5.19 for security fix -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.16</version>
+            <version>1.5.19</version>
         </dependency>
 
         <!-- Logback Core - Must match logback-classic version -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
-            <version>1.5.16</version>
+            <version>1.5.19</version>
         </dependency>
 
         <!-- SLF4J API - Latest version -->
