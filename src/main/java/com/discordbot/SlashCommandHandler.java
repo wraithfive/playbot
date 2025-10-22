@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 public class SlashCommandHandler extends ListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(SlashCommandHandler.class);
-    private static final Logger activityLogger = LoggerFactory.getLogger("com.discordbot.activity");
 
     private static final String GACHA_PREFIX = "gacha:";
 
@@ -153,7 +152,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                 if (lastRoll.equals(today)) {
                     event.reply("⏰ You've already rolled today! Come back tomorrow for another chance!")
                         .setEphemeral(true).queue();
-                    activityLogger.info("User {} attempted duplicate roll in guild {}",
+                    logger.info("User {} attempted duplicate roll in guild {}",
                         event.getUser().getName(), event.getGuild().getName());
                     return;
                 }
@@ -238,7 +237,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             // Regular rolls are public (for fun/hype), test rolls are private
             event.replyEmbeds(embed.build()).setEphemeral(isTest).queue();
 
-            activityLogger.info("User {} rolled {} (rarity: {}) in guild {}{}",
+            logger.info("User {} rolled {} (rarity: {}) in guild {}{}",
                 event.getUser().getName(),
                 rolledRole.displayName,
                 rolledRole.rarity != null ? rolledRole.rarity : "Unknown",

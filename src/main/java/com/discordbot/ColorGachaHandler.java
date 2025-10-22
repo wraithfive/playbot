@@ -20,7 +20,7 @@ import java.util.*;
 public class ColorGachaHandler extends ListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(ColorGachaHandler.class);
-    private static final Logger activityLogger = LoggerFactory.getLogger("com.discordbot.activity");
+    private static final Logger logger = LoggerFactory.getLogger("com.discordbot.activity");
 
     private static final String PREFIX = "!";
 
@@ -136,7 +136,7 @@ public class ColorGachaHandler extends ListenerAdapter {
         event.getGuild().addRoleToMember(member, randomRole).queue(
             success -> {
                 logger.info("Successfully assigned role: {} to user: {}", randomRole.getName(), member.getUser().getName());
-                activityLogger.info("ROLL | User: {} | Guild: {} | Color: {} | Rarity: {}",
+                logger.info("ROLL | User: {} | Guild: {} | Color: {} | Rarity: {}",
                     member.getUser().getName(), event.getGuild().getName(),
                     roleInfo.displayName, roleInfo.rarity != null ? roleInfo.rarity.name() : "NONE");
 
