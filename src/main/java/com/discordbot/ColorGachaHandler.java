@@ -20,7 +20,6 @@ import java.util.*;
 public class ColorGachaHandler extends ListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(ColorGachaHandler.class);
-    private static final Logger logger = LoggerFactory.getLogger("com.discordbot.activity");
 
     private static final String PREFIX = "!";
 

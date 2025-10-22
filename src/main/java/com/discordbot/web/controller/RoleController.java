@@ -4,6 +4,7 @@ import com.discordbot.web.dto.BulkRoleCreationResult;
 import com.discordbot.web.dto.CreateRoleRequest;
 import com.discordbot.web.dto.GachaRoleInfo;
 import com.discordbot.web.service.AdminService;
+import com.discordbot.web.service.RateLimitService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -27,9 +28,11 @@ public class RoleController {
     private static final Logger logger = LoggerFactory.getLogger(RoleController.class);
 
     private final AdminService adminService;
+    private final RateLimitService rateLimitService;
 
-    public RoleController(AdminService adminService) {
+    public RoleController(AdminService adminService, RateLimitService rateLimitService) {
         this.adminService = adminService;
+        this.rateLimitService = rateLimitService;
     }
 
     /**
@@ -76,6 +79,12 @@ public class RoleController {
             return ResponseEntity.status(403).build();
         }
 
+        // Rate limiting check for bulk operations
+        if (!rateLimitService.allowBulkOperation(authentication)) {
+            logger.warn("Rate limit exceeded for init-defaults: guildId={}", guildId);
+            return ResponseEntity.status(429).build(); // 429 Too Many Requests
+        }
+
         logger.info("Initializing default roles for guild: {}", guildId);
         BulkRoleCreationResult result = adminService.initializeDefaultRoles(guildId);
 
@@ -85,6 +94,7 @@ public class RoleController {
     /**
      * POST /api/servers/{guildId}/roles/upload-csv
      * Upload CSV file to create bulk roles
+     * Maximum file size: 1MB (configured via Spring property)
      */
     @PostMapping("/upload-csv")
     public ResponseEntity<BulkRoleCreationResult> uploadCsv(
@@ -100,11 +110,25 @@ public class RoleController {
             return ResponseEntity.status(403).build();
         }
 
+        // Rate limiting check for bulk operations
+        if (!rateLimitService.allowBulkOperation(authentication)) {
+            logger.warn("Rate limit exceeded for CSV upload: guildId={}", guildId);
+            return ResponseEntity.status(429).build(); // 429 Too Many Requests
+        }
+
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        logger.info("Processing CSV upload for guild: {} (filename: {})", guildId, file.getOriginalFilename());
+        // Validate file size (1MB max)
+        long maxSize = 1024 * 1024; // 1MB
+        if (file.getSize() > maxSize) {
+            logger.warn("CSV file too large: {} bytes (max: {} bytes)", file.getSize(), maxSize);
+            return ResponseEntity.status(413).build(); // 413 Payload Too Large
+        }
+
+        logger.info("Processing CSV upload for guild: {} (filename: {}, size: {} bytes)", 
+            guildId, file.getOriginalFilename(), file.getSize());
 
         try {
             List<CreateRoleRequest> requests = parseCsv(file);
