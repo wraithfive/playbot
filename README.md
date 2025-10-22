@@ -215,6 +215,35 @@ To access the admin panel, you need:
 - Administrator or Manage Server permissions on at least one server
 - The bot must be installed on your server
 
+### Customizing Legal Documents
+
+The admin panel includes Privacy Policy and Terms of Service pages. For self-hosting, you should customize these:
+
+1. Edit the template files in `frontend/src/components/`:
+   - `PrivacyPolicy.template.tsx`
+   - `TermsOfService.template.tsx`
+
+2. Replace placeholders with your information:
+   - `[YOUR NAME/ORGANIZATION]` - Your name or organization
+   - `[YOUR CONTACT EMAIL]` - Your contact email
+   - `[YOUR WEBSITE]` - Your website URL
+
+3. Generate the production files:
+   ```bash
+   cd frontend
+   npm run generate:legal
+   ```
+
+   Or set environment variables for automatic generation during build:
+   ```bash
+   ORGANIZATION_NAME="Your Name" \
+   CONTACT_EMAIL="you@example.com" \
+   WEBSITE_URL="https://example.com" \
+   npm run build
+   ```
+
+**Note:** These templates are provided as-is. Consult with a lawyer to ensure compliance with your jurisdiction's laws.
+
 ## Bot Permissions
 
 The bot requires the following permissions:
