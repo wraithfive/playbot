@@ -2,6 +2,7 @@
 .env
 *-roles.sh
 cookies.txt
+*.pem
 
 # Claude AI assistant
 .claude/
