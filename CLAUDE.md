@@ -79,7 +79,6 @@ npm run lint            # Run ESLint
 **Discord Bot Layer:**
 - `SlashCommandHandler.java` - Handles all slash command interactions (/roll, /mycolor, /colors, /help, /testroll, /qotd commands)
 - `ColorGachaHandler.java` - Legacy message command handler (deprecated, kept for compatibility)
-- `CommandHandler.java` - Interface for command handling
 
 **Web Layer:**
 - `web/controller/` - REST API controllers for admin panel
