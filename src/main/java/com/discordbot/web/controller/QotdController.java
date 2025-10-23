@@ -20,6 +20,29 @@ import java.util.List;
 @RequestMapping("/api/servers/{guildId}")
 public class QotdController {
 
+    /**
+     * GET /api/servers/{guildId}/qotd/download-example
+     * Download example QOTD CSV file
+     */
+    @GetMapping("/qotd/download-example")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadExampleQotdCsv(
+            @PathVariable String guildId,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) {
+            return ResponseEntity.status(403).build();
+        }
+        try {
+            org.springframework.core.io.Resource resource = new org.springframework.core.io.ClassPathResource("example-qotd.csv");
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=example-qotd.csv")
+                    .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+                    .body(resource);
+        } catch (Exception e) {
+            logger.error("Failed to load example QOTD CSV", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(QotdController.class);
 
     private final QotdService qotdService;

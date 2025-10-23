@@ -488,6 +488,14 @@ export default function QotdManager() {
                 </div>
 
                 <div className="form-row">
+                  <a
+                    href={guildId ? `/api/servers/${guildId}/qotd/download-example` : '#'}
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginRight: '0.75rem' }}
+                    download
+                  >
+                    Download Example CSV
+                  </a>
                   <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
                   <button className="btn btn-primary btn-sm" onClick={() => { if (csvFile) uploadCsvMutation.mutate(csvFile); }} disabled={!csvFile}>Upload CSV</button>
                 </div>
