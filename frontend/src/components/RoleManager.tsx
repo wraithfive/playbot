@@ -333,22 +333,33 @@ export default function RoleManager() {
 
   return (
     <div className="role-manager-container">
-      <div className="header">
-        <button onClick={() => navigate('/')} className="btn btn-back">
-          ← Back to Servers
-        </button>
-        <div className="header-info">
-          <h1>{server?.name}</h1>
-          <p className="role-count">{roles?.length || 0} gacha roles</p>
+      <nav className="server-nav">
+        <div className="server-nav-container">
+          <div className="server-nav-left">
+            <button onClick={() => navigate('/')} className="btn btn-back">
+              ← Back to Servers
+            </button>
+            <div className="server-nav-tabs">
+              <button className="server-nav-tab active">
+                🎨 Gacha Config
+              </button>
+              <button
+                onClick={() => navigate(`/servers/${guildId}/qotd`)}
+                className="server-nav-tab"
+              >
+                💬 QOTD Config
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowRemoveConfirm(true)}
+            className="btn btn-danger"
+            title="Remove bot from this server"
+          >
+            Remove Bot
+          </button>
         </div>
-        <button
-          onClick={() => setShowRemoveConfirm(true)}
-          className="btn btn-danger btn-remove"
-          title="Remove bot from this server"
-        >
-          Remove Bot
-        </button>
-      </div>
+      </nav>
 
       {/* Remove Bot Confirmation Modal */}
       {showRemoveConfirm && (
@@ -414,10 +425,11 @@ export default function RoleManager() {
         </div>
       )}
 
-      {/* Role Hierarchy Warning */}
-      {hierarchyStatus && !hierarchyStatus.isValid && (
-        <div className="error-notice hierarchy-warning">
-          <h3>⚠️ CRITICAL: Role Hierarchy Problem Detected</h3>
+      <div className="server-content">
+        {/* Role Hierarchy Warning */}
+        {hierarchyStatus && !hierarchyStatus.isValid && (
+          <div className="error-notice hierarchy-warning">
+            <h3>⚠️ CRITICAL: Role Hierarchy Problem Detected</h3>
           <p>
             <strong>The bot cannot manage gacha roles because its role is positioned below them!</strong>
           </p>
@@ -717,6 +729,7 @@ export default function RoleManager() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

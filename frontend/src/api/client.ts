@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { GuildInfo, GachaRoleInfo, HealthResponse, BulkRoleCreationResult, RoleDeletionResult, BulkRoleDeletionResult, RoleHierarchyStatus } from '../types';
+import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult } from '../types/qotd';
 
 const api = axios.create({
   baseURL: '/api',
@@ -90,6 +91,30 @@ export const serverApi = {
    * Force refresh the backend guilds cache for the current user
    */
   refreshGuildsCache: () => api.post<{ message: string }>('/servers/refresh'),
+};
+
+export const qotdApi = {
+  // Guild-level endpoints
+  listChannels: (guildId: string) => api.get<TextChannelInfo[]>(`/servers/${guildId}/qotd/channels`),
+  listConfigs: (guildId: string) => api.get<QotdConfigDto[]>(`/servers/${guildId}/qotd/configs`),
+  listPending: (guildId: string) => api.get<QotdSubmissionDto[]>(`/servers/${guildId}/qotd/submissions`),
+  reject: (guildId: string, id: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/qotd/submissions/${id}/reject`),
+  bulkReject: (guildId: string, ids: number[]) => api.post<BulkActionResult>(`/servers/${guildId}/qotd/submissions/bulk-reject`, { ids }),
+
+  // Per-channel endpoints
+  getConfig: (guildId: string, channelId: string) => api.get<QotdConfigDto>(`/servers/${guildId}/channels/${channelId}/qotd/config`),
+  updateConfig: (guildId: string, channelId: string, req: UpdateQotdRequest) => api.put<QotdConfigDto>(`/servers/${guildId}/channels/${channelId}/qotd/config`, req),
+  listQuestions: (guildId: string, channelId: string) => api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/questions`),
+  addQuestion: (guildId: string, channelId: string, text: string) => api.post<QotdQuestionDto>(`/servers/${guildId}/channels/${channelId}/qotd/questions`, { text }),
+  deleteQuestion: (guildId: string, channelId: string, id: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/questions/${id}`),
+  uploadCsv: (guildId: string, channelId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<UploadCsvResult>(`/servers/${guildId}/channels/${channelId}/qotd/upload-csv`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  postNow: (guildId: string, channelId: string) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/post-now`),
+  approve: (guildId: string, channelId: string, id: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/${id}/approve`),
+  bulkApprove: (guildId: string, channelId: string, ids: number[]) => api.post<BulkActionResult>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/bulk-approve`, { ids }),
 };
 
 export const authApi = {

@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 import com.discordbot.web.service.GuildsCache;
+import com.discordbot.web.service.QotdSubmissionService;
 import com.discordbot.web.service.WebSocketNotificationService;
 
 class SlashCommandHandlerTest {
@@ -15,7 +16,8 @@ class SlashCommandHandlerTest {
     var cooldownRepo = mock(com.discordbot.repository.UserCooldownRepository.class);
     var guildsCache = mock(GuildsCache.class);
     var wsService = mock(WebSocketNotificationService.class);
-    var handler = new SlashCommandHandler(cooldownRepo, guildsCache, wsService);
+    var qotdSubmissionService = mock(QotdSubmissionService.class);
+    var handler = new SlashCommandHandler(cooldownRepo, guildsCache, wsService, qotdSubmissionService);
         var guild = mock(Guild.class);
         var updateAction = mock(CommandListUpdateAction.class);
         var event = new GuildJoinEvent(null, 0, guild);

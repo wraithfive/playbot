@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import Login from './components/Login';
 import ServerList from './components/ServerList';
 import RoleManager from './components/RoleManager';
+import QotdManager from './components/QotdManager';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { serverApi } from './api/client';
@@ -60,6 +61,7 @@ function App() {
                 <>
                   <Route path="/" element={<ServerList />} />
                   <Route path="/servers/:guildId" element={<RoleManager />} />
+                  <Route path="/servers/:guildId/qotd" element={<QotdManager />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </>
               )}

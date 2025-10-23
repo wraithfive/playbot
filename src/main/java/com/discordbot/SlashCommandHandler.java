@@ -3,6 +3,7 @@ package com.discordbot;
 import com.discordbot.entity.UserCooldown;
 import com.discordbot.repository.UserCooldownRepository;
 import com.discordbot.web.service.GuildsCache;
+import com.discordbot.web.service.QotdSubmissionService;
 import com.discordbot.web.service.WebSocketNotificationService;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -14,6 +15,7 @@ import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -39,17 +41,20 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final UserCooldownRepository cooldownRepository;
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final QotdSubmissionService qotdSubmissionService;
     private final Random random = new Random();
 
     @Autowired
     public SlashCommandHandler(
             UserCooldownRepository cooldownRepository, 
             GuildsCache guildsCache,
-            WebSocketNotificationService webSocketNotificationService) {
+            WebSocketNotificationService webSocketNotificationService,
+            QotdSubmissionService qotdSubmissionService) {
         this.cooldownRepository = cooldownRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
-        logger.info("SlashCommandHandler initialized with database persistence and WebSocket notifications");
+        this.qotdSubmissionService = qotdSubmissionService;
+        logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, and WebSocket notifications");
     }
 
 
@@ -67,7 +72,9 @@ public class SlashCommandHandler extends ListenerAdapter {
             Commands.slash("testroll", "Test roll without cooldown (admin only)"),
             Commands.slash("mycolor", "Check your current gacha role"),
             Commands.slash("colors", "View all available gacha roles"),
-            Commands.slash("help", "Show help information")
+            Commands.slash("help", "Show help information"),
+            Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
+                .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
         ).queue(
             success -> logger.info("Registered slash commands for guild: {}", event.getGuild().getName()),
             error -> logger.error("Failed to register slash commands for guild {}: {}",
@@ -91,7 +98,9 @@ public class SlashCommandHandler extends ListenerAdapter {
             Commands.slash("testroll", "Test roll without cooldown (admin only)"),
             Commands.slash("mycolor", "Check your current gacha role"),
             Commands.slash("colors", "View all available gacha roles"),
-            Commands.slash("help", "Show help information")
+            Commands.slash("help", "Show help information"),
+            Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
+                .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
         ).queue(
             success -> logger.info("Registered slash commands for newly joined guild: {}", guildName),
             error -> logger.error("Failed to register slash commands on guild join for {}: {}", guildName, error.getMessage())
@@ -127,7 +136,32 @@ public class SlashCommandHandler extends ListenerAdapter {
             case "mycolor" -> handleMyColor(event);
             case "colors" -> handleColors(event);
             case "help" -> handleHelp(event);
+            case "qotd-submit" -> handleQotdSubmit(event);
             default -> event.reply("Unknown command!").setEphemeral(true).queue();
+        }
+    }
+
+    private void handleQotdSubmit(SlashCommandInteractionEvent event) {
+        if (event.getMember() == null) {
+            event.reply("❌ This command can only be used in a server!").setEphemeral(true).queue();
+            return;
+        }
+
+        String guildId = event.getGuild().getId();
+        String userId = event.getUser().getId();
+        String username = event.getUser().getName();
+        String questionText = event.getOption("question").getAsString();
+
+        try {
+            qotdSubmissionService.submit(guildId, userId, username, questionText);
+            event.reply("✓ Your question has been submitted for admin review. Thanks for contributing!")
+                .setEphemeral(true).queue();
+            logger.info("QOTD submission from {} in guild {}: {}", username, guildId, questionText);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            event.reply("❌ " + e.getMessage()).setEphemeral(true).queue();
+        } catch (Exception e) {
+            logger.error("Failed to submit QOTD for user {} in guild {}: {}", userId, guildId, e.getMessage());
+            event.reply("❌ Failed to submit question. Please try again later.").setEphemeral(true).queue();
         }
     }
 

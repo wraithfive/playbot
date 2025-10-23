@@ -57,13 +57,19 @@ public class AdminService {
     public String generateBotInviteUrl(String guildId) {
         String clientId = jda.getSelfUser().getId();
 
-        // Required permissions for the bot:
-        // - MANAGE_ROLES: Create and assign gacha roles
-        // - VIEW_CHANNEL: See channels to respond to commands
-        // - SEND_MESSAGES: Send roll results and help messages
-        long permissions = Permission.MANAGE_ROLES.getRawValue() |
-                          Permission.VIEW_CHANNEL.getRawValue() |
-                          Permission.MESSAGE_SEND.getRawValue();
+    // Required permissions for the bot:
+    // - MANAGE_ROLES: Create and assign gacha roles
+    // - VIEW_CHANNEL: See channels to respond to commands
+    // - SEND_MESSAGES: Send QOTD and other messages
+    // - MESSAGE_EMBED_LINKS: Allow rich embed posts for QOTD
+    // - MESSAGE_HISTORY: Read history (useful for context and avoiding duplicates)
+    // - MESSAGE_ATTACH_FILES: Optional, allow sending attachments if needed later
+    long permissions = Permission.MANAGE_ROLES.getRawValue()
+        | Permission.VIEW_CHANNEL.getRawValue()
+        | Permission.MESSAGE_SEND.getRawValue()
+        | Permission.MESSAGE_EMBED_LINKS.getRawValue()
+        | Permission.MESSAGE_HISTORY.getRawValue()
+        | Permission.MESSAGE_ATTACH_FILES.getRawValue();
 
         String inviteUrl = String.format(
             "https://discord.com/api/oauth2/authorize?client_id=%s&permissions=%d&guild_id=%s&scope=bot%%20applications.commands",

@@ -71,7 +71,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/health").permitAll()
                 .requestMatchers("/ws/**").authenticated() // Require authentication for WebSocket connections
                 .requestMatchers("/oauth2/**", "/login/**").permitAll()
-                .requestMatchers("/api/**").authenticated()
+                    .requestMatchers("/api/servers/**").authenticated()
                 .anyRequest().permitAll()
             )
             .oauth2Login(oauth2 -> oauth2

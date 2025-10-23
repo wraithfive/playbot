@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 import com.discordbot.web.service.GuildsCache;
+import com.discordbot.web.service.QotdSubmissionService;
 import com.discordbot.web.service.WebSocketNotificationService;
 
 class SlashCommandHandlerLeaveTest {
@@ -15,7 +16,8 @@ class SlashCommandHandlerLeaveTest {
         UserCooldownRepository repo = mock(UserCooldownRepository.class);
         GuildsCache guildsCache = mock(GuildsCache.class);
         WebSocketNotificationService wsService = mock(WebSocketNotificationService.class);
-        SlashCommandHandler handler = new SlashCommandHandler(repo, guildsCache, wsService);
+        QotdSubmissionService qotdSubmissionService = mock(QotdSubmissionService.class);
+        SlashCommandHandler handler = new SlashCommandHandler(repo, guildsCache, wsService, qotdSubmissionService);
 
         Guild guild = mock(Guild.class);
         when(guild.getId()).thenReturn("123");
