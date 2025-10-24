@@ -57,6 +57,7 @@ public class QotdService {
         return new QotdDtos.QotdQuestionDto(saved.getId(), saved.getText(), saved.getCreatedAt());
     }
 
+    @Transactional
     public void deleteQuestion(String guildId, String channelId, Long id) {
         questionRepo.deleteByIdAndGuildIdAndChannelId(id, guildId, channelId);
     }
