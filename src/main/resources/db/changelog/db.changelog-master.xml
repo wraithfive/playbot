@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Baseline schema - initial tables created by Hibernate, documented for completeness -->
+    <include file="db/changelog/changes/000-initial-schema.xml"/>
+    
+    <!-- Spring Framework tables - Session and OAuth2 -->
+    <include file="db/changelog/changes/000-spring-framework-tables.xml"/>
+    
+    <!-- Schema changes -->
+    <include file="db/changelog/changes/001-add-qotd-auto-approve-and-author-columns.xml"/>
+    
+</databaseChangeLog>

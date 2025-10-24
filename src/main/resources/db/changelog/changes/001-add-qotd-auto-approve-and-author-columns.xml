@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="001-add-qotd-auto-approve-column" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <columnExists tableName="qotd_configs" columnName="auto_approve"/>
+            </not>
+        </preConditions>
+        
+        <comment>Add auto_approve column to qotd_configs table</comment>
+        
+        <!-- Step 1: Add column as nullable first -->
+        <addColumn tableName="qotd_configs">
+            <column name="auto_approve" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <!-- Step 2: Set all existing rows to false -->
+        <update tableName="qotd_configs">
+            <column name="auto_approve" valueBoolean="false"/>
+            <where>auto_approve IS NULL</where>
+        </update>
+        
+        <!-- Step 3: Make column non-nullable -->
+        <addNotNullConstraint tableName="qotd_configs" columnName="auto_approve" defaultNullValue="false"/>
+    </changeSet>
+
+    <changeSet id="001-add-qotd-author-columns" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <columnExists tableName="qotd_questions" columnName="author_user_id"/>
+            </not>
+        </preConditions>
+        
+        <comment>Add author_user_id and author_username columns to qotd_questions table</comment>
+        
+        <addColumn tableName="qotd_questions">
+            <column name="author_user_id" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="author_username" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

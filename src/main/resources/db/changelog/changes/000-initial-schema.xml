@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Initial schema baseline - created by Hibernate, documented here for reference -->
+    
+    <changeSet id="000-create-user-cooldowns-table" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <tableExists tableName="user_cooldowns"/>
+            </not>
+        </preConditions>
+        
+        <comment>Create user_cooldowns table for tracking roll command cooldowns per user per guild</comment>
+        
+        <createTable tableName="user_cooldowns">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_roll_time" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="username" type="varchar(100)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+        
+        <createIndex indexName="idx_user_guild" tableName="user_cooldowns" unique="true">
+            <column name="user_id"/>
+            <column name="guild_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="000-create-qotd-configs-table" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <tableExists tableName="qotd_configs"/>
+            </not>
+        </preConditions>
+        
+        <comment>Create qotd_configs table for QOTD configuration per channel</comment>
+        
+        <createTable tableName="qotd_configs">
+            <column name="guild_id" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="channel_id" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="enabled" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_cron" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="timezone" type="varchar(255)" defaultValue="UTC">
+                <constraints nullable="false"/>
+            </column>
+            <column name="randomize" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_posted_at" type="timestamp">
+                <constraints nullable="true"/>
+            </column>
+            <column name="next_index" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="000-create-qotd-questions-table" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <tableExists tableName="qotd_questions"/>
+            </not>
+        </preConditions>
+        
+        <comment>Create qotd_questions table for storing QOTD questions</comment>
+        
+        <createTable tableName="qotd_questions">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel_id" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="text" type="varchar(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="000-create-qotd-submissions-table" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <tableExists tableName="qotd_submissions"/>
+            </not>
+        </preConditions>
+        
+        <comment>Create qotd_submissions table for user-submitted QOTD questions</comment>
+        
+        <createTable tableName="qotd_submissions">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="username" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="text" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="approved_by_user_id" type="varchar(32)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="approved_by_username" type="varchar(128)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="approved_at" type="timestamp">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
