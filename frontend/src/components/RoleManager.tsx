@@ -260,7 +260,7 @@ export default function RoleManager() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'example-roles.csv';
+  a.download = 'gacha-roles-example.csv';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

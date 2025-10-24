@@ -148,6 +148,13 @@
             <version>5.2.0</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Spring Boot Test utilities (SpringBootTest, MockMvc, assertions, etc.) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -190,6 +197,13 @@
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <configuration>
+                            <excludes>
+                                <!-- Practical coverage exclusion: Discord bootstrap and command wiring -->
+                                <exclude>com/discordbot/Bot.class</exclude>
+                                <exclude>com/discordbot/SlashCommandHandler*.class</exclude>
+                            </excludes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

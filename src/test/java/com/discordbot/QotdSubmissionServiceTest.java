@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -181,6 +182,16 @@ class QotdSubmissionServiceTest {
     }
 
     @Test
+    @DisplayName("approve should throw when submission not found")
+    void testApprove_NotFound() {
+        when(submissionRepo.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> {
+            service.approve("guild123", "channel456", 99L, "admin123", "AdminUser");
+        }, "Should throw NoSuchElementException when submission is missing");
+    }
+
+    @Test
     @DisplayName("reject should update submission status")
     void testReject_Success() {
         Long submissionId = 1L;
@@ -198,6 +209,41 @@ class QotdSubmissionServiceTest {
             sub.getStatus() == QotdSubmission.Status.REJECTED &&
             sub.getApprovedByUserId().equals("admin123")
         ));
+    }
+
+    @Test
+    @DisplayName("reject should throw when submission not found")
+    void testReject_NotFound() {
+        when(submissionRepo.findById(42L)).thenReturn(Optional.empty());
+
+        assertThrows(NoSuchElementException.class, () -> {
+            service.reject("guild123", 42L, "admin123", "AdminUser");
+        }, "Should throw NoSuchElementException when submission is missing");
+    }
+
+    @Test
+    @DisplayName("reject should reject submission from wrong guild")
+    void testReject_WrongGuild() {
+        Long submissionId = 1L;
+        QotdSubmission submission = createSubmissionWithId(submissionId, "guild123", "user123", "testuser", "Question");
+        when(submissionRepo.findById(submissionId)).thenReturn(Optional.of(submission));
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            service.reject("guild999", submissionId, "admin123", "AdminUser");
+        }, "Should reject wrong guild in reject");
+    }
+
+    @Test
+    @DisplayName("reject should reject already processed submission")
+    void testReject_AlreadyProcessed() {
+        Long submissionId = 1L;
+        QotdSubmission submission = createSubmissionWithId(submissionId, "guild123", "user123", "testuser", "Question");
+        submission.setStatus(QotdSubmission.Status.REJECTED);
+        when(submissionRepo.findById(submissionId)).thenReturn(Optional.of(submission));
+
+        assertThrows(IllegalStateException.class, () -> {
+            service.reject("guild123", submissionId, "admin123", "AdminUser");
+        }, "Should reject already processed submission in reject");
     }
 
     @Test
@@ -252,6 +298,31 @@ class QotdSubmissionServiceTest {
     }
 
     @Test
+    @DisplayName("rejectBulk should handle mixed outcomes")
+    void testRejectBulk_Mixed() {
+        String guildId = "guild123";
+        List<Long> ids = List.of(10L, 11L, 12L);
+
+        // 10: success
+        QotdSubmission s10 = createSubmissionWithId(10L, guildId, "u10", "user10", "Q10");
+        when(submissionRepo.findById(10L)).thenReturn(Optional.of(s10));
+        when(submissionRepo.save(any(QotdSubmission.class))).thenReturn(s10);
+
+        // 11: not found
+        when(submissionRepo.findById(11L)).thenReturn(Optional.empty());
+
+        // 12: already processed
+        QotdSubmission s12 = createSubmissionWithId(12L, guildId, "u12", "user12", "Q12");
+        s12.setStatus(QotdSubmission.Status.APPROVED);
+        when(submissionRepo.findById(12L)).thenReturn(Optional.of(s12));
+
+        QotdDtos.BulkActionResult res = service.rejectBulk(guildId, ids, "admin123", "AdminUser");
+        assertEquals(1, res.successCount());
+        assertEquals(2, res.failureCount());
+        assertEquals(2, res.errors().size());
+    }
+
+    @Test
     @DisplayName("listPending should return pending submissions for guild")
     void testListPending() {
         String guildId = "guild123";
@@ -267,6 +338,28 @@ class QotdSubmissionServiceTest {
         assertEquals(2, result.size());
         assertEquals("Q1", result.get(0).text());
         assertEquals("Q2", result.get(1).text());
+    }
+
+    @Test
+    @DisplayName("submit should have separate rate limits per guild for same user")
+    void testSubmit_SeparateRateLimitsPerGuild() {
+        String userId = "userX";
+        when(submissionRepo.save(any(QotdSubmission.class))).thenAnswer(invocation -> {
+            QotdSubmission saved = invocation.getArgument(0);
+            return createSubmissionWithId(1L, saved.getGuildId(), saved.getUserId(),
+                    saved.getUsername(), saved.getText());
+        });
+
+        // Consume 3 in g1
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q1"));
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q2"));
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q3"));
+        assertThrows(IllegalStateException.class, () -> service.submit("g1", userId, "name", "Q4"));
+
+        // g2 should be independent
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q1"));
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q2"));
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q3"));
     }
 
     // Helper method to create a submission with ID using reflection

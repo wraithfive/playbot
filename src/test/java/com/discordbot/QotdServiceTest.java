@@ -311,6 +311,29 @@ class QotdServiceTest {
     }
 
     @Test
+    @DisplayName("updateConfig should build default weekly cron when inputs missing")
+    void testUpdateConfig_DefaultWeeklyCron() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(configRepo.save(any(QotdConfig.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // advancedCron null, days/timeOfDay null -> defaults to 09:00 on MON-FRI
+        QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
+            true, null, null, null, null, false
+        );
+
+        QotdDtos.QotdConfigDto dto = service.updateConfig("guild1", "channel1", request);
+
+        assertNotNull(dto);
+        assertNotNull(dto.scheduleCron());
+        assertTrue(dto.scheduleCron().matches("0 \\d+ \\d+ \\? \\* .+"));
+        // Expect exactly 09:00 UTC weekdays when using defaults
+        assertEquals("0 0 9 ? * MON,TUE,WED,THU,FRI", dto.scheduleCron());
+    }
+
+    @Test
     @DisplayName("listTextChannels should return text channels from guild")
     void testListTextChannels() {
         Guild guild = mock(Guild.class);
@@ -392,6 +415,131 @@ class QotdServiceTest {
     }
 
     @Test
+    @DisplayName("postNextQuestion should return false when guild is missing")
+    void testPostNextQuestion_GuildMissing() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "Q?");
+        setQuestionId(question, 10L);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(List.of(question));
+        when(jda.getGuildById("guild1")).thenReturn(null);
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("postNextQuestion should return false when channel is missing")
+    void testPostNextQuestion_ChannelMissing() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "Q?");
+        setQuestionId(question, 11L);
+
+        Guild guild = mock(Guild.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(List.of(question));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(null);
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+        assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("postNextQuestion randomize path posts even with single item; delete failure is tolerated")
+    void testPostNextQuestion_Randomize_AndDeleteFailure() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setRandomize(true);
+
+    QotdQuestion q1 = new QotdQuestion("guild1", "channel1", "Q1");
+    setQuestionId(q1, 21L);
+
+        Guild guild = mock(Guild.class);
+    TextChannel channel = mock(TextChannel.class);
+    MessageCreateAction embedAction = mock(MessageCreateAction.class);
+    MessageCreateAction textAction = mock(MessageCreateAction.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(List.of(q1));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+    when(guild.getTextChannelById("channel1")).thenReturn(channel);
+    // Force embed to fail so we exercise text fallback path deterministically
+    when(channel.sendMessageEmbeds(any())).thenThrow(new RuntimeException("embed fail"));
+    when(channel.sendMessage(anyString())).thenReturn(textAction);
+    when(textAction.complete()).thenReturn(null);
+        // Simulate delete failing, should still return true
+        doThrow(new RuntimeException("db fail")).when(questionRepo).deleteByIdAndGuildIdAndChannelId(anyLong(), anyString(), anyString());
+        when(configRepo.save(any(QotdConfig.class))).thenReturn(config);
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+        assertTrue(result);
+        verify(configRepo, times(1)).save(any(QotdConfig.class));
+    }
+
+    @Test
+    @DisplayName("getConfig computeNextRuns handles invalid cron")
+    void testGetConfig_InvalidCronNextRuns() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setTimezone("UTC");
+        config.setScheduleCron("not-a-cron");
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+
+        QotdDtos.QotdConfigDto dto = service.getConfig("guild1", "channel1");
+        assertNotNull(dto);
+        assertTrue(dto.nextRuns().isEmpty(), "Invalid cron should yield no next runs");
+    }
+
+    @Test
+    @DisplayName("getConfig with valid cron returns non-empty nextRuns")
+    void testGetConfig_ValidCronNextRuns() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setTimezone("UTC");
+        // Every minute for test determinism; valid Spring CronExpression format
+        config.setScheduleCron("0 * * ? * MON-FRI");
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+
+        QotdDtos.QotdConfigDto dto = service.getConfig("guild1", "channel1");
+        assertNotNull(dto);
+        assertNotNull(dto.nextRuns());
+        assertFalse(dto.nextRuns().isEmpty(), "Valid cron should yield upcoming run times");
+    }
+
+    @Test
+    @DisplayName("listGuildConfigs computes next runs for each config")
+    void testListGuildConfigs_ValidCronNextRuns() {
+        QotdConfig c1 = new QotdConfig("guild1", "channelA");
+        c1.setEnabled(true);
+        c1.setTimezone("UTC");
+        c1.setScheduleCron("0 * * ? * MON-FRI");
+
+        when(configRepo.findByGuildId("guild1")).thenReturn(List.of(c1));
+
+        List<QotdDtos.QotdConfigDto> list = service.listGuildConfigs("guild1");
+        assertEquals(1, list.size());
+        assertNotNull(list.get(0).nextRuns());
+        assertFalse(list.get(0).nextRuns().isEmpty());
+    }
+
+    @Test
     @DisplayName("postNextQuestion should post and delete question")
     void testPostNextQuestion_Success() {
         QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
@@ -424,6 +572,151 @@ class QotdServiceTest {
         // Either embed or text message should be sent
         verify(questionRepo, times(1)).deleteByIdAndGuildIdAndChannelId(1L, "guild1", "channel1");
         verify(configRepo, times(1)).save(any(QotdConfig.class));
+    }
+
+    @Test
+    @DisplayName("postNextQuestion embed includes author footer when provided")
+    void testPostNextQuestion_EmbedFooterWithAuthorAndCard() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "Deep question?");
+        // Set author fields
+        question.setAuthorUsername("Alice");
+        question.setAuthorUserId("card-42");
+        setQuestionId(question, 12L);
+
+        Guild guild = mock(Guild.class);
+        TextChannel channel = mock(TextChannel.class);
+        MessageCreateAction embedAction = mock(MessageCreateAction.class);
+
+        org.mockito.ArgumentCaptor<net.dv8tion.jda.api.entities.MessageEmbed> captor = org.mockito.ArgumentCaptor.forClass(net.dv8tion.jda.api.entities.MessageEmbed.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(List.of(question));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(channel);
+        when(channel.sendMessageEmbeds(captor.capture())).thenReturn(embedAction);
+        when(embedAction.complete()).thenReturn(null);
+        when(configRepo.save(any(QotdConfig.class))).thenReturn(config);
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+        assertTrue(result);
+        net.dv8tion.jda.api.entities.MessageEmbed embed = captor.getValue();
+        assertNotNull(embed.getFooter());
+        assertTrue(embed.getFooter().getText().contains("Author: Alice"));
+        assertTrue(embed.getFooter().getText().contains("Card: card-42"));
+    }
+
+    @Test
+    @DisplayName("postNextQuestion sequential mode keeps nextIndex stable and sets lastPostedAt")
+    void testPostNextQuestion_SequentialNextIndexUpdate() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setRandomize(false);
+        config.setNextIndex(0);
+
+        QotdQuestion q1 = new QotdQuestion("guild1", "channel1", "Q1");
+        QotdQuestion q2 = new QotdQuestion("guild1", "channel1", "Q2");
+        setQuestionId(q1, 101L);
+        setQuestionId(q2, 102L);
+
+        Guild guild = mock(Guild.class);
+        TextChannel channel = mock(TextChannel.class);
+        MessageCreateAction embedAction = mock(MessageCreateAction.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(List.of(q1, q2));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(channel);
+        // Stub both varargs and single-arg overloads of sendMessageEmbeds to avoid null returns
+        when(channel.sendMessageEmbeds(any(net.dv8tion.jda.api.entities.MessageEmbed.class))).thenReturn(embedAction);
+        when(channel.sendMessageEmbeds(any(net.dv8tion.jda.api.entities.MessageEmbed.class), any(net.dv8tion.jda.api.entities.MessageEmbed[].class))).thenReturn(embedAction);
+        when(embedAction.complete()).thenReturn(null);
+
+        // Capture the saved config to assert nextIndex and lastPostedAt
+        org.mockito.ArgumentCaptor<QotdConfig> cfgCaptor = org.mockito.ArgumentCaptor.forClass(QotdConfig.class);
+        when(configRepo.save(any(QotdConfig.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+        assertTrue(result);
+        verify(configRepo).save(cfgCaptor.capture());
+        QotdConfig saved = cfgCaptor.getValue();
+        assertEquals(0, saved.getNextIndex(), "Next index should stay at 0 after removing first item");
+        assertNotNull(saved.getLastPostedAt(), "lastPostedAt should be set");
+    }
+
+    @Test
+    @DisplayName("postNextQuestion: embed fails, text fallback succeeds -> true")
+    void testPostNextQuestion_EmbedFails_TextSucceeds() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setNextIndex(0);
+
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "What is your favorite color?");
+        setQuestionId(question, 2L);
+
+        Guild guild = mock(Guild.class);
+        TextChannel channel = mock(TextChannel.class);
+        MessageCreateAction embedAction = mock(MessageCreateAction.class);
+        MessageCreateAction textAction = mock(MessageCreateAction.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(Arrays.asList(question));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(channel);
+        when(channel.sendMessageEmbeds(any())).thenReturn(embedAction);
+        when(channel.sendMessage(anyString())).thenReturn(textAction);
+        // Fail embed, succeed plain text
+        when(embedAction.complete()).thenThrow(new RuntimeException("embed boom"));
+        when(textAction.complete()).thenReturn(null);
+        when(configRepo.save(any(QotdConfig.class))).thenReturn(config);
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+
+        assertTrue(result, "Should return true when text fallback succeeds");
+        verify(questionRepo, times(1)).deleteByIdAndGuildIdAndChannelId(2L, "guild1", "channel1");
+        verify(configRepo, times(1)).save(any(QotdConfig.class));
+    }
+
+    @Test
+    @DisplayName("postNextQuestion: both embed and text fail -> false")
+    void testPostNextQuestion_BothEmbedAndTextFail() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setNextIndex(0);
+
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "Q?");
+        setQuestionId(question, 3L);
+
+        Guild guild = mock(Guild.class);
+        TextChannel channel = mock(TextChannel.class);
+        MessageCreateAction embedAction = mock(MessageCreateAction.class);
+        MessageCreateAction textAction = mock(MessageCreateAction.class);
+
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+            .thenReturn(Arrays.asList(question));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(channel);
+        when(channel.sendMessageEmbeds(any())).thenReturn(embedAction);
+        when(channel.sendMessage(anyString())).thenReturn(textAction);
+        // Fail both
+        when(embedAction.complete()).thenThrow(new RuntimeException("embed boom"));
+        when(textAction.complete()).thenThrow(new RuntimeException("text boom"));
+
+        boolean result = service.postNextQuestion("guild1", "channel1");
+
+        assertFalse(result, "Should return false when both embed and text fail");
+        verify(questionRepo, never()).deleteByIdAndGuildIdAndChannelId(anyLong(), anyString(), anyString());
+        verify(configRepo, never()).save(any(QotdConfig.class));
     }
 
     private String anyString() {

@@ -5,6 +5,8 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.requests.restaction.MessageCreateAction;
+import net.dv8tion.jda.api.requests.restaction.AuditableRestAction;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for ColorGachaHandler - focusing on rarity weighting and role selection
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 class ColorGachaHandlerTest {
 
     private ColorGachaHandler handler;
@@ -29,6 +32,242 @@ class ColorGachaHandlerTest {
     @BeforeEach
     void setUp() {
         handler = new ColorGachaHandler();
+    }
+
+    @Test
+    @DisplayName("handleRoll blocks second roll in same day")
+    void testHandleRoll_AlreadyRolledToday_Blocked() {
+        MessageReceivedEvent event1 = createMockEvent("!roll", true);
+        MessageReceivedEvent event2 = createMockEvent("!roll", true);
+
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+
+        Role existing = createMockRole("gacha:old:Red", Color.RED);
+        Role newRole = createMockRole("gacha:rare:Green", Color.GREEN);
+
+        when(event1.getGuild()).thenReturn(guild);
+        when(event1.getMember()).thenReturn(member);
+        when(event1.getAuthor()).thenReturn(user);
+        when(event2.getGuild()).thenReturn(guild);
+        when(event2.getMember()).thenReturn(member);
+        when(event2.getAuthor()).thenReturn(user);
+
+        when(user.getId()).thenReturn("u2");
+        when(user.getName()).thenReturn("Bob");
+        when(guild.getName()).thenReturn("Guild");
+        when(member.getUser()).thenReturn(user);
+        when(member.getRoles()).thenReturn(List.of(existing));
+        when(guild.getRoles()).thenReturn(List.of(newRole));
+
+        // removeRoleFromMember no-op
+        AuditableRestAction<Void> removeAction = mock(AuditableRestAction.class);
+        when(guild.removeRoleFromMember(member, existing)).thenReturn(removeAction);
+        doNothing().when(removeAction).queue();
+
+        // addRoleToMember succeeds
+        AuditableRestAction<Void> addAction = mock(AuditableRestAction.class);
+        when(guild.addRoleToMember(member, newRole)).thenReturn(addAction);
+        doAnswer(inv -> { java.util.function.Consumer<Object> ok = inv.getArgument(0); ok.accept(null); return null; })
+            .when(addAction).queue(any(java.util.function.Consumer.class), any(java.util.function.Consumer.class));
+
+        // First roll succeeds and records date
+        handler.onMessageReceived(event1);
+
+        // Second roll should be blocked with already-rolled message
+        handler.onMessageReceived(event2);
+        verify(event2.getChannel(), times(1)).sendMessage(contains("already rolled today"));
+        // Ensure no second addRole invocation
+        verify(guild, times(1)).addRoleToMember(member, newRole);
+    }
+
+    @Test
+    @DisplayName("testroll in DMs is server-only")
+    void testHandleTestRoll_NotFromGuild() {
+        MessageReceivedEvent event = createMockEvent("!testroll", false);
+        handler.onMessageReceived(event);
+        verify(event.getChannel(), times(1)).sendMessage(contains("only be used in a server"));
+    }
+
+    @Test
+    @DisplayName("colors lists no-roles message when none found")
+    void testHandleColors_NoRoles() {
+        MessageReceivedEvent event = createMockEvent("!colors", true);
+        Guild guild = mock(Guild.class);
+        when(event.getGuild()).thenReturn(guild);
+        when(guild.getRoles()).thenReturn(Collections.emptyList());
+
+        handler.onMessageReceived(event);
+        verify(event.getChannel(), times(1)).sendMessage(contains("No gacha roles found"));
+    }
+
+    @Test
+    @DisplayName("mycolor footer shows roll timing hints")
+    void testHandleMyColor_FooterVariants() throws Exception {
+        // Prepare event and user with a gacha role
+        MessageReceivedEvent eventToday = createMockEvent("!mycolor", true);
+        MessageReceivedEvent eventNow = createMockEvent("!mycolor", true);
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+        Role gachaRole = createMockRole("gacha:rare:Azure", Color.CYAN);
+
+        when(eventToday.getGuild()).thenReturn(guild);
+        when(eventToday.getMember()).thenReturn(member);
+        when(eventToday.getAuthor()).thenReturn(user);
+        when(eventNow.getGuild()).thenReturn(guild);
+        when(eventNow.getMember()).thenReturn(member);
+        when(eventNow.getAuthor()).thenReturn(user);
+
+        when(user.getId()).thenReturn("userX");
+        when(member.getRoles()).thenReturn(List.of(gachaRole));
+
+        // Use reflection to set userRollHistory dates
+        java.lang.reflect.Field f = ColorGachaHandler.class.getDeclaredField("userRollHistory");
+        f.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, java.time.LocalDate> map = (java.util.Map<String, java.time.LocalDate>) f.get(handler);
+        map.put("userX", java.time.LocalDate.now(java.time.ZoneId.systemDefault()));
+
+        // Capture embed for 'today' case
+        var ch1 = eventToday.getChannel();
+        org.mockito.ArgumentCaptor<MessageEmbed> cap1 = org.mockito.ArgumentCaptor.forClass(MessageEmbed.class);
+        handler.onMessageReceived(eventToday);
+        verify(ch1).sendMessageEmbeds(cap1.capture());
+        assertNotNull(cap1.getValue().getFooter());
+        assertTrue(cap1.getValue().getFooter().getText().contains("roll again tomorrow"));
+
+        // Set last roll to yesterday
+        map.put("userX", java.time.LocalDate.now(java.time.ZoneId.systemDefault()).minusDays(1));
+        var ch2 = eventNow.getChannel();
+        org.mockito.ArgumentCaptor<MessageEmbed> cap2 = org.mockito.ArgumentCaptor.forClass(MessageEmbed.class);
+        handler.onMessageReceived(eventNow);
+        verify(ch2).sendMessageEmbeds(cap2.capture());
+        assertNotNull(cap2.getValue().getFooter());
+        assertTrue(cap2.getValue().getFooter().getText().contains("You can roll again now"));
+    }
+
+    @Test
+    @DisplayName("colors groups unknown rarity under 'No Rarity'")
+    void testHandleColors_UnknownRarityGrouped() {
+        MessageReceivedEvent event = createMockEvent("!colors", true);
+        Guild guild = mock(Guild.class);
+        // invalid rarity should be treated as no-rarity (equal chance)
+        Role invalid = createMockRole("gacha:invalid:Weird", Color.GRAY);
+        when(event.getGuild()).thenReturn(guild);
+        when(guild.getRoles()).thenReturn(List.of(invalid));
+
+        var channel = event.getChannel();
+        org.mockito.ArgumentCaptor<MessageEmbed> captor = org.mockito.ArgumentCaptor.forClass(MessageEmbed.class);
+        handler.onMessageReceived(event);
+        verify(channel).sendMessageEmbeds(captor.capture());
+        MessageEmbed embed = captor.getValue();
+        assertNotNull(embed);
+        boolean hasNoRarity = embed.getFields().stream()
+            .anyMatch(f -> f.getName().startsWith("No Rarity") && f.getValue().contains("invalid:weird"));
+        assertTrue(hasNoRarity, "Expected invalid rarity to appear under 'No Rarity'");
+    }
+
+    @Test
+    @DisplayName("help includes ADMIN_PANEL_URL when set")
+    void testHandleHelp_AdminPanelUrl() {
+        String prior = System.getProperty("ADMIN_PANEL_URL");
+        System.setProperty("ADMIN_PANEL_URL", "https://example.com");
+        try {
+            MessageReceivedEvent event = createMockEvent("!help", false);
+            var channel = event.getChannel();
+            org.mockito.ArgumentCaptor<MessageEmbed> captor = org.mockito.ArgumentCaptor.forClass(MessageEmbed.class);
+            handler.onMessageReceived(event);
+            verify(channel).sendMessageEmbeds(captor.capture());
+            MessageEmbed embed = captor.getValue();
+            assertTrue(embed.getFields().stream().anyMatch(f ->
+                f.getName().contains("Links") && f.getValue().contains("https://example.com")));
+        } finally {
+            if (prior == null) {
+                System.clearProperty("ADMIN_PANEL_URL");
+            } else {
+                System.setProperty("ADMIN_PANEL_URL", prior);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("handleRoll happy path: removes old, assigns new, sends embed")
+    void testHandleRoll_HappyPath_AssignAndEmbed() {
+        MessageReceivedEvent event = createMockEvent("!roll", true);
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+
+        // Roles: user has an old gacha role; guild has a single target gacha role
+        Role oldRole = createMockRole("gacha:old:Red", Color.RED);
+        Role newRole = createMockRole("gacha:rare:Green", Color.GREEN);
+
+        when(event.getGuild()).thenReturn(guild);
+        when(event.getMember()).thenReturn(member);
+        when(event.getAuthor()).thenReturn(user);
+        when(user.getId()).thenReturn("u1");
+        when(user.getName()).thenReturn("Alice");
+        when(guild.getName()).thenReturn("Guild");
+        when(member.getUser()).thenReturn(user);
+        when(member.getRoles()).thenReturn(List.of(oldRole));
+        when(guild.getRoles()).thenReturn(List.of(newRole)); // deterministic pick
+
+        // removeRoleFromMember queue() no-op
+        @SuppressWarnings("unchecked")
+        AuditableRestAction<Void> removeAction = mock(AuditableRestAction.class);
+        when(guild.removeRoleFromMember(member, oldRole)).thenReturn(removeAction);
+        doNothing().when(removeAction).queue();
+
+        // addRoleToMember success path invoking success consumer
+        @SuppressWarnings("unchecked")
+        AuditableRestAction<Void> addAction = mock(AuditableRestAction.class);
+        when(guild.addRoleToMember(member, newRole)).thenReturn(addAction);
+        doAnswer(inv -> { Consumer<Object> onSuccess = inv.getArgument(0); onSuccess.accept(null); return null; })
+            .when(addAction).queue(any(Consumer.class), any(Consumer.class));
+
+        handler.onMessageReceived(event);
+
+        verify(guild, times(1)).removeRoleFromMember(member, oldRole);
+        verify(guild, times(1)).addRoleToMember(member, newRole);
+        verify(event.getChannel(), times(1)).sendMessageEmbeds(any(MessageEmbed.class));
+    }
+
+    @Test
+    @DisplayName("handleRoll error: addRoleToMember failure sends error message")
+    void testHandleRoll_AddRoleFailure_SendsError() {
+        MessageReceivedEvent event = createMockEvent("!roll", true);
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+
+        Role oldRole = createMockRole("gacha:old:Red", Color.RED);
+        Role newRole = createMockRole("gacha:rare:Green", Color.GREEN);
+
+        when(event.getGuild()).thenReturn(guild);
+        when(event.getMember()).thenReturn(member);
+        when(event.getAuthor()).thenReturn(user);
+        when(user.getId()).thenReturn("u1");
+        when(user.getName()).thenReturn("Alice");
+        when(guild.getName()).thenReturn("Guild");
+        when(member.getUser()).thenReturn(user);
+        when(member.getRoles()).thenReturn(List.of(oldRole));
+        when(guild.getRoles()).thenReturn(List.of(newRole));
+
+        AuditableRestAction<Void> removeAction = mock(AuditableRestAction.class);
+        when(guild.removeRoleFromMember(member, oldRole)).thenReturn(removeAction);
+        doNothing().when(removeAction).queue();
+
+        @SuppressWarnings("unchecked")
+        AuditableRestAction<Void> addAction = mock(AuditableRestAction.class);
+        when(guild.addRoleToMember(member, newRole)).thenReturn(addAction);
+        doAnswer(inv -> { Consumer<Throwable> onError = inv.getArgument(1); onError.accept(new RuntimeException("boom")); return null; })
+            .when(addAction).queue(any(Consumer.class), any(Consumer.class));
+
+        handler.onMessageReceived(event);
+
+        verify(event.getChannel(), times(1)).sendMessage(contains("Error assigning color role"));
     }
 
     @Test
