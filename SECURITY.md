@@ -79,3 +79,11 @@ Security updates will be released as soon as possible when vulnerabilities are d
 3. Via direct communication to known affected parties
 
 We recommend watching the repository for notifications about new security releases.
+
+---
+
+## Operational Guidance
+
+For production hardening recommendations (cookies, CSRF/CORS, proxy headers, HSTS, rate limiting, logging, secrets, Liquibase practices), see the Self-Hosting guide:
+
+- [Production Hardening](SELF_HOSTING.md#production-hardening)

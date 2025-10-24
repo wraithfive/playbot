@@ -5,7 +5,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.1-green.svg)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-19.1.1-blue.svg)](https://react.dev/)
 
-A Discord bot that lets users roll for random colored name roles once per day, with a web-based admin panel for easy role management.
+A Discord bot that lets users roll for random colored name roles once per day, and manage/schedule Question of the Day (QOTD) prompts—backed by a web-based admin panel.
 
 **[Features](#features) • [Quick Start](#quick-start) • [Documentation](#table-of-contents) • [Contributing](CONTRIBUTING.md) • [License](#license)**
 
@@ -16,6 +16,9 @@ A Discord bot that lets users roll for random colored name roles once per day, w
 - **OAuth2 Authentication** - Secure Discord login for server administrators
 - **Rarity System** - 5-tier rarity system (Legendary, Epic, Rare, Uncommon, Common)
 - **Daily Rolls** - Users can roll once per day (admins can use `!testroll` for unlimited testing)
+- **Database Migrations** - Schema fully managed by Liquibase with a clean baseline and safe, idempotent changesets
+- **Real-time Updates** - WebSocket/STOMP channel for live server/role/QOTD updates to the admin UI
+- **QOTD (Question of the Day)** - Collect user submissions, moderate (approve/reject/bulk), schedule posting per channel, and bulk import via CSV
 
 ## Technology Stack
 
@@ -24,7 +27,10 @@ A Discord bot that lets users roll for random colored name roles once per day, w
 - Spring Boot 3.4.1
 - JDA 5.0.0 (Java Discord API)
 - Java Records for immutable DTOs
-- OAuth2 authentication with Spring Security
+- Spring Security OAuth2 (Discord) with JDBC-backed sessions and token storage
+- Spring Session (JDBC) for persistent HTTP sessions
+- Liquibase for database schema versioning
+- STOMP over WebSocket for real-time notifications
 
 **Frontend:**
 - React 19.1.1 + TypeScript
@@ -37,11 +43,13 @@ A Discord bot that lets users roll for random colored name roles once per day, w
 - H2 Database (file-based persistence)
 - Spring Data JPA
 - Cooldown data survives restarts
+- Liquibase-managed schema (baseline + changesets). See [Database & Migrations](#database--migrations).
 
 **Security:**
-- CSRF protection enabled
-- OAuth2 authentication flow
+- CSRF protection enabled (cookie token for REST)
+- OAuth2 authentication flow (Discord)
 - Secure token handling
+- Session cookie and OAuth client storage via JDBC (Liquibase-managed tables)
 
 ## Table of Contents
 
@@ -53,6 +61,10 @@ A Discord bot that lets users roll for random colored name roles once per day, w
 - [Role Management](#role-management)
 - [Commands](#commands)
 - [API Documentation](#api-documentation)
+- [Self-Hosting](#self-hosting)
+- [QOTD (Question of the Day)](#qotd-question-of-the-day)
+- [Database & Migrations](#database--migrations)
+- [Security](#security)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
@@ -69,30 +81,13 @@ A Discord bot that lets users roll for random colored name roles once per day, w
 
 ## Discord Bot Setup
 
-### Installation
-
-1. Clone this repository
+1. **Create your Discord Application** in the [Discord Developer Portal](https://discord.com/developers/applications):
+   - Click "New Application"
+   - Name your bot and save
 
 2. **Get your Discord credentials** from the [Discord Developer Portal](https://discord.com/developers/applications):
-
-   **Bot Token:**
-   - Go to your application → Bot
    - Click "Reset Token" to generate a new token
    - Copy the token (you'll only see it once!)
-
-   **OAuth2 Credentials:**
-   - Go to your application → OAuth2 → General
-   - Copy your "Client ID"
-   - Click "Reset Secret" to generate a new Client Secret
-   - Copy the Client Secret (you'll only see it once!)
-
-3. Create a `.env` file in the project root with your credentials:
-   ```env
-   DISCORD_TOKEN=your_bot_token_here
-   DISCORD_CLIENT_ID=your_client_id_here
-   DISCORD_CLIENT_SECRET=your_client_secret_here
-   ADMIN_PANEL_URL=http://localhost:8080
-   ```
 
    **Example:**
    ```env
@@ -208,6 +203,7 @@ The web admin panel provides a visual interface for managing gacha roles.
 - **Role Browser** - Browse all gacha roles organized by rarity
 - **Color Preview** - Visual preview of each role's color
 - **Bot Status** - Check which servers have the bot installed
+- **Live Updates** - Admin UI can subscribe to `/topic/guild-updates` via STOMP for join/leave/role/QOTD changes
 
 ### Access Requirements
 
@@ -431,16 +427,15 @@ All commands use Discord's slash command system. Type `/` in Discord to see avai
 
 ## API Documentation
 
-The bot exposes a REST API for the web admin panel. For detailed API documentation, see [WEB_API_README.md](WEB_API_README.md).
-
-### Available Endpoints
-
-- `GET /api/health` - Check bot status (public)
-- `GET /api/servers` - List manageable servers (requires auth)
-- `GET /api/servers/{guildId}` - Get server details (requires auth)
-- `GET /api/servers/{guildId}/roles` - List gacha roles (requires auth)
+The web admin communicates with a secured REST API and receives live updates over WebSocket/STOMP. See the full API and WebSocket docs in [WEB_API_README.md](WEB_API_README.md).
 
 All API endpoints (except `/api/health`) require Discord OAuth2 authentication.
+
+For QOTD endpoints (configs, questions, submissions, CSV upload) and the `/ws` STOMP topic details, refer to the API doc.
+
+## Self-Hosting
+
+For deployment, environment variables, and reverse proxy notes, see [SELF_HOSTING.md](SELF_HOSTING.md).
 
 ## Troubleshooting
 
@@ -545,6 +540,36 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 5. Open a Pull Request
 
 Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
+
+## Database & Migrations
+
+This project uses Liquibase to manage the database schema.
+
+- Migrations live under `src/main/resources/db/changelog/`
+- A documented baseline (`000-initial-schema.xml`) captures tables that previously existed
+- Spring tables (sessions and OAuth2 authorized clients) are managed in `000-spring-framework-tables.xml`
+- Hibernate DDL is set to `validate` only; Liquibase owns schema changes
+- Spring auto-initialization for session and OAuth schemas is disabled; see `application.properties`
+
+Common tasks:
+
+- Add a migration: create `changes/00X-your-change.xml`, include it in `db.changelog-master.xml`
+- Use preconditions with `onFail="CONTINUE"` to keep changesets idempotent
+- For NOT NULL additions: add nullable → backfill → add not-null constraint
+
+See [DATABASE_MIGRATIONS.md](DATABASE_MIGRATIONS.md) for templates and full guidance.
+
+## Security
+
+High-level security posture:
+
+- OAuth2 login with Discord; only server admins can access secured endpoints
+- CSRF protection enabled for REST via cookie token; WebSocket upgrades exempt
+- CORS origin is derived from `ADMIN_PANEL_URL` and restricted accordingly
+- Sessions and OAuth client data are stored via JDBC tables (Liquibase-managed)
+- Reverse-proxy headers (X-Forwarded-*) are respected for correct redirects
+
+For a hardening checklist (cookie flags, HSTS, rate limiting, logging levels, proxy config), see the Production Hardening section in [SELF_HOSTING.md](SELF_HOSTING.md#production-hardening).
 
 ## Privacy & Legal
 

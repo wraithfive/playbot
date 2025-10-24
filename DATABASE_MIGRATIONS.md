@@ -1,6 +1,6 @@
 # Database Migrations
 
-This project uses **Liquibase** for database schema versioning and migrations.
+This project uses **Liquibase** for database schema versioning and migrations. Hibernate is configured to validate the schema; Liquibase is the single source of truth.
 
 ## Overview
 
@@ -17,12 +17,13 @@ This project uses **Liquibase** for database schema versioning and migrations.
 ### Changesets (in execution order)
 
 #### Baseline Schema (000-*)
-- `000-initial-schema.xml` - Initial database schema
-  - Creates `user_cooldowns` table
-  - Creates `qotd_configs` table
-  - Creates `qotd_questions` table
-  - Creates `qotd_submissions` table
-  - Uses `MARK_RAN` strategy to skip if tables exist (baseline for existing databases)
+- `000-initial-schema.xml` - Initial database schema (baseline of previously Hibernate-created tables)
+    - Creates `user_cooldowns`, `qotd_configs`, `qotd_questions`, `qotd_submissions`
+    - Uses preconditions with `onFail="CONTINUE"` to remain idempotent
+- `000-spring-framework-tables.xml` - Spring-managed tables
+    - Creates `SPRING_SESSION`, `SPRING_SESSION_ATTRIBUTES` (Spring Session JDBC)
+    - Creates `oauth2_authorized_client` (Spring Security OAuth2 client store)
+    - Uses preconditions with `onFail="CONTINUE"`
 
 #### Schema Changes (001-*)
 - `001-add-qotd-auto-approve-and-author-columns.xml` - QOTD enhancements
@@ -40,14 +41,13 @@ This project uses **Liquibase** for database schema versioning and migrations.
    ```
 
 3. **Test locally** before deploying:
-   ```bash
-   ./build.sh
-   ```
+    ```bash
+    ./build.sh
+    ```
 
-4. **Deploy** - migrations run automatically on startup:
-   ```bash
-   ./deploy.sh
-   ```
+4. **Run/Deploy** — migrations run automatically on application startup:
+    - Local: `java -jar target/playbot-1.0.0.jar`
+    - Prod: follow your normal deployment flow; Liquibase runs at boot
 
 ## Example Migration Template
 
@@ -98,11 +98,11 @@ When adding a NOT NULL column to a table with existing data:
 
 ### Using Preconditions
 
-To make migrations idempotent (safe to run multiple times):
+To make migrations idempotent (safe on fresh or existing DBs), prefer `onFail="CONTINUE"` and guard with existence checks; use `onFail="MARK_RAN"` only when you explicitly want Liquibase to record the changeset as applied without executing it on an existing database.
 
 ```xml
 <changeSet id="example" author="your-name">
-    <preConditions onFail="MARK_RAN">
+    <preConditions onFail="CONTINUE">
         <not>
             <columnExists tableName="your_table" columnName="new_column"/>
         </not>
@@ -123,6 +123,10 @@ spring.liquibase.change-log=classpath:/db/changelog/db.changelog-master.xml
 
 # Hibernate validation only (Liquibase manages schema)
 spring.jpa.hibernate.ddl-auto=validate
+
+# Spring auto-init disabled; Liquibase manages these tables
+spring.session.jdbc.initialize-schema=never
+spring.sql.init.mode=never
 ```
 
 ## Migration History

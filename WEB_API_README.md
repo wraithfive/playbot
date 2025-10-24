@@ -1,6 +1,6 @@
-# Web Admin API - MVP Documentation
+# Web Admin API Documentation
 
-This bot now includes a **secured REST API** for web-based administration.
+This bot includes a **secured REST API** and **WebSocket notifications** for the web-based admin panel.
 
 ## Security Model
 
@@ -81,7 +81,7 @@ Get details about a specific server
 ---
 
 #### GET /api/servers/{guildId}/roles
-List all gatcha roles for a server
+List all gacha roles for a server
 
 **Authentication:** Required
 **Authorization:** User must be admin in this server AND bot must be present
@@ -90,7 +90,7 @@ List all gatcha roles for a server
 [
   {
     "id": "987654321",
-    "name": "gatcha:legendary:Rainbow Dreams",
+    "name": "gacha:legendary:Rainbow Dreams",
     "displayName": "Rainbow Dreams",
     "rarity": "legendary",
     "color": "#FF00FF",
@@ -98,7 +98,7 @@ List all gatcha roles for a server
   },
   {
     "id": "987654322",
-    "name": "gatcha:epic:Sunset Gradient",
+    "name": "gacha:epic:Sunset Gradient",
     "displayName": "Sunset Gradient",
     "rarity": "epic",
     "color": "#FF8800",
@@ -112,6 +112,88 @@ List all gatcha roles for a server
 - `403 Forbidden` - User is not an admin in this server OR bot is not present
 
 ---
+
+### QOTD (Question of the Day)
+
+All QOTD endpoints require OAuth2 auth and server admin permissions.
+
+#### GET /api/servers/{guildId}/qotd/channels
+List text channels for configuration selection.
+
+#### GET /api/servers/{guildId}/qotd/configs
+List all channel QOTD configs in a guild.
+
+#### GET /api/servers/{guildId}/channels/{channelId}/qotd/config
+Get a single channel’s QOTD configuration.
+
+#### PUT /api/servers/{guildId}/channels/{channelId}/qotd/config
+Update a channel’s QOTD configuration.
+
+Body:
+```json
+{
+  "enabled": true,
+  "scheduleCron": "0 9 * * *",
+  "timezone": "UTC",
+  "randomize": false,
+  "autoApprove": false
+}
+```
+
+#### GET /api/servers/{guildId}/channels/{channelId}/qotd/questions
+List questions for a channel.
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/questions
+Add a question to a channel.
+
+Body:
+```json
+{ "text": "What’s your favorite weekend activity?" }
+```
+
+#### DELETE /api/servers/{guildId}/channels/{channelId}/qotd/questions/{id}
+Delete a question from a channel.
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/upload-csv
+Bulk upload questions via CSV (multipart/form-data, field name `file`).
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/post-now
+Immediately post the next question to the configured channel.
+
+#### GET /api/servers/{guildId}/qotd/submissions
+List pending user submissions for moderation.
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/submissions/{id}/approve
+Approve a specific submission and add it to the channel’s questions.
+
+Body:
+```json
+{ "approverUserId": "123", "approverUsername": "AdminUser" }
+```
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/submissions/{id}/reject
+Reject a specific submission.
+
+Body:
+```json
+{ "approverUserId": "123", "approverUsername": "AdminUser" }
+```
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/submissions/bulk-approve
+Bulk approve a list of submission IDs for a channel.
+
+Body:
+```json
+{ "ids": [1,2,3], "approverUserId": "123", "approverUsername": "AdminUser" }
+```
+
+#### POST /api/servers/{guildId}/channels/{channelId}/qotd/submissions/bulk-reject
+Bulk reject a list of submission IDs for a channel.
+
+Body:
+```json
+{ "ids": [1,2,3], "approverUserId": "123", "approverUsername": "AdminUser" }
+```
 
 ## Setup Instructions
 
@@ -142,7 +224,7 @@ DISCORD_CLIENT_SECRET=your_client_secret_here
 mvn clean package -DskipTests
 
 # Run
-java -jar target/discord-bot-1.0.0.jar
+java -jar target/playbot-1.0.0.jar
 ```
 
 The web server will start on **port 8080**.
@@ -174,30 +256,43 @@ curl http://localhost:8080/api/health
 
 ---
 
-## Next Steps
+## Realtime Notifications (WebSocket/STOMP)
 
-This MVP provides:
-- ✅ Secured REST API
-- ✅ Permission validation (user admin + bot present)
-- ✅ List manageable servers
-- ✅ List gatcha roles per server
+- STOMP endpoint: `/ws` (SockJS supported)
+- Topic: `/topic/guild-updates`
+- Events: `GUILD_JOINED`, `GUILD_LEFT`, `ROLES_CHANGED`, `QOTD_QUESTIONS_CHANGED`, `QOTD_SUBMISSIONS_CHANGED`
+- Auth: Requires an authenticated session; CSRF is disabled only for `/ws/**`
 
-**Not yet implemented:**
-- ⏳ Frontend UI (React)
-- ⏳ Create/Edit/Delete role endpoints
-- ⏳ Statistics/analytics endpoints
-- ⏳ Role assignment preview
-- ⏳ Bulk operations
+Example (JavaScript) using @stomp/stompjs:
+
+```js
+import { Client } from '@stomp/stompjs';
+
+const client = new Client({
+  brokerURL: 'ws://localhost:8080/ws/websocket',
+  reconnectDelay: 5000,
+  // Cookies carry session; XSRF token not required for /ws/**
+});
+
+client.onConnect = () => {
+  client.subscribe('/topic/guild-updates', (msg) => {
+    const payload = JSON.parse(msg.body);
+    console.log('Update:', payload);
+  });
+};
+
+client.activate();
+```
 
 ---
 
 ## Security Notes
 
-- CSRF is currently disabled for API simplicity (see `SecurityConfig.java`)
-- For production, enable CSRF protection
-- For production, set `server.servlet.session.cookie.secure=true` in `application.properties`
-- OAuth2 access tokens should be properly managed using `OAuth2AuthorizedClientService`
-- Consider adding rate limiting for production use
+- CSRF is enabled via `CookieCsrfTokenRepository` for the REST API. Your SPA client must echo the `XSRF-TOKEN` cookie value in the `X-XSRF-TOKEN` header for state-changing requests.
+- CSRF is ignored for `/ws/**` only to allow WebSocket upgrades.
+- Sessions persist via Spring Session JDBC; OAuth2 authorized clients are stored via JDBC as well.
+- For production, set `server.servlet.session.cookie.secure=true` and review CORS origins.
+- OAuth2 access tokens are managed via `OAuth2AuthorizedClientService`.
 
 ---
 
