@@ -75,4 +75,42 @@ public class WebSocketNotificationService {
             logger.error("Failed to broadcast ROLES_CHANGED event: {}", e.getMessage());
         }
     }
+
+    /**
+     * Notify all connected clients that QOTD questions have been modified in a channel.
+     * Clients should refresh the question list for this channel.
+     */
+    public void notifyQotdQuestionsChanged(String guildId, String channelId, String action) {
+        try {
+            Map<String, String> payload = Map.of(
+                "type", "QOTD_QUESTIONS_CHANGED",
+                "guildId", guildId,
+                "channelId", channelId,
+                "action", action // e.g., "added", "deleted", "uploaded"
+            );
+            messagingTemplate.convertAndSend("/topic/guild-updates", payload);
+            logger.info("Broadcasted QOTD_QUESTIONS_CHANGED event for guild: {} channel: {} (action: {})", 
+                guildId, channelId, action);
+        } catch (Exception e) {
+            logger.error("Failed to broadcast QOTD_QUESTIONS_CHANGED event: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Notify all connected clients that QOTD submissions have been modified.
+     * Clients should refresh the submissions list for this guild.
+     */
+    public void notifyQotdSubmissionsChanged(String guildId, String action) {
+        try {
+            Map<String, String> payload = Map.of(
+                "type", "QOTD_SUBMISSIONS_CHANGED",
+                "guildId", guildId,
+                "action", action // e.g., "submitted", "approved", "rejected"
+            );
+            messagingTemplate.convertAndSend("/topic/guild-updates", payload);
+            logger.info("Broadcasted QOTD_SUBMISSIONS_CHANGED event for guild: {} (action: {})", guildId, action);
+        } catch (Exception e) {
+            logger.error("Failed to broadcast QOTD_SUBMISSIONS_CHANGED event: {}", e.getMessage());
+        }
+    }
 }

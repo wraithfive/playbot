@@ -6,6 +6,7 @@ import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
 import com.discordbot.web.service.QotdService;
+import com.discordbot.web.service.WebSocketNotificationService;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -30,13 +31,15 @@ class QotdServiceMoreTest {
     private QotdQuestionRepository questionRepo;
     private QotdConfigRepository configRepo;
     private JDA jda;
+    private WebSocketNotificationService wsNotificationService;
 
     @BeforeEach
     void setup() {
         questionRepo = mock(QotdQuestionRepository.class);
         configRepo = mock(QotdConfigRepository.class);
         jda = mock(JDA.class);
-        service = new QotdService(questionRepo, configRepo, jda);
+        wsNotificationService = mock(WebSocketNotificationService.class);
+        service = new QotdService(questionRepo, configRepo, jda, wsNotificationService);
     }
 
     @Test
@@ -48,7 +51,7 @@ class QotdServiceMoreTest {
         when(configRepo.save(any(QotdConfig.class))).thenAnswer(inv -> inv.getArgument(0));
 
         QotdDtos.UpdateConfigRequest req = new QotdDtos.UpdateConfigRequest(
-                true, "UTC", "  ", List.of("TUE"), "07:15", false
+                true, "UTC", "  ", List.of("TUE"), "07:15", false, false
         );
 
         QotdDtos.QotdConfigDto dto = service.updateConfig("guild1", "channel1", req);
@@ -65,7 +68,7 @@ class QotdServiceMoreTest {
         when(configRepo.save(any(QotdConfig.class))).thenAnswer(inv -> inv.getArgument(0));
 
         QotdDtos.UpdateConfigRequest req = new QotdDtos.UpdateConfigRequest(
-                true, null, null, List.of("MON"), "09:00", false
+                true, null, null, List.of("MON"), "09:00", false, false
         );
 
         QotdDtos.QotdConfigDto dto = service.updateConfig("guild1", "channel1", req);

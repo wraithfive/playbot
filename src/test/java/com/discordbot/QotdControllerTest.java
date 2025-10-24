@@ -92,8 +92,8 @@ class QotdControllerTest {
     @DisplayName("listConfigs should return configs successfully")
     void testListConfigs_Success() {
         List<QotdDtos.QotdConfigDto> configs = Arrays.asList(
-            new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * MON,WED,FRI", false, null, 0, Collections.emptyList()),
-            new QotdDtos.QotdConfigDto("channel2", false, "America/New_York", null, true, null, 0, Collections.emptyList())
+            new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * MON,WED,FRI", false, false, null, 0, Collections.emptyList()),
+            new QotdDtos.QotdConfigDto("channel2", false, "America/New_York", null, true, false, null, 0, Collections.emptyList())
         );
 
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
@@ -123,7 +123,7 @@ class QotdControllerTest {
     @DisplayName("getConfig should validate channel belongs to guild")
     void testGetConfig_ValidatesChannel() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
-        QotdDtos.QotdConfigDto config = new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * *", false, null, 0, Collections.emptyList());
+        QotdDtos.QotdConfigDto config = new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * *", false, false, null, 0, Collections.emptyList());
         when(qotdService.getConfig("guild123", "channel1")).thenReturn(config);
 
         ResponseEntity<QotdDtos.QotdConfigDto> response = qotdController.getConfig("guild123", "channel1", mockAuth);
@@ -140,7 +140,7 @@ class QotdControllerTest {
     void testUpdateConfig_NoPermission() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(false);
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
-            true, "UTC", null, Arrays.asList("MON", "WED", "FRI"), "09:00", false
+            true, "UTC", null, Arrays.asList("MON", "WED", "FRI"), "09:00", false, false
         );
 
         ResponseEntity<QotdDtos.QotdConfigDto> response = qotdController.updateConfig("guild123", "channel1", request, mockAuth);
@@ -154,9 +154,9 @@ class QotdControllerTest {
     void testUpdateConfig_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
-            true, "UTC", null, Arrays.asList("MON", "WED", "FRI"), "09:00", false
+            true, "UTC", null, Arrays.asList("MON", "WED", "FRI"), "09:00", false, false
         );
-        QotdDtos.QotdConfigDto updatedConfig = new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * MON,WED,FRI", false, null, 0, Collections.emptyList());
+        QotdDtos.QotdConfigDto updatedConfig = new QotdDtos.QotdConfigDto("channel1", true, "UTC", "0 9 * * MON,WED,FRI", false, false, null, 0, Collections.emptyList());
         when(qotdService.updateConfig("guild123", "channel1", request)).thenReturn(updatedConfig);
 
         ResponseEntity<QotdDtos.QotdConfigDto> response = qotdController.updateConfig("guild123", "channel1", request, mockAuth);
@@ -184,8 +184,8 @@ class QotdControllerTest {
     void testGetQuestions_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         List<QotdDtos.QotdQuestionDto> questions = Arrays.asList(
-            new QotdDtos.QotdQuestionDto(1L, "What is your favorite color?", Instant.now()),
-            new QotdDtos.QotdQuestionDto(2L, "What is your favorite food?", Instant.now())
+            new QotdDtos.QotdQuestionDto(1L, "What is your favorite color?", Instant.now(), null, null),
+            new QotdDtos.QotdQuestionDto(2L, "What is your favorite food?", Instant.now(), null, null)
         );
         when(qotdService.listQuestions("guild123", "channel1")).thenReturn(questions);
 
@@ -213,7 +213,7 @@ class QotdControllerTest {
     void testAddQuestion_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         QotdDtos.UpsertQuestionRequest request = new QotdDtos.UpsertQuestionRequest("What is your favorite color?");
-        QotdDtos.QotdQuestionDto question = new QotdDtos.QotdQuestionDto(1L, "What is your favorite color?", Instant.now());
+        QotdDtos.QotdQuestionDto question = new QotdDtos.QotdQuestionDto(1L, "What is your favorite color?", Instant.now(), null, null);
         when(qotdService.addQuestion("guild123", "channel1", "What is your favorite color?")).thenReturn(question);
 
         ResponseEntity<QotdDtos.QotdQuestionDto> response = qotdController.addQuestion("guild123", "channel1", request, mockAuth);

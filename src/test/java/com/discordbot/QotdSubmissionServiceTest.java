@@ -2,10 +2,12 @@ package com.discordbot;
 
 import com.discordbot.entity.QotdQuestion;
 import com.discordbot.entity.QotdSubmission;
+import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
 import com.discordbot.repository.QotdSubmissionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
 import com.discordbot.web.service.QotdSubmissionService;
+import com.discordbot.web.service.WebSocketNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -26,12 +28,16 @@ class QotdSubmissionServiceTest {
     private QotdSubmissionService service;
     private QotdSubmissionRepository submissionRepo;
     private QotdQuestionRepository questionRepo;
+    private WebSocketNotificationService wsNotificationService;
+    private QotdConfigRepository configRepo;
 
     @BeforeEach
     void setUp() {
         submissionRepo = mock(QotdSubmissionRepository.class);
         questionRepo = mock(QotdQuestionRepository.class);
-        service = new QotdSubmissionService(submissionRepo, questionRepo);
+        wsNotificationService = mock(WebSocketNotificationService.class);
+        configRepo = mock(QotdConfigRepository.class);
+        service = new QotdSubmissionService(submissionRepo, questionRepo, wsNotificationService, configRepo);
     }
 
     @Test

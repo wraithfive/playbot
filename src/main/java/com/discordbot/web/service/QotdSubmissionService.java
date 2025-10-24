@@ -1,7 +1,9 @@
 package com.discordbot.web.service;
 
+import com.discordbot.entity.QotdConfig;
 import com.discordbot.entity.QotdQuestion;
 import com.discordbot.entity.QotdSubmission;
+import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
 import com.discordbot.repository.QotdSubmissionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
@@ -20,13 +22,18 @@ import java.util.stream.Collectors;
 public class QotdSubmissionService {
     private final QotdSubmissionRepository submissionRepo;
     private final QotdQuestionRepository questionRepo;
+    private final WebSocketNotificationService wsNotificationService;
+    private final QotdConfigRepository configRepo;
 
     // Simple per guild:user rate limiter: 3 submissions per hour
     private final Cache<String, Bucket> buckets;
 
-    public QotdSubmissionService(QotdSubmissionRepository submissionRepo, QotdQuestionRepository questionRepo) {
+    public QotdSubmissionService(QotdSubmissionRepository submissionRepo, QotdQuestionRepository questionRepo,
+                                  WebSocketNotificationService wsNotificationService, QotdConfigRepository configRepo) {
         this.submissionRepo = submissionRepo;
         this.questionRepo = questionRepo;
+        this.wsNotificationService = wsNotificationService;
+        this.configRepo = configRepo;
         this.buckets = Caffeine.newBuilder()
                 .maximumSize(50_000)
                 .expireAfterAccess(Duration.ofHours(2))
@@ -44,8 +51,27 @@ public class QotdSubmissionService {
             throw new IllegalStateException("Rate limit exceeded. Try again later.");
         }
 
+        // Check if any channels in this guild have autoApprove enabled
+        List<QotdConfig> autoApproveChannels = configRepo.findByGuildId(guildId).stream()
+                .filter(QotdConfig::isAutoApprove)
+                .toList();
+
         QotdSubmission sub = new QotdSubmission(guildId, userId, username, trimmed);
+        
+        if (!autoApproveChannels.isEmpty()) {
+            // Auto-approve: add to all channels with autoApprove enabled and mark as approved
+            for (QotdConfig config : autoApproveChannels) {
+                questionRepo.save(new QotdQuestion(guildId, config.getChannelId(), trimmed, userId, username));
+                wsNotificationService.notifyQotdQuestionsChanged(guildId, config.getChannelId(), "auto-approved");
+            }
+            sub.setStatus(QotdSubmission.Status.APPROVED);
+            sub.setApprovedByUserId("system");
+            sub.setApprovedByUsername("Auto-Approved");
+            sub.setApprovedAt(Instant.now());
+        }
+        
         sub = submissionRepo.save(sub);
+        wsNotificationService.notifyQotdSubmissionsChanged(guildId, "submitted");
         return toDto(sub);
     }
 
@@ -69,6 +95,11 @@ public class QotdSubmissionService {
         sub.setApprovedByUsername(approverUsername);
         sub.setApprovedAt(Instant.now());
         submissionRepo.save(sub);
+        
+        // Notify clients
+        wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "approved");
+        wsNotificationService.notifyQotdSubmissionsChanged(guildId, "approved");
+        
         return toDto(sub);
     }
 
@@ -97,6 +128,9 @@ public class QotdSubmissionService {
         sub.setApprovedByUsername(approverUsername);
         sub.setApprovedAt(Instant.now());
         submissionRepo.save(sub);
+        
+        wsNotificationService.notifyQotdSubmissionsChanged(guildId, "rejected");
+        
         return toDto(sub);
     }
 

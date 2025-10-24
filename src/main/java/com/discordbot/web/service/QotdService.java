@@ -24,11 +24,14 @@ public class QotdService {
     private final QotdQuestionRepository questionRepo;
     private final QotdConfigRepository configRepo;
     private final JDA jda;
+    private final WebSocketNotificationService wsNotificationService;
 
-    public QotdService(QotdQuestionRepository questionRepo, QotdConfigRepository configRepo, JDA jda) {
+    public QotdService(QotdQuestionRepository questionRepo, QotdConfigRepository configRepo, JDA jda, 
+                       WebSocketNotificationService wsNotificationService) {
         this.questionRepo = questionRepo;
         this.configRepo = configRepo;
         this.jda = jda;
+        this.wsNotificationService = wsNotificationService;
     }
 
     /**
@@ -48,18 +51,22 @@ public class QotdService {
 
     public List<QotdDtos.QotdQuestionDto> listQuestions(String guildId, String channelId) {
         return questionRepo.findByGuildIdAndChannelIdOrderByIdAsc(guildId, channelId).stream()
-                .map(q -> new QotdDtos.QotdQuestionDto(q.getId(), q.getText(), q.getCreatedAt()))
+                .map(q -> new QotdDtos.QotdQuestionDto(q.getId(), q.getText(), q.getCreatedAt(), 
+                    q.getAuthorUserId(), q.getAuthorUsername()))
                 .toList();
     }
 
     public QotdDtos.QotdQuestionDto addQuestion(String guildId, String channelId, String text) {
         QotdQuestion saved = questionRepo.save(new QotdQuestion(guildId, channelId, text.trim()));
-        return new QotdDtos.QotdQuestionDto(saved.getId(), saved.getText(), saved.getCreatedAt());
+        wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "added");
+        return new QotdDtos.QotdQuestionDto(saved.getId(), saved.getText(), saved.getCreatedAt(),
+            saved.getAuthorUserId(), saved.getAuthorUsername());
     }
 
     @Transactional
     public void deleteQuestion(String guildId, String channelId, Long id) {
         questionRepo.deleteByIdAndGuildIdAndChannelId(id, guildId, channelId);
+        wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "deleted");
     }
 
     public QotdDtos.UploadCsvResult uploadCsv(String guildId, String channelId, String csvContent) {
@@ -106,6 +113,11 @@ public class QotdService {
                 errors.add("Line " + (i + 1) + ": " + e.getMessage());
             }
         }
+        
+        if (success > 0) {
+            wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "uploaded");
+        }
+        
         return new QotdDtos.UploadCsvResult(success, failure, errors);
     }
     
@@ -138,7 +150,8 @@ public class QotdService {
         });
         List<String> nextRuns = computeNextRuns(cfg, 5);
         return new QotdDtos.QotdConfigDto(
-                cfg.getChannelId(), cfg.isEnabled(), cfg.getTimezone(), cfg.getScheduleCron(), cfg.isRandomize(), cfg.getLastPostedAt(), cfg.getNextIndex(), nextRuns
+                cfg.getChannelId(), cfg.isEnabled(), cfg.getTimezone(), cfg.getScheduleCron(), 
+                cfg.isRandomize(), cfg.isAutoApprove(), cfg.getLastPostedAt(), cfg.getNextIndex(), nextRuns
         );
     }
 
@@ -146,7 +159,7 @@ public class QotdService {
         return configRepo.findByGuildId(guildId).stream()
                 .map(cfg -> new QotdDtos.QotdConfigDto(
                         cfg.getChannelId(), cfg.isEnabled(), cfg.getTimezone(), cfg.getScheduleCron(), 
-                        cfg.isRandomize(), cfg.getLastPostedAt(), cfg.getNextIndex(), computeNextRuns(cfg, 5)
+                        cfg.isRandomize(), cfg.isAutoApprove(), cfg.getLastPostedAt(), cfg.getNextIndex(), computeNextRuns(cfg, 5)
                 ))
                 .toList();
     }
@@ -157,6 +170,7 @@ public class QotdService {
         cfg.setEnabled(req.enabled());
         cfg.setTimezone(Optional.ofNullable(req.timezone()).orElse("UTC"));
         cfg.setRandomize(req.randomize());
+        cfg.setAutoApprove(req.autoApprove());
 
         String cron = req.advancedCron();
         if (cron == null || cron.isBlank()) {

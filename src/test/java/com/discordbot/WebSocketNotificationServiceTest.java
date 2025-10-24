@@ -59,4 +59,61 @@ class WebSocketNotificationServiceTest {
         assertDoesNotThrow(() -> svc.notifyGuildLeft("g2", "Guild Two"));
         assertDoesNotThrow(() -> svc.notifyRolesChanged("g3", "created"));
     }
+
+    @Test
+    @DisplayName("Broadcast QOTD questions changed event to /topic/guild-updates")
+    void broadcastsQotdQuestionsChanged() {
+        SimpMessagingTemplate template = mock(SimpMessagingTemplate.class);
+        WebSocketNotificationService svc = new WebSocketNotificationService(template);
+
+        // Notify questions changed
+        svc.notifyQotdQuestionsChanged("g123", "ch456", "added");
+
+        ArgumentCaptor<String> dest = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(template, times(1)).convertAndSend(dest.capture(), payload.capture());
+
+        assertEquals("/topic/guild-updates", dest.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> map = (Map<String, String>) payload.getValue();
+        assertEquals("QOTD_QUESTIONS_CHANGED", map.get("type"));
+        assertEquals("g123", map.get("guildId"));
+        assertEquals("ch456", map.get("channelId"));
+        assertEquals("added", map.get("action"));
+    }
+
+    @Test
+    @DisplayName("Broadcast QOTD submissions changed event to /topic/guild-updates")
+    void broadcastsQotdSubmissionsChanged() {
+        SimpMessagingTemplate template = mock(SimpMessagingTemplate.class);
+        WebSocketNotificationService svc = new WebSocketNotificationService(template);
+
+        // Notify submissions changed
+        svc.notifyQotdSubmissionsChanged("g789", "approved");
+
+        ArgumentCaptor<String> dest = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(template, times(1)).convertAndSend(dest.capture(), payload.capture());
+
+        assertEquals("/topic/guild-updates", dest.getValue());
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> map = (Map<String, String>) payload.getValue();
+        assertEquals("QOTD_SUBMISSIONS_CHANGED", map.get("type"));
+        assertEquals("g789", map.get("guildId"));
+        assertEquals("approved", map.get("action"));
+    }
+
+    @Test
+    @DisplayName("Handle exceptions in QOTD notification methods")
+    void handlesQotdNotificationExceptions() {
+        SimpMessagingTemplate template = mock(SimpMessagingTemplate.class);
+        doThrow(new RuntimeException("boom")).when(template).convertAndSend(anyString(), any(Object.class));
+
+        WebSocketNotificationService svc = new WebSocketNotificationService(template);
+        // Should not throw
+        assertDoesNotThrow(() -> svc.notifyQotdQuestionsChanged("g1", "ch1", "deleted"));
+        assertDoesNotThrow(() -> svc.notifyQotdSubmissionsChanged("g2", "rejected"));
+    }
 }

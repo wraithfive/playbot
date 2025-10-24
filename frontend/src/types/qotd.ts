@@ -2,6 +2,8 @@ export interface QotdQuestionDto {
   id: number;
   text: string;
   createdAt: string;
+  authorUserId?: string | null;
+  authorUsername?: string | null;
 }
 
 export interface QotdConfigDto {
@@ -10,6 +12,7 @@ export interface QotdConfigDto {
   timezone: string;
   scheduleCron: string | null;
   randomize: boolean;
+  autoApprove: boolean;
   lastPostedAt: string | null;
   nextIndex: number;
   nextRuns: string[];
@@ -28,6 +31,7 @@ export interface UpdateQotdRequest {
   daysOfWeek?: string[]; // MON..SUN
   timeOfDay?: string; // HH:mm
   randomize: boolean;
+  autoApprove: boolean;
 }
 
 export interface TextChannelInfo { id: string; name: string; }

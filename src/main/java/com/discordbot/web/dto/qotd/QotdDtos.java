@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 public class QotdDtos {
-    public record QotdQuestionDto(Long id, String text, Instant createdAt) {}
+    public record QotdQuestionDto(Long id, String text, Instant createdAt, String authorUserId, String authorUsername) {}
 
     public record QotdConfigDto(
             String channelId,
@@ -12,6 +12,7 @@ public class QotdDtos {
             String timezone,
             String scheduleCron,
             boolean randomize,
+            boolean autoApprove,
             Instant lastPostedAt,
             int nextIndex,
             List<String> nextRuns // ISO strings for next 5 runs
@@ -28,7 +29,8 @@ public class QotdDtos {
             String advancedCron,
             List<String> daysOfWeek, // MON..SUN
             String timeOfDay, // HH:mm
-            boolean randomize
+            boolean randomize,
+            boolean autoApprove
     ) {}
 
     public record TextChannelInfo(String id, String name) {}

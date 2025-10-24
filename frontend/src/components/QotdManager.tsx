@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qotdApi } from '../api/client';
 import type { UpdateQotdRequest } from '../types/qotd';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 export default function QotdManager() {
   const { guildId } = useParams<{ guildId: string }>();
@@ -48,14 +49,14 @@ export default function QotdManager() {
     enabled: !!guildId && !!selectedChannelId,
   });
 
-  // Fetch questions for selected channel
+  // Fetch questions for selected channel (WebSocket handles real-time updates)
   const { data: questions } = useQuery({
     queryKey: ['qotd-questions', guildId, selectedChannelId],
     queryFn: async () => (await qotdApi.listQuestions(guildId!, selectedChannelId!)).data,
     enabled: !!guildId && !!selectedChannelId,
   });
 
-  // Fetch guild-wide pending submissions
+  // Fetch guild-wide pending submissions (WebSocket handles real-time updates)
   const { data: submissions } = useQuery({
     queryKey: ['qotd-submissions', guildId],
     queryFn: async () => (await qotdApi.listPending(guildId!)).data,
@@ -66,6 +67,7 @@ export default function QotdManager() {
     enabled: false,
     timezone: 'UTC',
     randomize: false,
+    autoApprove: false,
   });
 
   // Sync form state with backend config
@@ -76,11 +78,27 @@ export default function QotdManager() {
         timezone: config.timezone || 'UTC',
         advancedCron: config.scheduleCron || undefined,
         randomize: config.randomize,
+        autoApprove: config.autoApprove,
         timeOfDay: '09:00',
         daysOfWeek: ['MON','TUE','WED','THU','FRI'],
       });
     }
   }, [config]);
+
+  // Listen for real-time QOTD updates via WebSocket
+  useWebSocket((message) => {
+    if (message.guildId !== guildId) return; // Ignore updates for other guilds
+    
+    if (message.type === 'QOTD_QUESTIONS_CHANGED') {
+      // Refresh questions for the affected channel
+      if (message.channelId === selectedChannelId) {
+        qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, message.channelId] });
+      }
+    } else if (message.type === 'QOTD_SUBMISSIONS_CHANGED') {
+      // Refresh submissions list
+      qc.invalidateQueries({ queryKey: ['qotd-submissions', guildId] });
+    }
+  });
 
   const updateConfigMutation = useMutation({
     mutationFn: (req: UpdateQotdRequest) => qotdApi.updateConfig(guildId!, selectedChannelId!, req),
@@ -230,6 +248,21 @@ export default function QotdManager() {
                     <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
                   </div>
                   <div className="field">
+                    <label className="field-label">Randomize order</label>
+                    <input type="checkbox" checked={form.randomize} onChange={(e) => setForm({ ...form, randomize: e.target.checked })} />
+                  </div>
+                  <div className="field">
+                    <label className="field-label">
+                      Auto-approve submissions
+                      <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                        (submissions instantly added to queue)
+                      </span>
+                    </label>
+                    <input type="checkbox" checked={form.autoApprove} onChange={(e) => setForm({ ...form, autoApprove: e.target.checked })} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="field">
                     <label className="field-label">Timezone</label>
                     <select 
                       className="input" 
@@ -283,10 +316,6 @@ export default function QotdManager() {
                         <option value="Africa/Johannesburg">Johannesburg (SAST)</option>
                       </optgroup>
                     </select>
-                  </div>
-                  <div className="field">
-                    <label className="field-label">Randomize order</label>
-                    <input type="checkbox" checked={form.randomize} onChange={(e) => setForm({ ...form, randomize: e.target.checked })} />
                   </div>
                 </div>
 
@@ -460,58 +489,191 @@ export default function QotdManager() {
 
             {/* Questions section for selected channel */}
             <section className="action-card">
-              <h3>Questions for {getChannelName(selectedChannelId)}</h3>
-              <p className="section-description">
-                Manage questions for this channel. Current: {questions?.length || 0}
-                {(questions && questions.length === 0) && (
-                  <>
-                    {' '}• <span style={{ color: '#a80000' }}>Empty queue — add questions or upload a CSV.</span>
-                  </>
-                )}
-                {(questions && questions.length > 0 && questions.length <= 3) && (
-                  <>
-                    {' '}• <span style={{ color: '#8a6100' }}>Low queue — consider adding more.</span>
-                  </>
-                )}
-              </p>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ marginBottom: '0.5rem' }}>Questions for #{getChannelName(selectedChannelId)}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <span style={{ 
+                    background: questions?.length === 0 ? '#ffe6e6' : questions?.length && questions.length <= 3 ? '#fff7e6' : '#eef7ff',
+                    color: questions?.length === 0 ? '#a80000' : questions?.length && questions.length <= 3 ? '#8a6100' : '#0b61a4',
+                    padding: '6px 12px', 
+                    borderRadius: '6px',
+                    border: `1px solid ${questions?.length === 0 ? '#ffb3b3' : questions?.length && questions.length <= 3 ? '#ffe0a3' : '#cfe7ff'}`,
+                    fontSize: '0.9rem',
+                    fontWeight: 500
+                  }}>
+                    {questions?.length === 0 ? '❗ ' : questions?.length && questions.length <= 3 ? '⚠ ' : '📋 '}
+                    {questions?.length || 0} question{questions?.length === 1 ? '' : 's'}
+                  </span>
+                  {questions?.length === 0 && (
+                    <span style={{ fontSize: '0.9rem', color: '#a80000' }}>
+                      Empty queue — add questions or upload a CSV
+                    </span>
+                  )}
+                  {questions && questions.length > 0 && questions.length <= 3 && (
+                    <span style={{ fontSize: '0.9rem', color: '#8a6100' }}>
+                      Low queue — consider adding more
+                    </span>
+                  )}
+                </div>
+              </div>
               
               <div className="add-role-form">
-                <div className="form-row">
-                  <input
-                    className="input"
-                    placeholder="Enter a question..."
-                    value={newQuestion}
-                    onChange={(e) => setNewQuestion(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && newQuestion.trim()) addQuestionMutation.mutate(newQuestion); }}
-                  />
-                  <button className="btn btn-primary btn-sm" onClick={() => addQuestionMutation.mutate(newQuestion)} disabled={!newQuestion.trim()}>Add Question</button>
+                {/* Add question input */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Add Single Question</label>
+                  <div className="form-row" style={{ gap: '0.75rem' }}>
+                    <input
+                      className="input"
+                      placeholder="Enter a question..."
+                      value={newQuestion}
+                      onChange={(e) => setNewQuestion(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && newQuestion.trim()) addQuestionMutation.mutate(newQuestion); }}
+                      style={{ flex: 1 }}
+                    />
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={() => addQuestionMutation.mutate(newQuestion)} 
+                      disabled={!newQuestion.trim()}
+                      style={{ minWidth: '120px' }}
+                    >
+                      Add Question
+                    </button>
+                  </div>
                 </div>
 
-                <div className="form-row">
-                  <a
-                    href={guildId ? `/api/servers/${guildId}/qotd/download-example` : '#'}
-                    className="btn btn-secondary btn-sm"
-                    style={{ marginRight: '0.75rem' }}
-                    download
-                  >
-                    Download Example CSV
-                  </a>
-                  <input type="file" accept=".csv" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
-                  <button className="btn btn-primary btn-sm" onClick={() => { if (csvFile) uploadCsvMutation.mutate(csvFile); }} disabled={!csvFile}>Upload CSV</button>
+                {/* CSV Upload */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Bulk Upload from CSV</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <a
+                      href={guildId ? `/api/servers/${guildId}/qotd/download-example` : '#'}
+                      className="btn btn-secondary btn-sm"
+                      download
+                      style={{ textDecoration: 'none' }}
+                    >
+                      📥 Download Example CSV
+                    </a>
+                    <div style={{ 
+                      flex: 1, 
+                      minWidth: '250px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.75rem',
+                      background: 'var(--card-bg)',
+                      border: '2px dashed var(--border-color)',
+                      borderRadius: '8px'
+                    }}>
+                      <label htmlFor="csv-upload" style={{ 
+                        flex: 1,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}>
+                        <span style={{ fontSize: '1.2rem' }}>📄</span>
+                        <span style={{ fontSize: '0.9rem', color: csvFile ? 'var(--text-color)' : '#999' }}>
+                          {csvFile ? csvFile.name : 'Choose a CSV file...'}
+                        </span>
+                      </label>
+                      <input 
+                        id="csv-upload"
+                        type="file" 
+                        accept=".csv" 
+                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                        style={{ display: 'none' }}
+                      />
+                      {csvFile && (
+                        <button 
+                          className="btn btn-sm"
+                          onClick={() => setCsvFile(null)}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <button 
+                      className="btn btn-primary btn-sm" 
+                      onClick={() => { if (csvFile) uploadCsvMutation.mutate(csvFile); }} 
+                      disabled={!csvFile}
+                      style={{ minWidth: '100px' }}
+                    >
+                      📤 Upload CSV
+                    </button>
+                  </div>
                 </div>
 
                 {questionMessage && (
-                  <div className={`upload-message-inline ${questionMessage.startsWith('✓') ? 'success' : 'error'}`}>{questionMessage}</div>
+                  <div className={`upload-message-inline ${questionMessage.startsWith('✓') ? 'success' : 'error'}`} style={{ marginBottom: '1rem' }}>
+                    {questionMessage}
+                  </div>
                 )}
 
-                <div className="role-list">
-                  {questions?.map((q) => (
-                    <div key={q.id} className="role-item">
-                      <span className="role-name">{q.text}</span>
-                      <button className="btn btn-danger btn-sm" onClick={() => deleteQuestionMutation.mutate(q.id)}>Delete</button>
+                {/* Questions List */}
+                {questions && questions.length > 0 && (
+                  <div>
+                    <label className="field-label" style={{ marginBottom: '0.75rem', display: 'block' }}>
+                      Question Queue
+                    </label>
+                    <div className="role-list" style={{ gap: '0.75rem' }}>
+                      {questions.map((q, index) => (
+                        <div key={q.id} className="role-item" style={{ 
+                          padding: '1rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1rem'
+                        }}>
+                          <span style={{ 
+                            fontSize: '0.85rem', 
+                            color: '#999', 
+                            minWidth: '2rem',
+                            textAlign: 'center',
+                            fontWeight: 500
+                          }}>
+                            #{index + 1}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div className="role-name" style={{ lineHeight: 1.5, marginBottom: q.authorUsername ? '0.25rem' : 0 }}>
+                              {q.text}
+                            </div>
+                            {q.authorUsername && (
+                              <div style={{ fontSize: '0.85rem', color: '#999', fontStyle: 'italic' }}>
+                                by @{q.authorUsername}
+                              </div>
+                            )}
+                          </div>
+                          <button 
+                            className="btn btn-danger btn-sm" 
+                            onClick={() => {
+                              if (window.confirm(`Delete this question?\n\n"${q.text}"`)) {
+                                deleteQuestionMutation.mutate(q.id);
+                              }
+                            }}
+                            style={{ minWidth: '80px' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+                
+                {questions && questions.length === 0 && (
+                  <div style={{
+                    padding: '2rem',
+                    textAlign: 'center',
+                    background: 'var(--card-bg)',
+                    borderRadius: '8px',
+                    border: '2px dashed var(--border-color)',
+                    color: '#999'
+                  }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📝</div>
+                    <div style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>No questions yet</div>
+                    <div style={{ fontSize: '0.9rem' }}>Add your first question above or upload a CSV file</div>
+                  </div>
+                )}
               </div>
             </section>
           </>

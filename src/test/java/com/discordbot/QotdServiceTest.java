@@ -6,6 +6,7 @@ import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
 import com.discordbot.web.service.QotdService;
+import com.discordbot.web.service.WebSocketNotificationService;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -32,13 +33,15 @@ class QotdServiceTest {
     private QotdQuestionRepository questionRepo;
     private QotdConfigRepository configRepo;
     private JDA jda;
+    private WebSocketNotificationService wsNotificationService;
 
     @BeforeEach
     void setUp() {
         questionRepo = mock(QotdQuestionRepository.class);
         configRepo = mock(QotdConfigRepository.class);
         jda = mock(JDA.class);
-        service = new QotdService(questionRepo, configRepo, jda);
+        wsNotificationService = mock(WebSocketNotificationService.class);
+        service = new QotdService(questionRepo, configRepo, jda, wsNotificationService);
     }
 
     @Test
@@ -250,7 +253,7 @@ class QotdServiceTest {
 
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
             true, "America/New_York", null, Arrays.asList("MON", "WED", "FRI"),
-            "14:30", false
+            "14:30", false, false
         );
 
         QotdDtos.QotdConfigDto result = service.updateConfig("guild1", "channel1", request);
@@ -280,7 +283,7 @@ class QotdServiceTest {
 
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
             true, "UTC", null, Arrays.asList("MON", "WED", "FRI"),
-            "14:30", false
+            "14:30", false, false
         );
 
         service.updateConfig("guild1", "channel1", request);
@@ -302,7 +305,7 @@ class QotdServiceTest {
         });
 
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
-            true, "UTC", "0 0 12 * * *", null, null, false
+            true, "UTC", "0 0 12 * * *", null, null, false, false
         );
 
         service.updateConfig("guild1", "channel1", request);
@@ -321,7 +324,7 @@ class QotdServiceTest {
 
         // advancedCron null, days/timeOfDay null -> defaults to 09:00 on MON-FRI
         QotdDtos.UpdateConfigRequest request = new QotdDtos.UpdateConfigRequest(
-            true, null, null, null, null, false
+            true, null, null, null, null, false, false
         );
 
         QotdDtos.QotdConfigDto dto = service.updateConfig("guild1", "channel1", request);

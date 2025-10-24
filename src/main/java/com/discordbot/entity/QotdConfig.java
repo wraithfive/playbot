@@ -31,6 +31,9 @@ public class QotdConfig {
     @Column(nullable = false)
     private boolean randomize = false;
 
+    @Column(nullable = false)
+    private boolean autoApprove = false;
+
     @Column
     private Instant lastPostedAt;
 
@@ -61,6 +64,9 @@ public class QotdConfig {
 
     public boolean isRandomize() { return randomize; }
     public void setRandomize(boolean randomize) { this.randomize = randomize; }
+
+    public boolean isAutoApprove() { return autoApprove; }
+    public void setAutoApprove(boolean autoApprove) { this.autoApprove = autoApprove; }
 
     public Instant getLastPostedAt() { return lastPostedAt; }
     public void setLastPostedAt(Instant lastPostedAt) { this.lastPostedAt = lastPostedAt; }
