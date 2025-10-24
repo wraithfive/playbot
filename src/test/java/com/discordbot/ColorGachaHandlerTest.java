@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for ColorGachaHandler - focusing on rarity weighting and role selection
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings("unchecked")
 class ColorGachaHandlerTest {
 
     private ColorGachaHandler handler;
@@ -126,7 +126,6 @@ class ColorGachaHandlerTest {
         // Use reflection to set userRollHistory dates
         java.lang.reflect.Field f = ColorGachaHandler.class.getDeclaredField("userRollHistory");
         f.setAccessible(true);
-        @SuppressWarnings("unchecked")
         java.util.Map<String, java.time.LocalDate> map = (java.util.Map<String, java.time.LocalDate>) f.get(handler);
         map.put("userX", java.time.LocalDate.now(java.time.ZoneId.systemDefault()));
 
@@ -215,13 +214,11 @@ class ColorGachaHandlerTest {
         when(guild.getRoles()).thenReturn(List.of(newRole)); // deterministic pick
 
         // removeRoleFromMember queue() no-op
-        @SuppressWarnings("unchecked")
         AuditableRestAction<Void> removeAction = mock(AuditableRestAction.class);
         when(guild.removeRoleFromMember(member, oldRole)).thenReturn(removeAction);
         doNothing().when(removeAction).queue();
 
         // addRoleToMember success path invoking success consumer
-        @SuppressWarnings("unchecked")
         AuditableRestAction<Void> addAction = mock(AuditableRestAction.class);
         when(guild.addRoleToMember(member, newRole)).thenReturn(addAction);
         doAnswer(inv -> { Consumer<Object> onSuccess = inv.getArgument(0); onSuccess.accept(null); return null; })
@@ -259,7 +256,6 @@ class ColorGachaHandlerTest {
         when(guild.removeRoleFromMember(member, oldRole)).thenReturn(removeAction);
         doNothing().when(removeAction).queue();
 
-        @SuppressWarnings("unchecked")
         AuditableRestAction<Void> addAction = mock(AuditableRestAction.class);
         when(guild.addRoleToMember(member, newRole)).thenReturn(addAction);
         doAnswer(inv -> { Consumer<Throwable> onError = inv.getArgument(1); onError.accept(new RuntimeException("boom")); return null; })

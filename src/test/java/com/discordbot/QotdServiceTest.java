@@ -468,7 +468,6 @@ class QotdServiceTest {
 
         Guild guild = mock(Guild.class);
     TextChannel channel = mock(TextChannel.class);
-    MessageCreateAction embedAction = mock(MessageCreateAction.class);
     MessageCreateAction textAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));

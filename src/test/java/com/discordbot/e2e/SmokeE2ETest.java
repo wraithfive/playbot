@@ -11,7 +11,7 @@ import org.mockito.Mockito;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 class SmokeE2ETest {
-    @MockBean(name = "jda")
+    @MockitoBean(name = "jda")
     private JDA jda;
 
     @Autowired
@@ -57,5 +57,5 @@ class SmokeE2ETest {
                 .andExpect(jsonPath("$.bot.guilds").value(1));
     }
 
-    // JDA is mocked via @MockBean to replace the application's JDA bean during tests
+    // JDA is mocked via @MockitoBean to replace the application's JDA bean during tests
 }

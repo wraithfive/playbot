@@ -26,6 +26,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for QotdController - focusing on security and bulk operations
  */
+@SuppressWarnings("null")
 class QotdControllerTest {
 
     private QotdController qotdController;

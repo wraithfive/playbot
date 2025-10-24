@@ -7,7 +7,6 @@ import com.discordbot.web.service.RateLimitService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -17,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,6 +24,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for RoleController - focusing on security, rate limiting, and CSV handling
  */
+@SuppressWarnings("null")
 class RoleControllerTest {
 
     private RoleController roleController;
