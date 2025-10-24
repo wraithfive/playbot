@@ -184,16 +184,26 @@ export default function RoleCard({ role, onClick }: RoleCardProps) {
 
 ### Commit Messages
 
-Use clear, descriptive commit messages:
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
+- **Use type prefix**: `feat:`, `fix:`, `test:`, `refactor:`, `chore:`, `docs:`
 - **Use imperative mood**: "Add feature" not "Added feature"
-- **First line <= 72 characters**
+- **First line <= 72 characters** (including type prefix)
 - **Reference issues**: "Fix role assignment bug (#123)"
-- **Explain why, not just what**
+- **Explain why, not just what** in the commit body
+
+**Common types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `test:` - Add or update tests
+- `refactor:` - Code refactoring without changing behavior
+- `chore:` - Maintenance tasks (deps, config)
+- `docs:` - Documentation updates
+- `style:` - Code formatting (no functional changes)
 
 Good examples:
 ```
-Add database persistence for roll cooldowns
+feat: add database persistence for roll cooldowns
 
 - Replace in-memory map with H2 database
 - Create UserCooldown entity and repository
@@ -202,7 +212,7 @@ Add database persistence for roll cooldowns
 ```
 
 ```
-Fix role hierarchy permission error
+fix: correct role hierarchy permission error
 
 Users were getting errors when bot role was positioned
 below gacha roles. Added detailed error messages to help
