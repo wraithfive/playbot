@@ -107,6 +107,7 @@ export const qotdApi = {
   listQuestions: (guildId: string, channelId: string) => api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/questions`),
   addQuestion: (guildId: string, channelId: string, text: string) => api.post<QotdQuestionDto>(`/servers/${guildId}/channels/${channelId}/qotd/questions`, { text }),
   deleteQuestion: (guildId: string, channelId: string, id: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/questions/${id}`),
+  reorderQuestions: (guildId: string, channelId: string, orderedIds: number[]) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/questions/reorder`, { orderedIds }),
   uploadCsv: (guildId: string, channelId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

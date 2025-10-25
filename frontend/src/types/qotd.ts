@@ -49,6 +49,8 @@ export interface QotdSubmissionDto {
 
 export interface BulkIdsRequest { ids: number[]; }
 
+export interface ReorderQuestionsRequest { orderedIds: number[]; }
+
 export interface BulkActionResult {
   successCount: number;
   failureCount: number;

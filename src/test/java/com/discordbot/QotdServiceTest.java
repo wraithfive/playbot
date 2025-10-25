@@ -85,7 +85,7 @@ class QotdServiceTest {
         QotdQuestion q1 = new QotdQuestion("guild1", "channel1", "Question 1");
         QotdQuestion q2 = new QotdQuestion("guild1", "channel1", "Question 2");
 
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(Arrays.asList(q1, q2));
 
         List<QotdDtos.QotdQuestionDto> result = service.listQuestions("guild1", "channel1");
@@ -409,7 +409,7 @@ class QotdServiceTest {
         config.setEnabled(true);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(Collections.emptyList());
 
         boolean result = service.postNextQuestion("guild1", "channel1");
@@ -428,7 +428,7 @@ class QotdServiceTest {
         setQuestionId(question, 10L);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(List.of(question));
         when(jda.getGuildById("guild1")).thenReturn(null);
 
@@ -449,7 +449,7 @@ class QotdServiceTest {
         Guild guild = mock(Guild.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(List.of(question));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(null);
@@ -474,7 +474,7 @@ class QotdServiceTest {
     MessageCreateAction textAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(List.of(q1));
         when(jda.getGuildById("guild1")).thenReturn(guild);
     when(guild.getTextChannelById("channel1")).thenReturn(channel);
@@ -558,7 +558,7 @@ class QotdServiceTest {
         MessageCreateAction textAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(Arrays.asList(question));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);
@@ -596,7 +596,7 @@ class QotdServiceTest {
         org.mockito.ArgumentCaptor<net.dv8tion.jda.api.entities.MessageEmbed> captor = org.mockito.ArgumentCaptor.forClass(net.dv8tion.jda.api.entities.MessageEmbed.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(List.of(question));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);
@@ -631,7 +631,7 @@ class QotdServiceTest {
         MessageCreateAction embedAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(List.of(q1, q2));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);
@@ -669,7 +669,7 @@ class QotdServiceTest {
         MessageCreateAction textAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(Arrays.asList(question));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);
@@ -704,7 +704,7 @@ class QotdServiceTest {
         MessageCreateAction textAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1"))
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1"))
             .thenReturn(Arrays.asList(question));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);

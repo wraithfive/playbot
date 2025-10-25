@@ -20,6 +20,8 @@ public class QotdDtos {
 
     public record UpsertQuestionRequest(String text) {}
 
+    public record ReorderQuestionsRequest(List<Long> orderedIds) {}
+
     public record UploadCsvResult(int successCount, int failureCount, List<String> errors) {}
 
     public record UpdateConfigRequest(

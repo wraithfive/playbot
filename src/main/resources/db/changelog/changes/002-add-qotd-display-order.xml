@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="002-add-qotd-display-order" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="qotd_questions" columnName="display_order"/>
+            </not>
+        </preConditions>
+        
+        <comment>Add display_order column to qotd_questions for manual question ordering</comment>
+        
+        <addColumn tableName="qotd_questions">
+            <column name="display_order" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        
+        <!-- Initialize display_order to match id for existing rows -->
+        <sql>UPDATE qotd_questions SET display_order = id WHERE display_order = 0</sql>
+    </changeSet>
+
+</databaseChangeLog>

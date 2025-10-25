@@ -109,7 +109,7 @@ class QotdServiceMoreTest {
         MessageCreateAction embedAction = mock(MessageCreateAction.class);
 
         when(configRepo.findById(id)).thenReturn(Optional.of(config));
-        when(questionRepo.findByGuildIdAndChannelIdOrderByIdAsc("guild1", "channel1")).thenReturn(List.of(q1, q2));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1")).thenReturn(List.of(q1, q2));
         when(jda.getGuildById("guild1")).thenReturn(guild);
         when(guild.getTextChannelById("channel1")).thenReturn(channel);
         when(channel.sendMessageEmbeds(any(net.dv8tion.jda.api.entities.MessageEmbed.class))).thenReturn(embedAction);

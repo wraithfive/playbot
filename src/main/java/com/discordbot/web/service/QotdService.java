@@ -50,14 +50,21 @@ public class QotdService {
     }
 
     public List<QotdDtos.QotdQuestionDto> listQuestions(String guildId, String channelId) {
-        return questionRepo.findByGuildIdAndChannelIdOrderByIdAsc(guildId, channelId).stream()
+        return questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc(guildId, channelId).stream()
                 .map(q -> new QotdDtos.QotdQuestionDto(q.getId(), q.getText(), q.getCreatedAt(), 
                     q.getAuthorUserId(), q.getAuthorUsername()))
                 .toList();
     }
 
     public QotdDtos.QotdQuestionDto addQuestion(String guildId, String channelId, String text) {
-        QotdQuestion saved = questionRepo.save(new QotdQuestion(guildId, channelId, text.trim()));
+        // Get the max display_order and add 1 for new question
+        List<QotdQuestion> existing = questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc(guildId, channelId);
+        int nextOrder = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).getDisplayOrder() + 1;
+        
+        QotdQuestion newQuestion = new QotdQuestion(guildId, channelId, text.trim());
+        newQuestion.setDisplayOrder(nextOrder);
+        
+        QotdQuestion saved = questionRepo.save(newQuestion);
         wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "added");
         return new QotdDtos.QotdQuestionDto(saved.getId(), saved.getText(), saved.getCreatedAt(),
             saved.getAuthorUserId(), saved.getAuthorUsername());
@@ -69,9 +76,35 @@ public class QotdService {
         wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "deleted");
     }
 
+    @Transactional
+    public void reorderQuestions(String guildId, String channelId, List<Long> orderedIds) {
+        // Fetch all questions for this channel
+        List<QotdQuestion> questions = questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc(guildId, channelId);
+        
+        // Create a map of id -> question for quick lookup
+        Map<Long, QotdQuestion> questionMap = questions.stream()
+            .collect(java.util.stream.Collectors.toMap(QotdQuestion::getId, q -> q));
+        
+        // Update displayOrder based on the new order
+        for (int i = 0; i < orderedIds.size(); i++) {
+            Long questionId = orderedIds.get(i);
+            QotdQuestion question = questionMap.get(questionId);
+            if (question != null) {
+                question.setDisplayOrder(i + 1);
+                questionRepo.save(question);
+            }
+        }
+        
+        wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "reordered");
+    }
+
     public QotdDtos.UploadCsvResult uploadCsv(String guildId, String channelId, String csvContent) {
         String[] lines = csvContent.split("\r?\n");
         int success = 0, failure = 0; List<String> errors = new ArrayList<>();
+        
+        // Get current max displayOrder for this channel
+        List<QotdQuestion> existing = questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc(guildId, channelId);
+        int nextOrder = existing.isEmpty() ? 1 : existing.get(existing.size() - 1).getDisplayOrder() + 1;
         
         // Check if first line is a header
         int startLine = 0;
@@ -98,8 +131,9 @@ public class QotdService {
                     throw new IllegalArgumentException("Question text cannot be empty");
                 }
                 
-                // Create question with optional author info
+                // Create question with optional author info and next displayOrder
                 QotdQuestion question = new QotdQuestion(guildId, channelId, questionText);
+                question.setDisplayOrder(nextOrder++);
                 if (authorUsername != null && !authorUsername.isEmpty()) {
                     question.setAuthorUsername(authorUsername);
                 }
@@ -225,7 +259,7 @@ public class QotdService {
         QotdConfig cfg = configRepo.findById(id).orElse(null);
         if (cfg == null || !cfg.isEnabled()) return false;
 
-        List<QotdQuestion> questions = questionRepo.findByGuildIdAndChannelIdOrderByIdAsc(guildId, channelId);
+        List<QotdQuestion> questions = questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc(guildId, channelId);
         if (questions.isEmpty()) return false;
 
         int index = cfg.getNextIndex();

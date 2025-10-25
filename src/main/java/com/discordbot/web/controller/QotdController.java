@@ -127,6 +127,18 @@ public class QotdController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/channels/{channelId}/qotd/questions/reorder")
+    public ResponseEntity<?> reorderQuestions(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            @Valid @RequestBody QotdDtos.ReorderQuestionsRequest request,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        qotdService.reorderQuestions(guildId, channelId, request.orderedIds());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping(value = "/channels/{channelId}/qotd/upload-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<QotdDtos.UploadCsvResult> uploadCsv(
             @PathVariable String guildId,

@@ -13,5 +13,6 @@
     
     <!-- Schema changes -->
     <include file="db/changelog/changes/001-add-qotd-auto-approve-and-author-columns.xml"/>
+    <include file="db/changelog/changes/002-add-qotd-display-order.xml"/>
     
 </databaseChangeLog>

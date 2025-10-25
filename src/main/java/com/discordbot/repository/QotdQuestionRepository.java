@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface QotdQuestionRepository extends JpaRepository<QotdQuestion, Long> {
-    List<QotdQuestion> findByGuildIdAndChannelIdOrderByIdAsc(String guildId, String channelId);
+    List<QotdQuestion> findByGuildIdAndChannelIdOrderByDisplayOrderAsc(String guildId, String channelId);
     long countByGuildIdAndChannelId(String guildId, String channelId);
     void deleteByIdAndGuildIdAndChannelId(Long id, String guildId, String channelId);
 }

@@ -182,6 +182,62 @@ export default function QotdManager() {
     },
   });
 
+  const reorderQuestionsMutation = useMutation({
+    mutationFn: (orderedIds: number[]) => qotdApi.reorderQuestions(guildId!, selectedChannelId!, orderedIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+    },
+    onError: () => {
+      setQuestionMessage('✗ Failed to reorder questions');
+      setTimeout(() => setQuestionMessage(''), 5000);
+    },
+  });
+
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null || draggedIndex === dropIndex || !questions) return;
+    
+    // Create new array with reordered questions
+    const reordered = [...questions];
+    const [draggedItem] = reordered.splice(draggedIndex, 1);
+    reordered.splice(dropIndex, 0, draggedItem);
+    
+    // Extract the new order of IDs
+    const newOrder = reordered.map(q => q.id);
+    
+    // Call API to persist the new order
+    reorderQuestionsMutation.mutate(newOrder);
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   // Get channel name for display
   const getChannelName = (channelId: string) => {
     return channels?.find(ch => ch.id === channelId)?.name || channelId;
@@ -641,15 +697,32 @@ export default function QotdManager() {
                   <div>
                     <label className="field-label" style={{ marginBottom: '0.75rem', display: 'block' }}>
                       Question Queue
+                      <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                        (drag to reorder)
+                      </span>
                     </label>
                     <div className="role-list" style={{ gap: '0.75rem' }}>
                       {questions.map((q, index) => (
-                        <div key={q.id} className="role-item" style={{ 
-                          padding: '1rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '1rem'
-                        }}>
+                        <div 
+                          key={q.id} 
+                          className="role-item" 
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={(e) => handleDragOver(e, index)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, index)}
+                          onDragEnd={handleDragEnd}
+                          style={{ 
+                            padding: '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            cursor: 'grab',
+                            opacity: draggedIndex === index ? 0.5 : 1,
+                            border: dragOverIndex === index ? '2px solid var(--primary-color)' : '1px solid var(--border-color)',
+                            transition: 'opacity 0.2s, border 0.2s',
+                          }}
+                        >
                           <span style={{ 
                             fontSize: '0.85rem', 
                             color: '#999', 

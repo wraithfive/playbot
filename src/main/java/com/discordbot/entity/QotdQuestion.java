@@ -27,6 +27,9 @@ public class QotdQuestion {
     private String authorUsername;
 
     @Column(nullable = false)
+    private int displayOrder = 0;
+
+    @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
     public QotdQuestion() {}
@@ -64,6 +67,9 @@ public class QotdQuestion {
 
     public String getAuthorUsername() { return authorUsername; }
     public void setAuthorUsername(String authorUsername) { this.authorUsername = authorUsername; }
+
+    public int getDisplayOrder() { return displayOrder; }
+    public void setDisplayOrder(int displayOrder) { this.displayOrder = displayOrder; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
