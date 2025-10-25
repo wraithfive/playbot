@@ -34,14 +34,17 @@ class QotdServiceTest {
     private QotdConfigRepository configRepo;
     private JDA jda;
     private WebSocketNotificationService wsNotificationService;
+    private com.discordbot.repository.QotdBannerRepository bannerRepo;
 
     @BeforeEach
     void setUp() {
         questionRepo = mock(QotdQuestionRepository.class);
         configRepo = mock(QotdConfigRepository.class);
-        jda = mock(JDA.class);
-        wsNotificationService = mock(WebSocketNotificationService.class);
-        service = new QotdService(questionRepo, configRepo, jda, wsNotificationService);
+    jda = mock(JDA.class);
+    wsNotificationService = mock(WebSocketNotificationService.class);
+    bannerRepo = mock(com.discordbot.repository.QotdBannerRepository.class);
+    when(bannerRepo.findByChannelId(anyString())).thenReturn(java.util.Optional.empty());
+    service = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
     }
 
     @Test

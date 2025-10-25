@@ -675,6 +675,133 @@ label.field-label {
   font-size: 0.9rem;
 }
 
+/* Emoji picker (high-contrast) */
+.emoji-picker {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  padding: 0.5rem;
+  min-width: 420px;
+  max-width: 90vw;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 38px);
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.emoji-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.emoji-btn:hover {
+  background: #2f2f2f;
+  border-color: var(--discord-blue);
+}
+
+.emoji-btn:active {
+  transform: scale(0.96);
+}
+
+.emoji-btn.selected {
+  background: var(--discord-blue);
+  border-color: var(--discord-blue);
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3);
+}
+
+.emoji-btn.has-variations {
+  position: relative;
+}
+
+.emoji-btn .variation-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.emoji-variations-popup {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  animation: fadeIn 0.1s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.emoji-variations-popup .emoji-btn {
+  width: 38px;
+  height: 38px;
+}
+
+.emoji-tip {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.4rem;
+}
+
+.emoji-tip kbd {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+/* General kbd styling */
+kbd {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 0.85em;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+}
+
+/* Banner display (non-edit) */
+.banner-display {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+}
+
 /* Role list preview in delete modal */
 .role-list-preview {
   max-height: 220px;

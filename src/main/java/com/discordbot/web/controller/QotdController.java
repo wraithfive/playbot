@@ -19,6 +19,88 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/servers/{guildId}")
 public class QotdController {
+    /**
+     * GET /api/servers/{guildId}/channels/{channelId}/qotd/banner
+     * Fetch QOTD banner for a channel
+     */
+    @GetMapping("/channels/{channelId}/qotd/banner")
+    public ResponseEntity<String> getBanner(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        return ResponseEntity.ok(qotdService.getBanner(channelId));
+    }
+
+    /**
+     * PUT /api/servers/{guildId}/channels/{channelId}/qotd/banner
+     * Update QOTD banner for a channel
+     */
+    @PutMapping("/channels/{channelId}/qotd/banner")
+    public ResponseEntity<?> setBanner(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            @RequestBody String bannerText,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        
+        // Validate banner length (DB VARCHAR(160))
+        if (bannerText != null && bannerText.length() > 160) {
+            return ResponseEntity.badRequest()
+                    .body("Banner text exceeds maximum length of 160 characters. Current length: " + bannerText.length());
+        }
+        
+        qotdService.setBanner(channelId, bannerText);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * GET /api/servers/{guildId}/channels/{channelId}/qotd/banner/color
+     * Fetch QOTD banner embed color for a channel
+     */
+    @GetMapping("/channels/{channelId}/qotd/banner/color")
+    public ResponseEntity<Integer> getBannerColor(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        Integer color = qotdService.getBannerColor(channelId);
+        return ResponseEntity.ok(color);
+    }
+
+    /**
+     * PUT /api/servers/{guildId}/channels/{channelId}/qotd/banner/color
+     * Update QOTD banner embed color for a channel
+     */
+    @PutMapping("/channels/{channelId}/qotd/banner/color")
+    public ResponseEntity<?> setBannerColor(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            @RequestBody Integer color,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        qotdService.setBannerColor(channelId, color);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * POST /api/servers/{guildId}/channels/{channelId}/qotd/banner/reset
+     * Reset QOTD banner to default for a channel
+     */
+    @PostMapping("/channels/{channelId}/qotd/banner/reset")
+    public ResponseEntity<?> resetBanner(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        qotdService.resetBanner(channelId);
+        return ResponseEntity.ok().build();
+    }
 
     /**
      * GET /api/servers/{guildId}/qotd/download-example

@@ -14,5 +14,8 @@
     <!-- Schema changes -->
     <include file="db/changelog/changes/001-add-qotd-auto-approve-and-author-columns.xml"/>
     <include file="db/changelog/changes/002-add-qotd-display-order.xml"/>
+    <include file="db/changelog/changes/003-add-qotd-banner-table.xml"/>
+    <include file="db/changelog/changes/004-add-qotd-banner-embed-color.xml"/>
+    <include file="db/changelog/changes/005-rollback-image-path.xml"/>
     
 </databaseChangeLog>

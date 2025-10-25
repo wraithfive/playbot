@@ -94,6 +94,11 @@ export const serverApi = {
 };
 
 export const qotdApi = {
+  getBanner: (guildId: string, channelId: string) => api.get<string>(`/servers/${guildId}/channels/${channelId}/qotd/banner`),
+  setBanner: (guildId: string, channelId: string, bannerText: string) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/banner`, bannerText, { headers: { 'Content-Type': 'text/plain' } }),
+  resetBanner: (guildId: string, channelId: string) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/banner/reset`),
+  getBannerColor: (guildId: string, channelId: string) => api.get<number | null>(`/servers/${guildId}/channels/${channelId}/qotd/banner/color`),
+  setBannerColor: (guildId: string, channelId: string, color: number) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/banner/color`, color, { headers: { 'Content-Type': 'application/json' } }),
   // Guild-level endpoints
   listChannels: (guildId: string) => api.get<TextChannelInfo[]>(`/servers/${guildId}/qotd/channels`),
   listConfigs: (guildId: string) => api.get<QotdConfigDto[]>(`/servers/${guildId}/qotd/configs`),

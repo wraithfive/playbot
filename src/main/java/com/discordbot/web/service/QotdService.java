@@ -25,15 +25,52 @@ public class QotdService {
     private final QotdConfigRepository configRepo;
     private final JDA jda;
     private final WebSocketNotificationService wsNotificationService;
+    private final com.discordbot.repository.QotdBannerRepository bannerRepo;
+    private static final String DEFAULT_BANNER = "❓❓ Question of the Day ❓❓";
 
     public QotdService(QotdQuestionRepository questionRepo, QotdConfigRepository configRepo, JDA jda, 
-                       WebSocketNotificationService wsNotificationService) {
+                       WebSocketNotificationService wsNotificationService,
+                       com.discordbot.repository.QotdBannerRepository bannerRepo) {
         this.questionRepo = questionRepo;
         this.configRepo = configRepo;
         this.jda = jda;
         this.wsNotificationService = wsNotificationService;
+        this.bannerRepo = bannerRepo;
     }
 
+    public String getBanner(String channelId) {
+        return bannerRepo.findByChannelId(channelId)
+                .map(com.discordbot.entity.QotdBanner::getBannerText)
+                .orElse(DEFAULT_BANNER);
+    }
+
+    public Integer getBannerColor(String channelId) {
+        return bannerRepo.findByChannelId(channelId)
+                .map(com.discordbot.entity.QotdBanner::getEmbedColor)
+                .orElse(null);
+    }
+
+    public void setBanner(String channelId, String bannerText) {
+        com.discordbot.entity.QotdBanner banner = bannerRepo.findByChannelId(channelId)
+                .orElse(new com.discordbot.entity.QotdBanner(channelId, DEFAULT_BANNER));
+        banner.setBannerText(bannerText);
+        bannerRepo.save(banner);
+    }
+
+    public void setBannerColor(String channelId, Integer color) {
+        com.discordbot.entity.QotdBanner banner = bannerRepo.findByChannelId(channelId)
+                .orElse(new com.discordbot.entity.QotdBanner(channelId, DEFAULT_BANNER));
+        banner.setEmbedColor(color);
+        bannerRepo.save(banner);
+    }
+
+    public void resetBanner(String channelId) {
+        com.discordbot.entity.QotdBanner banner = bannerRepo.findByChannelId(channelId)
+                .orElse(new com.discordbot.entity.QotdBanner(channelId, DEFAULT_BANNER));
+        banner.setBannerText(DEFAULT_BANNER);
+        banner.setEmbedColor(0x9B59B6);
+        bannerRepo.save(banner);
+    }
     /**
      * Validates that the given channelId belongs to the specified guildId.
      * Throws IllegalArgumentException if validation fails.
@@ -280,9 +317,11 @@ public class QotdService {
             try {
                 // Create embed with QOTD formatting
                 net.dv8tion.jda.api.EmbedBuilder embed = new net.dv8tion.jda.api.EmbedBuilder();
-                embed.setTitle("❓❓ Question of the Day ❓❓");
+                String banner = getBanner(channelId);
+                embed.setTitle(banner);
                 embed.setDescription(next.getText());
-                embed.setColor(0x9B59B6); // Purple color
+                Integer color = getBannerColor(channelId);
+                embed.setColor(color != null ? color : 0x9B59B6); // default purple
 
                 // Add author info if available
                 if (next.getAuthorUsername() != null && !next.getAuthorUsername().isEmpty()) {
@@ -299,7 +338,8 @@ public class QotdService {
                 logger.warn("Failed to send QOTD embed to channel {}: {}. Falling back to plain text.", channelId, e.getMessage());
                 try {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("❓❓ Question of the Day ❓❓\n\n");
+                    String banner = getBanner(channelId);
+                    sb.append(banner).append("\n\n");
                     sb.append(next.getText());
                     if (next.getAuthorUsername() != null && !next.getAuthorUsername().isEmpty()) {
                         sb.append("\n\nAuthor: ").append(next.getAuthorUsername());
