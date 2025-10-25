@@ -146,6 +146,22 @@ Base: `/api/servers/{guildId}`
   - Migrate all channel-level endpoints in UI to stream endpoints
   - Mark legacy config/banner tables for removal in a later migration
 
+## Interplay with per-channel timezone (#2)
+- Source of truth:
+  - Each stream should own its timezone (timezone column already included). If unset, it falls back to the channel’s timezone (current model) and ultimately to UTC.
+- Migration behavior:
+  - When creating the default stream from existing per-channel config, copy the channel’s timezone into the stream’s timezone.
+  - If a server sets a channel-level timezone before multi-streams ships, the generated default stream will inherit it automatically.
+- Scheduler and previews:
+  - Cron triggers execute using the stream’s ZoneId. nextRuns are computed in the same ZoneId so preview matches runtime.
+  - Streams in the same channel may have different timezones; if they align to the same minute, standard collision logic applies (deterministic order + small jitter).
+- UI/UX:
+  - Stream editor shows a timezone selector (IANA tz) with search. If the stream timezone is empty, display the effective fallback (channel/UTC) and allow overriding per stream.
+  - Optional later enhancement: a per-guild default timezone used to prefill new channels/streams (out of scope here).
+- Backward compatibility:
+  - Until streams are introduced, per-channel timezone config (see issue #2) governs scheduling.
+  - After streams, legacy channel config maps to a single default stream that contains the timezone value; channel-level timezone remains as a fallback for newly created streams if not explicitly set.
+
 ## Success criteria
 - A channel can host multiple streams; each stream posts independently on its own schedule
 - Streams have distinct question lists, banners, colors, and mention targets
