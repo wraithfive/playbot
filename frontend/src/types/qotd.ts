@@ -16,6 +16,7 @@ export interface QotdConfigDto {
   lastPostedAt: string | null;
   nextIndex: number;
   nextRuns: string[];
+  mention_target?: string | null;
 }
 
 export interface UploadCsvResult {
@@ -32,6 +33,7 @@ export interface UpdateQotdRequest {
   timeOfDay?: string; // HH:mm
   randomize: boolean;
   autoApprove: boolean;
+  mention_target?: string | null;
 }
 
 export interface TextChannelInfo { id: string; name: string; }

@@ -64,6 +64,19 @@ public class QotdService {
         bannerRepo.save(banner);
     }
 
+        public String getBannerMentionTarget(String channelId) {
+            return bannerRepo.findByChannelId(channelId)
+                    .map(com.discordbot.entity.QotdBanner::getMentionTarget)
+                    .orElse(null);
+        }
+
+        public void setBannerMentionTarget(String channelId, String mentionTarget) {
+            com.discordbot.entity.QotdBanner banner = bannerRepo.findByChannelId(channelId)
+                    .orElse(new com.discordbot.entity.QotdBanner(channelId, DEFAULT_BANNER));
+            banner.setMentionTarget(mentionTarget);
+            bannerRepo.save(banner);
+        }
+
     public void resetBanner(String channelId) {
         com.discordbot.entity.QotdBanner banner = bannerRepo.findByChannelId(channelId)
                 .orElse(new com.discordbot.entity.QotdBanner(channelId, DEFAULT_BANNER));
@@ -319,7 +332,12 @@ public class QotdService {
                 net.dv8tion.jda.api.EmbedBuilder embed = new net.dv8tion.jda.api.EmbedBuilder();
                 String banner = getBanner(channelId);
                 embed.setTitle(banner);
-                embed.setDescription(next.getText());
+                String mention = getBannerMentionTarget(channelId);
+                String description = next.getText();
+                if (mention != null && !mention.isEmpty()) {
+                    description = mention + " " + description;
+                }
+                embed.setDescription(description);
                 Integer color = getBannerColor(channelId);
                 embed.setColor(color != null ? color : 0x9B59B6); // default purple
 
@@ -338,6 +356,10 @@ public class QotdService {
                 logger.warn("Failed to send QOTD embed to channel {}: {}. Falling back to plain text.", channelId, e.getMessage());
                 try {
                     StringBuilder sb = new StringBuilder();
+                    String mention = getBannerMentionTarget(channelId);
+                    if (mention != null && !mention.isEmpty()) {
+                        sb.append(mention).append(" ");
+                    }
                     String banner = getBanner(channelId);
                     sb.append(banner).append("\n\n");
                     sb.append(next.getText());

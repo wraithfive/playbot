@@ -40,11 +40,22 @@ class QotdServiceTest {
     void setUp() {
         questionRepo = mock(QotdQuestionRepository.class);
         configRepo = mock(QotdConfigRepository.class);
-    jda = mock(JDA.class);
-    wsNotificationService = mock(WebSocketNotificationService.class);
-    bannerRepo = mock(com.discordbot.repository.QotdBannerRepository.class);
-    when(bannerRepo.findByChannelId(anyString())).thenReturn(java.util.Optional.empty());
-    service = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
+        jda = mock(JDA.class);
+        wsNotificationService = mock(WebSocketNotificationService.class);
+        bannerRepo = mock(com.discordbot.repository.QotdBannerRepository.class);
+        when(bannerRepo.findByChannelId(anyString())).thenReturn(java.util.Optional.empty());
+        service = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
+    }
+
+    // Helper method to set question ID using reflection
+    private void setQuestionId(QotdQuestion question, Long id) {
+        try {
+            java.lang.reflect.Field idField = QotdQuestion.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(question, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set ID via reflection", e);
+        }
     }
 
     @Test
@@ -724,18 +735,67 @@ class QotdServiceTest {
         verify(configRepo, never()).save(any(QotdConfig.class));
     }
 
-    private String anyString() {
-        return any(String.class);
+    @Test
+    @DisplayName("getBannerMentionTarget should return mention_target for channel")
+    void testGetBannerMentionTarget() {
+        com.discordbot.entity.QotdBanner banner = new com.discordbot.entity.QotdBanner("channel1", "Banner");
+        banner.setEmbedColor(0x9B59B6);
+        bannerRepo = mock(com.discordbot.repository.QotdBannerRepository.class);
+        when(bannerRepo.findByChannelId("channel1")).thenReturn(Optional.of(banner));
+        QotdService svc = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
+        // Initially null
+        assertNull(svc.getBannerMentionTarget("channel1"));
+        // Set mention_target
+        banner.setMentionTarget("<@123456>");
+        assertEquals("<@123456>", svc.getBannerMentionTarget("channel1"));
     }
 
-    // Helper method to set question ID using reflection
-    private void setQuestionId(QotdQuestion question, Long id) {
-        try {
-            java.lang.reflect.Field idField = QotdQuestion.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(question, id);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set ID via reflection", e);
-        }
+    @Test
+    @DisplayName("setBannerMentionTarget should update mention_target for channel")
+    void testSetBannerMentionTarget() {
+        com.discordbot.entity.QotdBanner banner = new com.discordbot.entity.QotdBanner("channel1", "Banner");
+        banner.setEmbedColor(0x9B59B6);
+        bannerRepo = mock(com.discordbot.repository.QotdBannerRepository.class);
+        when(bannerRepo.findByChannelId("channel1")).thenReturn(Optional.of(banner));
+        when(bannerRepo.save(any(com.discordbot.entity.QotdBanner.class))).thenReturn(banner);
+        QotdService svc = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
+        svc.setBannerMentionTarget("channel1", "<@&7890>");
+        assertEquals("<@&7890>", banner.getMentionTarget());
     }
+
+    @Test
+    @DisplayName("postNextQuestion should prepend mention_target if set")
+    void testPostNextQuestionWithMentionTarget() {
+        QotdConfig.QotdConfigId id = new QotdConfig.QotdConfigId("guild1", "channel1");
+        QotdConfig config = new QotdConfig("guild1", "channel1");
+        config.setEnabled(true);
+        config.setNextIndex(0);
+        QotdQuestion question = new QotdQuestion("guild1", "channel1", "What is your favorite color?");
+        setQuestionId(question, 1L);
+        Guild guild = mock(Guild.class);
+        TextChannel channel = mock(TextChannel.class);
+        MessageCreateAction textAction = mock(MessageCreateAction.class);
+        com.discordbot.entity.QotdBanner banner = new com.discordbot.entity.QotdBanner("channel1", "Banner");
+        banner.setMentionTarget("<@123456>");
+        banner.setEmbedColor(0x9B59B6);
+        when(configRepo.findById(id)).thenReturn(Optional.of(config));
+        when(questionRepo.findByGuildIdAndChannelIdOrderByDisplayOrderAsc("guild1", "channel1")).thenReturn(Arrays.asList(question));
+        when(jda.getGuildById("guild1")).thenReturn(guild);
+        when(guild.getTextChannelById("channel1")).thenReturn(channel);
+        when(channel.sendMessageEmbeds(any())).thenThrow(new RuntimeException("embed fail"));
+    org.mockito.ArgumentCaptor<String> msgCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+    when(channel.sendMessage(anyString())).thenReturn(textAction);
+        when(textAction.complete()).thenReturn(null);
+        when(bannerRepo.findByChannelId("channel1")).thenReturn(Optional.of(banner));
+        when(configRepo.save(any(QotdConfig.class))).thenReturn(config);
+        QotdService svc = new QotdService(questionRepo, configRepo, jda, wsNotificationService, bannerRepo);
+        svc.setBannerMentionTarget("channel1", "<@123456>");
+        boolean result = svc.postNextQuestion("guild1", "channel1");
+        assertTrue(result);
+        verify(channel).sendMessage(msgCaptor.capture());
+        String sentMsg = msgCaptor.getValue();
+        assertTrue(sentMsg.startsWith("<@123456>"), "Message should start with mention_target");
+    }
+
+    // ...existing code...
 }

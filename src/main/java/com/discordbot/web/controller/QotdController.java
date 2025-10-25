@@ -20,6 +20,43 @@ import java.util.List;
 @RequestMapping("/api/servers/{guildId}")
 public class QotdController {
     /**
+     * GET /api/servers/{guildId}/channels/{channelId}/qotd/banner/mention
+     * Fetch mention_target for a channel
+     */
+    @GetMapping("/channels/{channelId}/qotd/banner/mention")
+    public ResponseEntity<String> getBannerMentionTarget(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        String mention = qotdService.getBannerMentionTarget(channelId);
+        return ResponseEntity.ok(mention != null ? mention : "");
+    }
+
+    /**
+     * PUT /api/servers/{guildId}/channels/{channelId}/qotd/banner/mention
+     * Update mention_target for a channel
+     */
+    @PutMapping("/channels/{channelId}/qotd/banner/mention")
+    public ResponseEntity<?> setBannerMentionTarget(
+            @PathVariable String guildId,
+            @PathVariable String channelId,
+            @RequestBody(required = false) String mentionTarget,
+            Authentication authentication) {
+        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
+        qotdService.validateChannelBelongsToGuild(guildId, channelId);
+        // Normalize empty/null to null
+        String normalized = (mentionTarget == null || mentionTarget.trim().isEmpty()) ? null : mentionTarget.trim();
+        // Validate mention_target length (DB VARCHAR(64))
+        if (normalized != null && normalized.length() > 64) {
+            return ResponseEntity.badRequest()
+                    .body("Mention target exceeds maximum length of 64 characters. Current length: " + normalized.length());
+        }
+        qotdService.setBannerMentionTarget(channelId, normalized);
+        return ResponseEntity.ok().build();
+    }
+    /**
      * GET /api/servers/{guildId}/channels/{channelId}/qotd/banner
      * Fetch QOTD banner for a channel
      */

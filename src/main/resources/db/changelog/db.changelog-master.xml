@@ -17,5 +17,6 @@
     <include file="db/changelog/changes/003-add-qotd-banner-table.xml"/>
     <include file="db/changelog/changes/004-add-qotd-banner-embed-color.xml"/>
     <include file="db/changelog/changes/005-rollback-image-path.xml"/>
+    <include file="db/changelog/changes/006-add-qotd-banner-mention-target.xml"/>
     
 </databaseChangeLog>

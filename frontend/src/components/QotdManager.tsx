@@ -484,21 +484,25 @@ export default function QotdManager() {
       setBannerLoading(true);
       Promise.all([
         qotdApi.getBanner(guildId, selectedChannelId),
-        qotdApi.getBannerColor(guildId, selectedChannelId)
+        qotdApi.getBannerColor(guildId, selectedChannelId),
+        qotdApi.getBannerMention(guildId, selectedChannelId)
       ])
-        .then(([textRes, colorRes]) => {
+        .then(([textRes, colorRes, mentionRes]) => {
           const text = textRes.data;
           const color = colorRes.data ?? 0x9B59B6;
+          const mention = (mentionRes.data ?? '') as string;
           setBanner(text);
           setEmbedColor(color);
           setOriginalBanner(text);
           setOriginalEmbedColor(color);
+          setMentionTarget(mention || '');
         })
         .catch(() => {
           setBanner('❓❓ Question of the Day ❓❓');
           setEmbedColor(0x9B59B6);
           setOriginalBanner('❓❓ Question of the Day ❓❓');
           setOriginalEmbedColor(0x9B59B6);
+          setMentionTarget('');
         })
         .finally(() => setBannerLoading(false));
     }
@@ -560,6 +564,10 @@ export default function QotdManager() {
     randomize: false,
     autoApprove: false,
   });
+  // Mention UX state
+  const [mentionTarget, setMentionTarget] = useState<string>('');
+  const [mentionError, setMentionError] = useState<string | null>(null);
+  const [mentionWarnings, setMentionWarnings] = useState<string[]>([]);
 
   // Parse cron expression back to days and time
   const parseCron = (cron: string | undefined): { days: string[], time: string } => {
@@ -580,11 +588,52 @@ export default function QotdManager() {
     return { days, time };
   };
 
+  // Helpers: normalize and validate mention
+  const normalizeMention = (raw: string): string => {
+    const v = (raw || '').trim();
+    if (!v) return '';
+    if (v.toLowerCase() === '@everyone' || v.toLowerCase() === '@here') return v.toLowerCase();
+    // Already valid mention formats
+    if (/^<@!?\d+>$/.test(v)) return v; // user
+    if (/^<@&\d+>$/.test(v)) return v; // role
+    if (/^<#\d+>$/.test(v)) return v; // channel (link only)
+    // Try to coerce simple id or prefixed id
+    const idMatch = v.match(/^@!?([0-9]{15,22})$/) || v.match(/^([0-9]{15,22})$/);
+    if (idMatch) return `<@${idMatch[1]}>`;
+    const chMatch = v.match(/^#([0-9]{15,22})$/);
+    if (chMatch) return `<#${chMatch[1]}>`;
+    return v; // leave as-is; may be a literal string
+  };
+
+  const analyzeMention = (val: string): { error: string | null; warnings: string[] } => {
+    const v = (val || '').trim();
+    if (!v) return { error: null, warnings: [] };
+    if (v.length > 64) return { error: 'Mention exceeds 64 characters.', warnings: [] };
+    const warnings: string[] = [];
+    const isEveryone = v.toLowerCase() === '@everyone' || v.toLowerCase() === '@here';
+    const isRole = /^<@&\d+>$/.test(v);
+    const isUser = /^<@!?\d+>$/.test(v);
+    const isChannel = /^<#\d+>$/.test(v);
+    const isValid = isEveryone || isRole || isUser || isChannel;
+    if (!isValid) {
+      warnings.push('This may not ping. Use formats like @everyone, @here, <@USER_ID>, <@&ROLE_ID>, or <#CHANNEL_ID>.');
+    }
+    if (isEveryone) {
+      warnings.push('Requires the "Mention @everyone, @here, and All Roles" permission for the bot in this channel.');
+    }
+    if (isRole) {
+      warnings.push('If the role is not mentionable, the bot also needs the "Mention @everyone, @here, and All Roles" permission.');
+    }
+    if (isChannel) {
+      warnings.push('Channel mentions create a link but do not ping.');
+    }
+    return { error: null, warnings };
+  };
+
   // Sync form state with backend config
   useEffect(() => {
     if (config) {
       const { days, time } = parseCron(config.scheduleCron || undefined);
-      
       setForm({
         enabled: config.enabled,
         timezone: config.timezone || 'UTC',
@@ -594,7 +643,7 @@ export default function QotdManager() {
         timeOfDay: time,
         daysOfWeek: days,
       });
-      
+      // mentionTarget is fetched from banner mention endpoint
       // Update the schedule builder UI
       setSchedules([
         { id: 1, days: new Set(days), time }
@@ -1109,6 +1158,36 @@ export default function QotdManager() {
               <div className="add-role-form">
                 <div className="form-row">
                   <div className="field">
+                    <label className="field-label">
+                      Mention Target
+                      <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                        (@user, @role, @channel, or leave blank)
+                      </span>
+                    </label>
+                    <input
+                      className="input"
+                      type="text"
+                      value={mentionTarget}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setMentionTarget(val);
+                        const { error, warnings } = analyzeMention(val);
+                        setMentionError(error);
+                        setMentionWarnings(warnings);
+                      }}
+                      onBlur={() => {
+                        const normalized = normalizeMention(mentionTarget);
+                        setMentionTarget(normalized);
+                        const { error, warnings } = analyzeMention(normalized);
+                        setMentionError(error);
+                        setMentionWarnings(warnings);
+                      }}
+                      placeholder="e.g. @everyone, @admins, @general, @1234567890"
+                      maxLength={64}
+                      style={{ width: '220px' }}
+                    />
+                  </div>
+                  <div className="field">
                     <label className="field-label">Enabled</label>
                     <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
                   </div>
@@ -1126,6 +1205,19 @@ export default function QotdManager() {
                     <input type="checkbox" checked={form.autoApprove} onChange={(e) => setForm({ ...form, autoApprove: e.target.checked })} />
                   </div>
                 </div>
+                {(mentionError || mentionWarnings.length > 0) && (
+                  <div style={{ marginTop: '0.35rem' }}>
+                    {mentionError ? (
+                      <div className="upload-message-inline error">{mentionError}</div>
+                    ) : (
+                      <ul style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', paddingLeft: '1rem', margin: 0 }}>
+                        {mentionWarnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 <div className="form-row">
                   <div className="field">
                     <label className="field-label">Timezone</label>
@@ -1284,31 +1376,48 @@ export default function QotdManager() {
                 </div>
 
                 <div className="form-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => {
+                  <button className="btn btn-primary btn-sm" onClick={async () => {
+                    // Validate/normalize mention first
+                    const normalized = normalizeMention(mentionTarget);
+                    setMentionTarget(normalized);
+                    const analysis = analyzeMention(normalized);
+                    setMentionError(analysis.error);
+                    setMentionWarnings(analysis.warnings);
+                    if (analysis.error) {
+                      setConfigMessage(`✗ ${analysis.error}`);
+                      setTimeout(() => setConfigMessage(''), 6000);
+                      return;
+                    }
+                    // Persist mention using its dedicated endpoint
+                    if (guildId && selectedChannelId) {
+                      try {
+                        await qotdApi.setBannerMention(guildId, selectedChannelId, normalized);
+                      } catch (e: any) {
+                        const msg = e?.response?.data || 'Failed to save mention';
+                        setConfigMessage(`✗ ${msg}`);
+                        setTimeout(() => setConfigMessage(''), 6000);
+                        return; // don't proceed if mention save failed
+                      }
+                    }
                     const requestData: UpdateQotdRequest = { ...form };
-                    
                     if (!showAdvanced && schedules.length > 0) {
                       const allDays = new Set<string>();
                       const times = new Set<string>();
-                      
                       schedules.forEach(sched => {
                         if (sched.days.size > 0) {
                           sched.days.forEach(day => allDays.add(day));
                           times.add(sched.time);
                         }
                       });
-
                       const firstTime = schedules[0]?.time || '09:00';
                       requestData.daysOfWeek = Array.from(allDays);
                       requestData.timeOfDay = firstTime;
                       requestData.advancedCron = null;
-
                       if (times.size > 1) {
                         setConfigMessage(`⚠ Multiple times detected. Using ${firstTime}. Days are combined. Use Advanced mode for different times.`);
                         setTimeout(() => setConfigMessage(''), 8000);
                       }
                     }
-                    
                     updateConfigMutation.mutate(requestData);
                   }}>Save</button>
                   <button

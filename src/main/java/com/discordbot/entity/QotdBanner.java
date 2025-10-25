@@ -18,11 +18,22 @@ public class QotdBanner {
     @Column(name = "embed_color")
     private Integer embedColor; // RGB integer (e.g., 0x5865F2)
 
+        @Column(name = "mention_target", length = 64)
+        private String mentionTarget;
+
     public QotdBanner() {}
 
     public QotdBanner(String channelId, String bannerText) {
         this.channelId = channelId;
         this.bannerText = bannerText;
+    }
+
+    public String getMentionTarget() {
+        return mentionTarget;
+    }
+
+    public void setMentionTarget(String mentionTarget) {
+        this.mentionTarget = mentionTarget;
     }
 
     public Long getId() {
