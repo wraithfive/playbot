@@ -70,18 +70,44 @@ export default function QotdManager() {
     autoApprove: false,
   });
 
+  // Parse cron expression back to days and time
+  const parseCron = (cron: string | undefined): { days: string[], time: string } => {
+    if (!cron) return { days: ['MON','TUE','WED','THU','FRI'], time: '09:00' };
+    
+    // Quartz format: sec min hour day-of-month month day-of-week
+    // Example: "0 0 9 ? * MON,TUE,WED,THU,FRI"
+    const parts = cron.trim().split(/\s+/);
+    if (parts.length < 6) return { days: ['MON','TUE','WED','THU','FRI'], time: '09:00' };
+    
+    const minute = parts[1];
+    const hour = parts[2];
+    const dayOfWeek = parts[5];
+    
+    const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+    const days = dayOfWeek.split(',').map(d => d.trim().toUpperCase());
+    
+    return { days, time };
+  };
+
   // Sync form state with backend config
   useEffect(() => {
     if (config) {
+      const { days, time } = parseCron(config.scheduleCron || undefined);
+      
       setForm({
         enabled: config.enabled,
         timezone: config.timezone || 'UTC',
         advancedCron: config.scheduleCron || undefined,
         randomize: config.randomize,
         autoApprove: config.autoApprove,
-        timeOfDay: '09:00',
-        daysOfWeek: ['MON','TUE','WED','THU','FRI'],
+        timeOfDay: time,
+        daysOfWeek: days,
       });
+      
+      // Update the schedule builder UI
+      setSchedules([
+        { id: 1, days: new Set(days), time }
+      ]);
     }
   }, [config]);
 
