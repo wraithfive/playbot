@@ -69,6 +69,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/index.html", "/static/**", "/favicon.ico", "/manifest.json").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/csrf").permitAll()
                 .requestMatchers("/ws/**").authenticated() // Require authentication for WebSocket connections
                 .requestMatchers("/oauth2/**", "/login/**").permitAll()
                     .requestMatchers("/api/servers/**").authenticated()
@@ -79,6 +80,7 @@ public class SecurityConfig {
                 .failureUrl(adminPanelUrl + "/login?error=true")
             )
             .logout(logout -> logout
+                .logoutUrl("/api/logout")
                 .logoutSuccessUrl(adminPanelUrl)
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID")

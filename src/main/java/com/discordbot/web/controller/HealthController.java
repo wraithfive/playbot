@@ -38,14 +38,4 @@ public class HealthController {
         return ResponseEntity.ok(health);
     }
 
-    /**
-     * GET /api/csrf
-     * Endpoint to trigger CSRF token generation
-     * REQUIRES AUTHENTICATION - this ensures CSRF token is set
-     */
-    @GetMapping("/csrf")
-    public ResponseEntity<Map<String, String>> csrf(org.springframework.security.web.csrf.CsrfToken csrfToken) {
-        // Simply accepting CsrfToken as parameter causes Spring to generate and set the cookie
-        return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
-    }
 }

@@ -123,9 +123,25 @@ export const authApi = {
     const backendUrl = import.meta.env.DEV ? 'http://localhost:8080' : '';
     window.location.href = `${backendUrl}/oauth2/authorization/discord`;
   },
-  logout: () => {
+  logout: async () => {
     const backendUrl = import.meta.env.DEV ? 'http://localhost:8080' : '';
-    window.location.href = `${backendUrl}/logout`;
+    // Ensure we have a CSRF token cookie before POSTing logout
+    if (!hasCsrfToken()) {
+      try { await fetch(`${backendUrl}/api/csrf`, { credentials: 'include' }); } catch {}
+    }
+    const token = getCsrfTokenFromCookie();
+    try {
+      await fetch(`${backendUrl}/api/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { 'X-XSRF-TOKEN': token } : undefined,
+      });
+    } catch {
+      // ignore network errors; we'll still redirect client-side
+    } finally {
+      // Redirect back to root (the server's logoutSuccessUrl will also redirect)
+      window.location.href = '/';
+    }
   },
 };
 
