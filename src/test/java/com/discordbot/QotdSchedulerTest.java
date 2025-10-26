@@ -2,13 +2,16 @@ package com.discordbot;
 
 import com.discordbot.entity.QotdConfig;
 import com.discordbot.repository.QotdConfigRepository;
+import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.web.service.QotdScheduler;
 import com.discordbot.web.service.QotdService;
+import com.discordbot.web.service.QotdStreamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.Mockito.*;
@@ -17,13 +20,21 @@ class QotdSchedulerTest {
 
     private QotdConfigRepository repo;
     private QotdService qotd;
+    private QotdStreamRepository streamRepo;
+    private QotdStreamService streamService;
     private QotdScheduler scheduler;
 
     @BeforeEach
     void setup() {
         repo = mock(QotdConfigRepository.class);
         qotd = mock(QotdService.class);
-        scheduler = new QotdScheduler(repo, qotd);
+        streamRepo = mock(QotdStreamRepository.class);
+        streamService = mock(QotdStreamService.class);
+
+        // Mock stream repository to return empty list by default (streams tested separately)
+        when(streamRepo.findByEnabledTrue()).thenReturn(Collections.emptyList());
+
+        scheduler = new QotdScheduler(repo, qotd, streamRepo, streamService);
     }
 
     @Test

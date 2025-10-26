@@ -2,8 +2,15 @@ package com.discordbot.entity;
 
 import jakarta.persistence.*;
 
+/**
+ * DEPRECATED: This entity is kept for backward compatibility with legacy QOTD system.
+ * Banner data has been migrated to qotd_streams table.
+ * This table was renamed to qotd_banner_deprecated in migration 008.
+ * TODO: Remove this entity after all channels are migrated to streams and verified.
+ */
+@Deprecated
 @Entity
-@Table(name = "qotd_banner")
+@Table(name = "qotd_banner_deprecated")
 public class QotdBanner {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

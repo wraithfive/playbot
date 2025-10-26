@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { GuildInfo, GachaRoleInfo, HealthResponse, BulkRoleCreationResult, RoleDeletionResult, BulkRoleDeletionResult, RoleHierarchyStatus } from '../types';
-import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult } from '../types/qotd';
+import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult, QotdStreamDto, CreateStreamRequest, UpdateStreamRequest } from '../types/qotd';
 
 const api = axios.create({
   baseURL: '/api',
@@ -123,6 +123,36 @@ export const qotdApi = {
   postNow: (guildId: string, channelId: string) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/post-now`),
   approve: (guildId: string, channelId: string, id: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/${id}/approve`),
   bulkApprove: (guildId: string, channelId: string, ids: number[]) => api.post<BulkActionResult>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/bulk-approve`, { ids }),
+
+  // NEW: Stream management endpoints
+  listStreams: (guildId: string, channelId: string) => api.get<QotdStreamDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams`),
+  getStream: (guildId: string, channelId: string, streamId: number) => api.get<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`),
+  createStream: (guildId: string, channelId: string, req: CreateStreamRequest) => api.post<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams`, req),
+  updateStream: (guildId: string, channelId: string, streamId: number, req: UpdateStreamRequest) => api.put<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`, req),
+  deleteStream: (guildId: string, channelId: string, streamId: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`),
+
+  // Stream-scoped question management
+  listStreamQuestions: (guildId: string, channelId: string, streamId: number) => api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions`),
+  addStreamQuestion: (guildId: string, channelId: string, streamId: number, text: string) => api.post<QotdQuestionDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions`, { text }),
+  deleteStreamQuestion: (guildId: string, channelId: string, streamId: number, questionId: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions/${questionId}`),
+  reorderStreamQuestions: (guildId: string, channelId: string, streamId: number, orderedIds: number[]) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions/reorder`, { orderedIds }),
+  uploadStreamCsv: (guildId: string, channelId: string, streamId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<UploadCsvResult>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/upload-csv`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
+  // Stream-scoped banner management
+  getStreamBanner: (guildId: string, channelId: string, streamId: number) => api.get<string>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner`),
+  setStreamBanner: (guildId: string, channelId: string, streamId: number, bannerText: string) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner`, bannerText, { headers: { 'Content-Type': 'text/plain' } }),
+  getStreamBannerColor: (guildId: string, channelId: string, streamId: number) => api.get<number | null>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner/color`),
+  setStreamBannerColor: (guildId: string, channelId: string, streamId: number, color: number) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner/color`, color, { headers: { 'Content-Type': 'application/json' } }),
+  getStreamBannerMention: (guildId: string, channelId: string, streamId: number) => api.get<string | null>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner/mention`),
+  setStreamBannerMention: (guildId: string, channelId: string, streamId: number, mention: string) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner/mention`, mention, { headers: { 'Content-Type': 'text/plain' } }),
+  resetStreamBanner: (guildId: string, channelId: string, streamId: number) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/banner/reset`),
+
+  // Stream post-now
+  postStreamNow: (guildId: string, channelId: string, streamId: number) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/post-now`),
 };
 
 export const authApi = {
