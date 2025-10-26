@@ -33,7 +33,7 @@ api.interceptors.request.use(async (config) => {
 });
 
 // Helper function to extract CSRF token from cookie
-function getCsrfTokenFromCookie(): string | null {
+export function getCsrfTokenFromCookie(): string | null {
   const name = 'XSRF-TOKEN=';
   const decodedCookie = decodeURIComponent(document.cookie);
   const cookies = decodedCookie.split(';');

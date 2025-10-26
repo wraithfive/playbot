@@ -187,6 +187,18 @@ if [ $? -ne 0 ]; then
 fi
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
+if [ "$SKIP_TESTS" = false ]; then
+    echo -e "${YELLOW}Running frontend tests...${NC}"
+    npm run test:unit
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}✗ Frontend tests failed${NC}"
+        cd ..
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Frontend tests passed${NC}"
+fi
+
 echo -e "${YELLOW}Building React application...${NC}"
 
 if [ "$PRODUCTION" = true ]; then

@@ -35,8 +35,14 @@ npm install
 npm run build
 
 # Run tests
-mvn test
+mvn test                     # Backend only
+cd frontend && npm test      # Frontend only (watch mode)
+cd frontend && npm run test:unit  # Frontend once
+cd frontend && npm run test:coverage  # Frontend with coverage
+cd frontend && npm run test:e2e      # Frontend E2E tests
 ```
+
+**Note:** The `./build.sh` script runs both backend and frontend tests automatically unless `--skip-tests` is specified.
 
 ### Run Commands
 
