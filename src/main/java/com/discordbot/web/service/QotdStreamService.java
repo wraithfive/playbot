@@ -66,7 +66,8 @@ public class QotdStreamService {
     /**
      * Get a single stream by ID.
      */
-    public QotdStreamDto getStream(Long streamId) {
+    public QotdStreamDto getStream(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         return toDto(stream);
@@ -117,7 +118,8 @@ public class QotdStreamService {
      * Update an existing stream.
      */
     @Transactional
-    public QotdStreamDto updateStream(Long streamId, UpdateStreamRequest request) {
+    public QotdStreamDto updateStream(String guildId, Long streamId, UpdateStreamRequest request) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
@@ -148,11 +150,11 @@ public class QotdStreamService {
      * Delete a stream and all its questions (cascade).
      */
     @Transactional
-    public void deleteStream(Long streamId) {
+    public void deleteStream(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
-        String guildId = stream.getGuildId();
         String channelId = stream.getChannelId();
 
         streamRepository.deleteById(streamId);  // CASCADE will delete questions
@@ -164,7 +166,8 @@ public class QotdStreamService {
     /**
      * List questions for a stream.
      */
-    public List<QotdQuestionDto> listQuestions(Long streamId) {
+    public List<QotdQuestionDto> listQuestions(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         return questionRepository.findByStreamIdOrderByDisplayOrderAsc(streamId)
                 .stream()
                 .map(q -> new QotdQuestionDto(q.getId(), q.getText(), q.getCreatedAt(),
@@ -176,7 +179,8 @@ public class QotdStreamService {
      * Add a question to a stream.
      */
     @Transactional
-    public QotdQuestionDto addQuestion(Long streamId, String text) {
+    public QotdQuestionDto addQuestion(String guildId, Long streamId, String text) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
@@ -202,7 +206,8 @@ public class QotdStreamService {
      * Delete a question from a stream.
      */
     @Transactional
-    public void deleteQuestion(Long streamId, Long questionId) {
+    public void deleteQuestion(String guildId, Long streamId, Long questionId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
@@ -214,7 +219,8 @@ public class QotdStreamService {
      * Reorder questions in a stream.
      */
     @Transactional
-    public void reorderQuestions(Long streamId, List<Long> orderedIds) {
+    public void reorderQuestions(String guildId, Long streamId, List<Long> orderedIds) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
@@ -238,7 +244,8 @@ public class QotdStreamService {
      * Upload CSV of questions to a stream.
      */
     @Transactional
-    public UploadCsvResult uploadCsv(Long streamId, MultipartFile file) {
+    public UploadCsvResult uploadCsv(String guildId, Long streamId, MultipartFile file) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
 
@@ -308,42 +315,48 @@ public class QotdStreamService {
 
     // ==================== Banner Management (Stream-Scoped) ====================
 
-    public String getBanner(Long streamId) {
+    public String getBanner(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         return stream.getBannerText() != null ? stream.getBannerText() : DEFAULT_BANNER;
     }
 
     @Transactional
-    public void setBanner(Long streamId, String bannerText) {
+    public void setBanner(String guildId, Long streamId, String bannerText) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         stream.setBannerText(bannerText);
         streamRepository.save(stream);
     }
 
-    public Integer getBannerColor(Long streamId) {
+    public Integer getBannerColor(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         return stream.getEmbedColor();
     }
 
     @Transactional
-    public void setBannerColor(Long streamId, Integer color) {
+    public void setBannerColor(String guildId, Long streamId, Integer color) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         stream.setEmbedColor(color);
         streamRepository.save(stream);
     }
 
-    public String getBannerMention(Long streamId) {
+    public String getBannerMention(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         return stream.getMentionTarget();
     }
 
     @Transactional
-    public void setBannerMention(Long streamId, String mention) {
+    public void setBannerMention(String guildId, Long streamId, String mention) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         stream.setMentionTarget(mention);
@@ -351,7 +364,8 @@ public class QotdStreamService {
     }
 
     @Transactional
-    public void resetBanner(Long streamId) {
+    public void resetBanner(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         stream.setBannerText(DEFAULT_BANNER);
@@ -362,8 +376,18 @@ public class QotdStreamService {
     // ==================== Posting Logic ====================
 
     /**
+     * Post the next question for a stream to Discord (with authorization check).
+     * Called by manual post-now action from admin panel.
+     */
+    @Transactional
+    public void postNextQuestion(String guildId, Long streamId) {
+        validateStreamBelongsToGuild(streamId, guildId);
+        postNextQuestion(streamId);
+    }
+
+    /**
      * Post the next question for a stream to Discord.
-     * Called by scheduler or manual post-now action.
+     * Called by scheduler.
      */
     @Transactional
     public void postNextQuestion(Long streamId) {
@@ -449,6 +473,22 @@ public class QotdStreamService {
     }
 
     // ==================== Helper Methods ====================
+
+    /**
+     * Validates that a stream belongs to the specified guild.
+     * Prevents IDOR attacks by ensuring users can only access streams from guilds they're authorized for.
+     *
+     * @param streamId The stream ID to validate
+     * @param guildId The guild ID that should own the stream
+     * @throws IllegalArgumentException if stream not found or doesn't belong to guild
+     */
+    private void validateStreamBelongsToGuild(Long streamId, String guildId) {
+        QotdStream stream = streamRepository.findById(streamId)
+                .orElseThrow(() -> new IllegalArgumentException("Stream not found"));
+        if (!stream.getGuildId().equals(guildId)) {
+            throw new IllegalArgumentException("Stream not found");
+        }
+    }
 
     private void validateChannelBelongsToGuild(String guildId, String channelId) {
         Guild guild = jda.getGuildById(guildId);

@@ -153,7 +153,7 @@ class QotdStreamServiceTest {
 
         when(streamRepo.findById(streamId)).thenReturn(Optional.of(stream));
 
-        service.deleteStream(streamId);
+        service.deleteStream("g1", streamId);
 
         verify(streamRepo).deleteById(streamId);
         verify(wsService).notifyQotdStreamChanged("g1", "c1", streamId, "deleted");
@@ -192,7 +192,7 @@ class QotdStreamServiceTest {
             return q;
         });
 
-        QotdQuestionDto result = service.addQuestion(streamId, "What is your favorite color?");
+        QotdQuestionDto result = service.addQuestion("g1", streamId, "What is your favorite color?");
 
         assertNotNull(result);
         assertEquals("What is your favorite color?", result.text());
@@ -270,7 +270,7 @@ class QotdStreamServiceTest {
         );
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-            () -> service.updateStream(streamId, request));
+            () -> service.updateStream("g1", streamId, request));
 
         assertTrue(ex.getMessage().contains("already exists"));
     }

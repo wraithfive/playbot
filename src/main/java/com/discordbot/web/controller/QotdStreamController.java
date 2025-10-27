@@ -65,7 +65,7 @@ public class QotdStreamController {
         }
 
         try {
-            return ResponseEntity.ok(streamService.getStream(streamId));
+            return ResponseEntity.ok(streamService.getStream(guildId, streamId));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         }
@@ -110,7 +110,7 @@ public class QotdStreamController {
         }
 
         try {
-            QotdStreamDto updated = streamService.updateStream(streamId, request);
+            QotdStreamDto updated = streamService.updateStream(guildId, streamId, request);
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -132,7 +132,7 @@ public class QotdStreamController {
         }
 
         try {
-            streamService.deleteStream(streamId);
+            streamService.deleteStream(guildId, streamId);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -155,7 +155,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(streamService.listQuestions(streamId));
+        return ResponseEntity.ok(streamService.listQuestions(guildId, streamId));
     }
 
     /**
@@ -174,7 +174,7 @@ public class QotdStreamController {
         }
 
         try {
-            QotdQuestionDto created = streamService.addQuestion(streamId, request.text());
+            QotdQuestionDto created = streamService.addQuestion(guildId, streamId, request.text());
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -196,7 +196,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.deleteQuestion(streamId, questionId);
+        streamService.deleteQuestion(guildId, streamId, questionId);
         return ResponseEntity.noContent().build();
     }
 
@@ -215,7 +215,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.reorderQuestions(streamId, request.orderedIds());
+        streamService.reorderQuestions(guildId, streamId, request.orderedIds());
         return ResponseEntity.ok().build();
     }
 
@@ -235,7 +235,7 @@ public class QotdStreamController {
         }
 
         try {
-            UploadCsvResult result = streamService.uploadCsv(streamId, file);
+            UploadCsvResult result = streamService.uploadCsv(guildId, streamId, file);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -258,7 +258,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(streamService.getBanner(streamId));
+        return ResponseEntity.ok(streamService.getBanner(guildId, streamId));
     }
 
     /**
@@ -276,7 +276,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.setBanner(streamId, bannerText);
+        streamService.setBanner(guildId, streamId, bannerText);
         return ResponseEntity.ok().build();
     }
 
@@ -294,7 +294,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        Integer color = streamService.getBannerColor(streamId);
+        Integer color = streamService.getBannerColor(guildId, streamId);
         return color != null ? ResponseEntity.ok(color) : ResponseEntity.noContent().build();
     }
 
@@ -313,7 +313,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.setBannerColor(streamId, color);
+        streamService.setBannerColor(guildId, streamId, color);
         return ResponseEntity.ok().build();
     }
 
@@ -331,7 +331,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        String mention = streamService.getBannerMention(streamId);
+        String mention = streamService.getBannerMention(guildId, streamId);
         return mention != null ? ResponseEntity.ok(mention) : ResponseEntity.noContent().build();
     }
 
@@ -353,7 +353,7 @@ public class QotdStreamController {
         // Normalize empty/null to null
         String normalized = (mention == null || mention.trim().isEmpty()) ? null : mention.trim();
 
-        streamService.setBannerMention(streamId, normalized);
+        streamService.setBannerMention(guildId, streamId, normalized);
         return ResponseEntity.ok().build();
     }
 
@@ -371,7 +371,7 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.resetBanner(streamId);
+        streamService.resetBanner(guildId, streamId);
         return ResponseEntity.ok().build();
     }
 
@@ -392,7 +392,7 @@ public class QotdStreamController {
         }
 
         try {
-            streamService.postNextQuestion(streamId);
+            streamService.postNextQuestion(guildId, streamId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
