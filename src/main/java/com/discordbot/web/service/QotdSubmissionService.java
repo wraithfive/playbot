@@ -80,14 +80,28 @@ public class QotdSubmissionService {
                 .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    public QotdDtos.QotdSubmissionDto approve(String guildId, String channelId, Long id, String approverId, String approverUsername) {
+    public QotdDtos.QotdSubmissionDto approve(String guildId, String channelId, Long id, Long streamId, String approverId, String approverUsername) {
         QotdSubmission sub = submissionRepo.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Submission not found"));
         if (!sub.getGuildId().equals(guildId)) throw new IllegalArgumentException("Invalid guild");
         if (sub.getStatus() != QotdSubmission.Status.PENDING) throw new IllegalStateException("Already processed");
 
         // Create question for the specified channel with author info
-        questionRepo.save(new QotdQuestion(guildId, channelId, sub.getText(), sub.getUserId(), sub.getUsername()));
+        QotdQuestion question = new QotdQuestion(guildId, channelId, sub.getText(), sub.getUserId(), sub.getUsername());
+
+        // Set the stream ID if provided, otherwise leave null (will be picked up by migration service)
+        if (streamId != null) {
+            question.setStreamId(streamId);
+
+            // Set display_order to add to END of queue (bottom)
+            // Find the highest display_order in this stream and add 1
+            List<QotdQuestion> existingQuestions = questionRepo.findByStreamIdOrderByDisplayOrderAsc(streamId);
+            int nextOrder = existingQuestions.isEmpty() ? 1 :
+                            existingQuestions.get(existingQuestions.size() - 1).getDisplayOrder() + 1;
+            question.setDisplayOrder(nextOrder);
+        }
+
+        questionRepo.save(question);
 
         // Mark approved
         sub.setStatus(QotdSubmission.Status.APPROVED);
@@ -95,19 +109,19 @@ public class QotdSubmissionService {
         sub.setApprovedByUsername(approverUsername);
         sub.setApprovedAt(Instant.now());
         submissionRepo.save(sub);
-        
+
         // Notify clients
         wsNotificationService.notifyQotdQuestionsChanged(guildId, channelId, "approved");
         wsNotificationService.notifyQotdSubmissionsChanged(guildId, "approved");
-        
+
         return toDto(sub);
     }
 
-    public QotdDtos.BulkActionResult approveBulk(String guildId, String channelId, List<Long> ids, String approverId, String approverUsername) {
+    public QotdDtos.BulkActionResult approveBulk(String guildId, String channelId, List<Long> ids, Long streamId, String approverId, String approverUsername) {
         int success = 0; int failure = 0; List<String> errors = new ArrayList<>();
         for (Long id : ids) {
             try {
-                approve(guildId, channelId, id, approverId, approverUsername);
+                approve(guildId, channelId, id, streamId, approverId, approverUsername);
                 success++;
             } catch (Exception e) {
                 failure++;

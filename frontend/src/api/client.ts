@@ -121,8 +121,8 @@ export const qotdApi = {
     return api.post<UploadCsvResult>(`/servers/${guildId}/channels/${channelId}/qotd/upload-csv`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   postNow: (guildId: string, channelId: string) => api.post<void>(`/servers/${guildId}/channels/${channelId}/qotd/post-now`),
-  approve: (guildId: string, channelId: string, id: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/${id}/approve`),
-  bulkApprove: (guildId: string, channelId: string, ids: number[]) => api.post<BulkActionResult>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/bulk-approve`, { ids }),
+  approve: (guildId: string, channelId: string, id: number, streamId?: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/${id}/approve${streamId ? `?streamId=${streamId}` : ''}`),
+  bulkApprove: (guildId: string, channelId: string, ids: number[], streamId?: number) => api.post<BulkActionResult>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/bulk-approve${streamId ? `?streamId=${streamId}` : ''}`, { ids }),
 
   // NEW: Stream management endpoints
   listStreams: (guildId: string, channelId: string) => api.get<QotdStreamDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams`),

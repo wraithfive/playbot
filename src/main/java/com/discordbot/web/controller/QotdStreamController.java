@@ -343,14 +343,17 @@ public class QotdStreamController {
     public ResponseEntity<Void> setBannerMention(
             @PathVariable String guildId,
             @PathVariable Long streamId,
-            @RequestBody String mention,
+            @RequestBody(required = false) String mention,
             Authentication authentication) {
 
         if (!canManage(guildId, authentication)) {
             return ResponseEntity.status(403).build();
         }
 
-        streamService.setBannerMention(streamId, mention);
+        // Normalize empty/null to null
+        String normalized = (mention == null || mention.trim().isEmpty()) ? null : mention.trim();
+
+        streamService.setBannerMention(streamId, normalized);
         return ResponseEntity.ok().build();
     }
 

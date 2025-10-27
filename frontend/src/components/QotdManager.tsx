@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qotdApi } from '../api/client';
-import type { UpdateQotdRequest } from '../types/qotd';
+import type { CreateStreamRequest, UpdateStreamRequest } from '../types/qotd';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 export default function QotdManager() {
@@ -13,6 +13,10 @@ export default function QotdManager() {
 
   // Channel selection state
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  // Stream selection state
+  const [selectedStreamId, setSelectedStreamId] = useState<number | null>(null);
+  const [showCreateStream, setShowCreateStream] = useState(false);
+  const [newStreamName, setNewStreamName] = useState('');
   // Banner state
   const [banner, setBanner] = useState<string>('');
   const [bannerLoading, setBannerLoading] = useState(false);
@@ -480,12 +484,12 @@ export default function QotdManager() {
   }, [showEmojiPicker, selectedEmojiIndex, recentEmojis, selectedCategory, emojiSearchQuery, EMOJI_CATEGORIES, getFilteredEmojis]);
 
   useEffect(() => {
-    if (guildId && selectedChannelId) {
+    if (guildId && selectedChannelId && selectedStreamId) {
       setBannerLoading(true);
       Promise.all([
-        qotdApi.getBanner(guildId, selectedChannelId),
-        qotdApi.getBannerColor(guildId, selectedChannelId),
-        qotdApi.getBannerMention(guildId, selectedChannelId)
+        qotdApi.getStreamBanner(guildId, selectedChannelId, selectedStreamId),
+        qotdApi.getStreamBannerColor(guildId, selectedChannelId, selectedStreamId),
+        qotdApi.getStreamBannerMention(guildId, selectedChannelId, selectedStreamId)
       ])
         .then(([textRes, colorRes, mentionRes]) => {
           const text = textRes.data;
@@ -506,7 +510,7 @@ export default function QotdManager() {
         })
         .finally(() => setBannerLoading(false));
     }
-  }, [guildId, selectedChannelId]);
+  }, [guildId, selectedChannelId, selectedStreamId]);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [newQuestion, setNewQuestion] = useState('');
   const [configMessage, setConfigMessage] = useState('');
@@ -537,18 +541,32 @@ export default function QotdManager() {
     enabled: !!guildId,
   });
 
-  // Fetch config for selected channel
-  const { data: config } = useQuery({
-    queryKey: ['qotd-config', guildId, selectedChannelId],
-    queryFn: async () => (await qotdApi.getConfig(guildId!, selectedChannelId!)).data,
+  // Fetch streams for selected channel
+  const { data: streams } = useQuery({
+    queryKey: ['qotd-streams', guildId, selectedChannelId],
+    queryFn: async () => (await qotdApi.listStreams(guildId!, selectedChannelId!)).data,
     enabled: !!guildId && !!selectedChannelId,
   });
 
-  // Fetch questions for selected channel (WebSocket handles real-time updates)
+  // Auto-select first stream when streams load
+  useEffect(() => {
+    if (streams && streams.length > 0 && !selectedStreamId) {
+      setSelectedStreamId(streams[0].id);
+    }
+  }, [streams, selectedStreamId]);
+
+  // Fetch config for selected channel (DEPRECATED - keeping for backward compat display)
+  const { data: config } = useQuery({
+    queryKey: ['qotd-config', guildId, selectedChannelId],
+    queryFn: async () => (await qotdApi.getConfig(guildId!, selectedChannelId!)).data,
+    enabled: false, // Disabled - config now comes from selected stream
+  });
+
+  // Fetch questions for selected stream (WebSocket handles real-time updates)
   const { data: questions } = useQuery({
-    queryKey: ['qotd-questions', guildId, selectedChannelId],
-    queryFn: async () => (await qotdApi.listQuestions(guildId!, selectedChannelId!)).data,
-    enabled: !!guildId && !!selectedChannelId,
+    queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId],
+    queryFn: async () => (await qotdApi.listStreamQuestions(guildId!, selectedChannelId!, selectedStreamId!)).data,
+    enabled: !!guildId && !!selectedChannelId && !!selectedStreamId,
   });
 
   // Fetch guild-wide pending submissions (WebSocket handles real-time updates)
@@ -558,7 +576,8 @@ export default function QotdManager() {
     enabled: !!guildId,
   });
 
-  const [form, setForm] = useState<UpdateQotdRequest>({
+  const [form, setForm] = useState<UpdateStreamRequest>({
+    streamName: '',
     enabled: false,
     timezone: 'UTC',
     randomize: false,
@@ -630,35 +649,43 @@ export default function QotdManager() {
     return { error: null, warnings };
   };
 
-  // Sync form state with backend config
+  // Sync form state with selected stream
   useEffect(() => {
-    if (config) {
-      const { days, time } = parseCron(config.scheduleCron || undefined);
-      setForm({
-        enabled: config.enabled,
-        timezone: config.timezone || 'UTC',
-        advancedCron: config.scheduleCron || undefined,
-        randomize: config.randomize,
-        autoApprove: config.autoApprove,
-        timeOfDay: time,
-        daysOfWeek: days,
-      });
-      // mentionTarget is fetched from banner mention endpoint
-      // Update the schedule builder UI
-      setSchedules([
-        { id: 1, days: new Set(days), time }
-      ]);
+    if (streams && selectedStreamId) {
+      const stream = streams.find(s => s.id === selectedStreamId);
+      if (stream) {
+        const { days, time } = parseCron(stream.scheduleCron || undefined);
+        setForm({
+          streamName: stream.streamName,
+          enabled: stream.enabled,
+          timezone: stream.timezone || 'UTC',
+          advancedCron: stream.scheduleCron || undefined,
+          randomize: stream.randomize,
+          autoApprove: stream.autoApprove,
+          timeOfDay: time,
+          daysOfWeek: days,
+        });
+        // Update the schedule builder UI
+        setSchedules([
+          { id: 1, days: new Set(days), time }
+        ]);
+      }
     }
-  }, [config]);
+  }, [streams, selectedStreamId]);
 
   // Listen for real-time QOTD updates via WebSocket
   useWebSocket((message) => {
     if (message.guildId !== guildId) return; // Ignore updates for other guilds
-    
-    if (message.type === 'QOTD_QUESTIONS_CHANGED') {
-      // Refresh questions for the affected channel
+
+    if (message.type === 'QOTD_STREAM_CHANGED') {
+      // Refresh streams for the affected channel
       if (message.channelId === selectedChannelId) {
-        qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, message.channelId] });
+        qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, message.channelId] });
+      }
+    } else if (message.type === 'QOTD_QUESTIONS_CHANGED') {
+      // Refresh questions for the affected stream
+      if (message.channelId === selectedChannelId && message.streamId) {
+        qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, message.channelId, message.streamId] });
       }
     } else if (message.type === 'QOTD_SUBMISSIONS_CHANGED') {
       // Refresh submissions list
@@ -666,26 +693,25 @@ export default function QotdManager() {
     }
   });
 
-  const updateConfigMutation = useMutation({
-    mutationFn: (req: UpdateQotdRequest) => qotdApi.updateConfig(guildId!, selectedChannelId!, req),
+  const updateStreamMutation = useMutation({
+    mutationFn: (req: UpdateStreamRequest) => qotdApi.updateStream(guildId!, selectedChannelId!, selectedStreamId!, req),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['qotd-config', guildId, selectedChannelId] });
-      qc.invalidateQueries({ queryKey: ['qotd-configs', guildId] });
-      setConfigMessage('✓ Saved configuration');
+      qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, selectedChannelId] });
+      setConfigMessage('✓ Saved stream configuration');
       setTimeout(() => setConfigMessage(''), 5000);
     },
     onError: () => {
-      setConfigMessage('✗ Failed to save configuration');
+      setConfigMessage('✗ Failed to save stream configuration');
       setTimeout(() => setConfigMessage(''), 5000);
     },
   });
 
   const uploadCsvMutation = useMutation({
-    mutationFn: (file: File) => qotdApi.uploadCsv(guildId!, selectedChannelId!, file),
+    mutationFn: (file: File) => qotdApi.uploadStreamCsv(guildId!, selectedChannelId!, selectedStreamId!, file),
     onSuccess: (res) => {
       const r = res.data;
       setQuestionMessage(`✓ Added ${r.successCount} questions${r.failureCount ? `, ${r.failureCount} failed` : ''}`);
-      qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+      qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
       setCsvFile(null);
       setTimeout(() => setQuestionMessage(''), 5000);
     },
@@ -696,11 +722,11 @@ export default function QotdManager() {
   });
 
   const addQuestionMutation = useMutation({
-    mutationFn: (text: string) => qotdApi.addQuestion(guildId!, selectedChannelId!, text),
+    mutationFn: (text: string) => qotdApi.addStreamQuestion(guildId!, selectedChannelId!, selectedStreamId!, text),
     onSuccess: () => {
       setNewQuestion('');
       setQuestionMessage('✓ Question added');
-      qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+      qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
       setTimeout(() => setQuestionMessage(''), 5000);
     },
     onError: () => {
@@ -710,10 +736,10 @@ export default function QotdManager() {
   });
 
   const deleteQuestionMutation = useMutation({
-    mutationFn: (id: number) => qotdApi.deleteQuestion(guildId!, selectedChannelId!, id),
+    mutationFn: (id: number) => qotdApi.deleteStreamQuestion(guildId!, selectedChannelId!, selectedStreamId!, id),
     onSuccess: () => {
       setQuestionMessage('✓ Question deleted');
-      qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+      qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
       setTimeout(() => setQuestionMessage(''), 5000);
     },
     onError: () => {
@@ -723,9 +749,9 @@ export default function QotdManager() {
   });
 
   const reorderQuestionsMutation = useMutation({
-    mutationFn: (orderedIds: number[]) => qotdApi.reorderQuestions(guildId!, selectedChannelId!, orderedIds),
+    mutationFn: (orderedIds: number[]) => qotdApi.reorderStreamQuestions(guildId!, selectedChannelId!, selectedStreamId!, orderedIds),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+      qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
     },
     onError: () => {
       setQuestionMessage('✗ Failed to reorder questions');
@@ -815,7 +841,10 @@ export default function QotdManager() {
               <button
                 key={ch.id}
                 className={selectedChannelId === ch.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                onClick={() => setSelectedChannelId(ch.id)}
+                onClick={() => {
+                  setSelectedChannelId(ch.id);
+                  setSelectedStreamId(null); // Reset stream when changing channel
+                }}
               >
                 {ch.name}
                 {configuredChannels?.some(cfg => cfg.channelId === ch.id && cfg.enabled) && ' ✓'}
@@ -824,8 +853,102 @@ export default function QotdManager() {
           </div>
         </section>
 
-        {/* Show channel config only when channel is selected */}
+        {/* Stream Selection (shown when channel is selected) */}
         {selectedChannelId && (
+          <section className="action-card" style={{ marginBottom: '1rem' }}>
+            <h3>Select Stream</h3>
+            {streams ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {streams.map((stream) => (
+                  <button
+                    key={stream.id}
+                    className={selectedStreamId === stream.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                    onClick={() => setSelectedStreamId(stream.id)}
+                  >
+                    {stream.streamName}
+                    {stream.enabled && ' ✓'}
+                  </button>
+                ))}
+                {streams.length < 5 && (
+                  <button
+                    className="btn btn-success btn-sm"
+                    onClick={() => setShowCreateStream(true)}
+                  >
+                    + New Stream
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div>Loading streams...</div>
+            )}
+          </section>
+        )}
+
+        {/* Create Stream Dialog */}
+        {showCreateStream && (
+          <div className="modal-overlay" onClick={() => setShowCreateStream(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Create New Stream</h3>
+              <div style={{ marginTop: '1rem' }}>
+                <label>Stream Name:</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g., Weekly QOTD, Fun Facts"
+                  value={newStreamName}
+                  onChange={(e) => setNewStreamName(e.target.value)}
+                  maxLength={64}
+                  style={{ width: '100%', marginTop: '0.5rem' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    if (!newStreamName.trim() || !guildId || !selectedChannelId) return;
+                    try {
+                      const request: CreateStreamRequest = {
+                        streamName: newStreamName.trim(),
+                        enabled: false,
+                        timezone: 'UTC',
+                        randomize: false,
+                        autoApprove: false,
+                        daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+                        timeOfDay: '09:00',
+                      };
+                      const result = await qotdApi.createStream(guildId, selectedChannelId, request);
+                      qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, selectedChannelId] });
+                      setSelectedStreamId(result.data.id);
+                      setShowCreateStream(false);
+                      setNewStreamName('');
+                      setConfigMessage('✓ Stream created successfully');
+                      setTimeout(() => setConfigMessage(''), 5000);
+                    } catch (err: any) {
+                      const msg = err?.response?.data || 'Failed to create stream';
+                      setConfigMessage(`✗ ${msg}`);
+                      setTimeout(() => setConfigMessage(''), 5000);
+                    }
+                  }}
+                  disabled={!newStreamName.trim()}
+                >
+                  Create
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowCreateStream(false);
+                    setNewStreamName('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Show stream config only when stream is selected */}
+        {selectedChannelId && selectedStreamId && (
           <>
             <section className="action-card" style={{ marginBottom: '1rem' }}>
               <h3>QOTD Banner for {getChannelName(selectedChannelId)}</h3>
@@ -1065,8 +1188,8 @@ export default function QotdManager() {
                     onClick={async () => {
                       setBannerSaving(true);
                       try {
-                        await qotdApi.setBanner(guildId!, selectedChannelId, banner);
-                        if (embedColor != null) await qotdApi.setBannerColor(guildId!, selectedChannelId, embedColor);
+                        await qotdApi.setStreamBanner(guildId!, selectedChannelId, selectedStreamId!, banner);
+                        if (embedColor != null) await qotdApi.setStreamBannerColor(guildId!, selectedChannelId, selectedStreamId!, embedColor);
                         setOriginalBanner(banner);
                         setOriginalEmbedColor(embedColor);
                         setBannerMessage('✓ Banner saved');
@@ -1090,7 +1213,7 @@ export default function QotdManager() {
                   }}>Cancel</button>
                   <button className="btn btn-danger btn-sm" onClick={async () => {
                     try {
-                      await qotdApi.resetBanner(guildId!, selectedChannelId);
+                      await qotdApi.resetStreamBanner(guildId!, selectedChannelId, selectedStreamId!);
                       setBanner('❓❓ Question of the Day ❓❓');
                       setEmbedColor(0x9B59B6);
                       setBannerMessage('✓ Banner reset to default');
@@ -1120,7 +1243,47 @@ export default function QotdManager() {
               )}
             </section>
             <section className="action-card" style={{ marginBottom: '1rem' }}>
-              <h3>Configuration for {getChannelName(selectedChannelId)}</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <h3 style={{ margin: 0 }}>
+                  Configuration: {streams?.find(s => s.id === selectedStreamId)?.streamName || 'Stream'}
+                </h3>
+                {streams && streams.length > 1 && (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={async () => {
+                      const stream = streams.find(s => s.id === selectedStreamId);
+                      const questionCount = questions?.length || 0;
+                      const confirmed = window.confirm(
+                        `Delete stream "${stream?.streamName}"?\n\n` +
+                        `This will permanently delete ${questionCount} question(s) in this stream.\n\n` +
+                        `This action cannot be undone.`
+                      );
+                      if (confirmed && guildId && selectedChannelId && selectedStreamId) {
+                        try {
+                          await qotdApi.deleteStream(guildId, selectedChannelId, selectedStreamId);
+                          qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, selectedChannelId] });
+                          // Select the first remaining stream
+                          const remaining = streams.filter(s => s.id !== selectedStreamId);
+                          if (remaining.length > 0) {
+                            setSelectedStreamId(remaining[0].id);
+                          } else {
+                            setSelectedStreamId(null);
+                          }
+                          setConfigMessage('✓ Stream deleted successfully');
+                          setTimeout(() => setConfigMessage(''), 5000);
+                        } catch (err: any) {
+                          const msg = err?.response?.data || 'Failed to delete stream';
+                          setConfigMessage(`✗ ${msg}`);
+                          setTimeout(() => setConfigMessage(''), 5000);
+                        }
+                      }
+                    }}
+                    title="Delete this stream"
+                  >
+                    Delete Stream
+                  </button>
+                )}
+              </div>
               {/* Queue status */}
               <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {(() => {
@@ -1156,6 +1319,24 @@ export default function QotdManager() {
                 })()}
               </div>
               <div className="add-role-form">
+                <div className="form-row">
+                  <div className="field">
+                    <label className="field-label">
+                      Stream Name
+                      <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
+                        (max 64 characters)
+                      </span>
+                    </label>
+                    <input
+                      className="input"
+                      type="text"
+                      value={form.streamName || ''}
+                      onChange={e => setForm({ ...form, streamName: e.target.value })}
+                      placeholder="e.g., Weekly QOTD, Daily Trivia"
+                      maxLength={64}
+                    />
+                  </div>
+                </div>
                 <div className="form-row">
                   <div className="field">
                     <label className="field-label">
@@ -1389,9 +1570,9 @@ export default function QotdManager() {
                       return;
                     }
                     // Persist mention using its dedicated endpoint
-                    if (guildId && selectedChannelId) {
+                    if (guildId && selectedChannelId && selectedStreamId) {
                       try {
-                        await qotdApi.setBannerMention(guildId, selectedChannelId, normalized);
+                        await qotdApi.setStreamBannerMention(guildId, selectedChannelId, selectedStreamId, normalized);
                       } catch (e: any) {
                         const msg = e?.response?.data || 'Failed to save mention';
                         setConfigMessage(`✗ ${msg}`);
@@ -1399,7 +1580,13 @@ export default function QotdManager() {
                         return; // don't proceed if mention save failed
                       }
                     }
-                    const requestData: UpdateQotdRequest = { ...form };
+                    const requestData: UpdateStreamRequest = {
+                      streamName: streams?.find(s => s.id === selectedStreamId)?.streamName || 'Default',
+                      enabled: form.enabled,
+                      timezone: form.timezone,
+                      randomize: form.randomize,
+                      autoApprove: form.autoApprove,
+                    };
                     if (!showAdvanced && schedules.length > 0) {
                       const allDays = new Set<string>();
                       const times = new Set<string>();
@@ -1417,8 +1604,10 @@ export default function QotdManager() {
                         setConfigMessage(`⚠ Multiple times detected. Using ${firstTime}. Days are combined. Use Advanced mode for different times.`);
                         setTimeout(() => setConfigMessage(''), 8000);
                       }
+                    } else {
+                      requestData.advancedCron = form.advancedCron || null;
                     }
-                    updateConfigMutation.mutate(requestData);
+                    updateStreamMutation.mutate(requestData);
                   }}>Save</button>
                   <button
                     className="btn btn-secondary btn-sm"
@@ -1426,11 +1615,11 @@ export default function QotdManager() {
                     title={!form.enabled ? 'Enable QOTD for this channel to use Post Now' : ''}
                     style={!form.enabled ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                     onClick={async () => {
-                      if (!guildId || !selectedChannelId || !form.enabled) return;
+                      if (!guildId || !selectedChannelId || !selectedStreamId || !form.enabled) return;
                       try {
-                        await qotdApi.postNow(guildId, selectedChannelId);
+                        await qotdApi.postStreamNow(guildId, selectedChannelId, selectedStreamId);
                         setConfigMessage('✓ Posted next question');
-                        qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+                        qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
                         setTimeout(() => setConfigMessage(''), 5000);
                       } catch {
                         setConfigMessage('✗ Failed to post (queue empty or permissions)');
@@ -1449,7 +1638,17 @@ export default function QotdManager() {
                     const clearedForm = { ...form, enabled: false, advancedCron: '', daysOfWeek: [], timeOfDay: '' };
                     setForm(clearedForm);
                     setSchedules([{ id: 1, days: new Set(['MON', 'TUE', 'WED', 'THU', 'FRI']), time: '09:00' }]);
-                    updateConfigMutation.mutate(clearedForm);
+                    const clearRequest: UpdateStreamRequest = {
+                      streamName: streams?.find(s => s.id === selectedStreamId)?.streamName || 'Default',
+                      enabled: false,
+                      timezone: clearedForm.timezone,
+                      randomize: clearedForm.randomize,
+                      autoApprove: clearedForm.autoApprove,
+                      advancedCron: '',
+                      daysOfWeek: [],
+                      timeOfDay: '',
+                    };
+                    updateStreamMutation.mutate(clearRequest);
                   }}>Clear Schedule</button>
                   {config?.nextRuns?.length && (form.enabled && (form.advancedCron || schedules.some(s => s.days.size > 0))) ? (
                     <span className="selection-count">Next runs: {config.nextRuns.slice(0,3).join(', ')}</span>
@@ -1689,10 +1888,11 @@ export default function QotdManager() {
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button className="btn btn-primary btn-sm" onClick={async () => {
                         try {
-                          await qotdApi.approve(guildId!, selectedChannelId!, sub.id);
-                          setQuestionMessage(`✓ Approved and added to ${getChannelName(selectedChannelId)}`);
+                          await qotdApi.approve(guildId!, selectedChannelId!, sub.id, selectedStreamId || undefined);
+                          const streamName = streams?.find(s => s.id === selectedStreamId)?.streamName || 'stream';
+                          setQuestionMessage(`✓ Approved and added to ${streamName} in ${getChannelName(selectedChannelId)}`);
                           qc.invalidateQueries({ queryKey: ['qotd-submissions', guildId] });
-                          qc.invalidateQueries({ queryKey: ['qotd-questions', guildId, selectedChannelId] });
+                          qc.invalidateQueries({ queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId] });
                           setTimeout(() => setQuestionMessage(''), 5000);
                         } catch {
                           setQuestionMessage('✗ Failed to approve');

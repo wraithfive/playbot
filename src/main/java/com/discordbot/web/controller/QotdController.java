@@ -301,12 +301,13 @@ public class QotdController {
             @PathVariable String guildId,
             @PathVariable String channelId,
             @PathVariable Long id,
+            @RequestParam(required = false) Long streamId,
             Authentication authentication) {
         if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
         qotdService.validateChannelBelongsToGuild(guildId, channelId);
         String approverId = authentication.getName();
         String approverUsername = authentication.getName();
-        return ResponseEntity.ok(submissionService.approve(guildId, channelId, id, approverId, approverUsername));
+        return ResponseEntity.ok(submissionService.approve(guildId, channelId, id, streamId, approverId, approverUsername));
     }
 
     @PostMapping("/qotd/submissions/{id}/reject")
@@ -325,12 +326,13 @@ public class QotdController {
             @PathVariable String guildId,
             @PathVariable String channelId,
             @RequestBody QotdDtos.BulkIdsRequest req,
+            @RequestParam(required = false) Long streamId,
             Authentication authentication) {
         if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
         qotdService.validateChannelBelongsToGuild(guildId, channelId);
         String approverId = authentication.getName();
         String approverUsername = authentication.getName();
-        return ResponseEntity.ok(submissionService.approveBulk(guildId, channelId, req.ids(), approverId, approverUsername));
+        return ResponseEntity.ok(submissionService.approveBulk(guildId, channelId, req.ids(), streamId, approverId, approverUsername));
     }
 
     @PostMapping("/qotd/submissions/bulk-reject")

@@ -149,7 +149,7 @@ class QotdSubmissionServiceTest {
         when(submissionRepo.save(any(QotdSubmission.class))).thenReturn(submission);
         when(questionRepo.save(any(QotdQuestion.class))).thenReturn(new QotdQuestion());
 
-        QotdDtos.QotdSubmissionDto result = service.approve(guildId, channelId, submissionId, "admin123", "AdminUser");
+        QotdDtos.QotdSubmissionDto result = service.approve(guildId, channelId, submissionId, null, "admin123", "AdminUser");
 
         assertNotNull(result);
         verify(questionRepo, times(1)).save(any(QotdQuestion.class));
@@ -169,7 +169,7 @@ class QotdSubmissionServiceTest {
         when(submissionRepo.findById(submissionId)).thenReturn(Optional.of(submission));
 
         assertThrows(IllegalArgumentException.class, () -> {
-            service.approve("guild999", "channel456", submissionId, "admin123", "AdminUser");
+            service.approve("guild999", "channel456", submissionId, null, "admin123", "AdminUser");
         }, "Should reject approval from wrong guild");
     }
 
@@ -183,7 +183,7 @@ class QotdSubmissionServiceTest {
         when(submissionRepo.findById(submissionId)).thenReturn(Optional.of(submission));
 
         assertThrows(IllegalStateException.class, () -> {
-            service.approve("guild123", "channel456", submissionId, "admin123", "AdminUser");
+            service.approve("guild123", "channel456", submissionId, null, "admin123", "AdminUser");
         }, "Should reject already processed submission");
     }
 
@@ -193,7 +193,7 @@ class QotdSubmissionServiceTest {
         when(submissionRepo.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class, () -> {
-            service.approve("guild123", "channel456", 99L, "admin123", "AdminUser");
+            service.approve("guild123", "channel456", 99L, null, "admin123", "AdminUser");
         }, "Should throw NoSuchElementException when submission is missing");
     }
 
@@ -267,7 +267,7 @@ class QotdSubmissionServiceTest {
 
         when(questionRepo.save(any(QotdQuestion.class))).thenReturn(new QotdQuestion());
 
-        QotdDtos.BulkActionResult result = service.approveBulk(guildId, channelId, ids, "admin123", "AdminUser");
+        QotdDtos.BulkActionResult result = service.approveBulk(guildId, channelId, ids, null, "admin123", "AdminUser");
 
         assertEquals(3, result.successCount());
         assertEquals(0, result.failureCount());
@@ -295,7 +295,7 @@ class QotdSubmissionServiceTest {
 
         when(questionRepo.save(any(QotdQuestion.class))).thenReturn(new QotdQuestion());
 
-        QotdDtos.BulkActionResult result = service.approveBulk(guildId, channelId, ids, "admin123", "AdminUser");
+        QotdDtos.BulkActionResult result = service.approveBulk(guildId, channelId, ids, null, "admin123", "AdminUser");
 
         assertEquals(2, result.successCount());
         assertEquals(1, result.failureCount());
