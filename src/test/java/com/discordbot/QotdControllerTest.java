@@ -344,8 +344,8 @@ class QotdControllerTest {
     void testListPending_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         List<QotdDtos.QotdSubmissionDto> submissions = Arrays.asList(
-            new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.PENDING, Instant.now()),
-            new QotdDtos.QotdSubmissionDto(2L, "What is your favorite movie?", "user2", "User Two", QotdDtos.SubmissionStatus.PENDING, Instant.now())
+            new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.PENDING, Instant.now(), null),
+            new QotdDtos.QotdSubmissionDto(2L, "What is your favorite movie?", "user2", "User Two", QotdDtos.SubmissionStatus.PENDING, Instant.now(), null)
         );
         when(submissionService.listPending("guild123")).thenReturn(submissions);
 
@@ -372,10 +372,7 @@ class QotdControllerTest {
     void testApprove_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(mockAuth.getName()).thenReturn("user123");
-        QotdDtos.QotdSubmissionDto approved = new QotdDtos.QotdSubmissionDto(
-            1L, "What is your favorite game?", "user1", "User One",
-            QotdDtos.SubmissionStatus.APPROVED, Instant.now()
-        );
+        QotdDtos.QotdSubmissionDto approved = new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.APPROVED, Instant.now(), null);
         when(submissionService.approve("guild123", "channel1", 1L, null, "user123", "user123")).thenReturn(approved);
 
         ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.approve("guild123", "channel1", 1L, null, mockAuth);
@@ -401,10 +398,7 @@ class QotdControllerTest {
     void testReject_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(mockAuth.getName()).thenReturn("user123");
-        QotdDtos.QotdSubmissionDto rejected = new QotdDtos.QotdSubmissionDto(
-            1L, "What is your favorite game?", "user1", "User One",
-            QotdDtos.SubmissionStatus.REJECTED, Instant.now()
-        );
+        QotdDtos.QotdSubmissionDto rejected = new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.REJECTED, Instant.now(), null);
         when(submissionService.reject("guild123", 1L, "user123", "user123")).thenReturn(rejected);
 
         ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.reject("guild123", 1L, mockAuth);

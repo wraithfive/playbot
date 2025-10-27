@@ -40,7 +40,7 @@ public class QotdDtos {
     // Submissions
     public enum SubmissionStatus { PENDING, APPROVED, REJECTED }
 
-    public record QotdSubmissionDto(Long id, String text, String userId, String username, SubmissionStatus status, Instant createdAt) {}
+    public record QotdSubmissionDto(Long id, String text, String userId, String username, SubmissionStatus status, Instant createdAt, Long targetStreamId) {}
 
     public record BulkIdsRequest(List<Long> ids) {}
 

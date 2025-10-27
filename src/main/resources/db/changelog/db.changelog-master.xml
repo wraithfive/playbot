@@ -22,5 +22,6 @@
     <!-- Multi-streams feature (issue #1) -->
     <include file="db/changelog/changes/007-add-qotd-streams.xml"/>
     <include file="db/changelog/changes/008-rename-deprecated-qotd-tables.xml"/>
+    <include file="db/changelog/changes/009-add-submission-target-stream.xml"/>
 
 </databaseChangeLog>

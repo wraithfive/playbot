@@ -204,11 +204,18 @@ Commands are defined in `SlashCommandHandler.onGuildReady()`
 
 ### QOTD System
 
-- **Per-channel configuration** stored in `QotdConfig` entity
+- **Multi-streams per channel**: Up to 5 independent QOTD streams per Discord channel
+- **Per-stream configuration**: Each stream has its own schedule, timezone, question bank, banner, and settings
 - **Scheduled posting** via `QotdScheduler` using Spring's `@Scheduled`
 - **Question bank** with approval workflow (pending → approved → posted)
 - **CSV import** for bulk question upload with optional author attribution
-- **Submissions** stored in `QotdSubmission` with real-time WebSocket notifications
+- **User submissions**: `/qotd-submit` command with optional stream targeting via autocomplete
+  - Users can optionally select which stream their question is for (autocomplete shows banner text)
+  - If stream has `autoApprove` enabled, question is automatically added to that stream
+  - If no stream specified and multiple streams have `autoApprove`, question is added to all
+  - Otherwise, admin manually approves and routes to appropriate stream
+- **Submissions** stored in `QotdSubmission` entity with optional `targetStreamId`
+- **Real-time updates** via WebSocket notifications
 
 ## Environment Variables
 

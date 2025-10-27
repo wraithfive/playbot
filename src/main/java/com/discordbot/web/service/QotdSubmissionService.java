@@ -1,10 +1,10 @@
 package com.discordbot.web.service;
 
-import com.discordbot.entity.QotdConfig;
 import com.discordbot.entity.QotdQuestion;
+import com.discordbot.entity.QotdStream;
 import com.discordbot.entity.QotdSubmission;
-import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
+import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.repository.QotdSubmissionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -22,25 +22,25 @@ import java.util.stream.Collectors;
 public class QotdSubmissionService {
     private final QotdSubmissionRepository submissionRepo;
     private final QotdQuestionRepository questionRepo;
+    private final QotdStreamRepository streamRepo;
     private final WebSocketNotificationService wsNotificationService;
-    private final QotdConfigRepository configRepo;
 
     // Simple per guild:user rate limiter: 3 submissions per hour
     private final Cache<String, Bucket> buckets;
 
     public QotdSubmissionService(QotdSubmissionRepository submissionRepo, QotdQuestionRepository questionRepo,
-                                  WebSocketNotificationService wsNotificationService, QotdConfigRepository configRepo) {
+                                  QotdStreamRepository streamRepo, WebSocketNotificationService wsNotificationService) {
         this.submissionRepo = submissionRepo;
         this.questionRepo = questionRepo;
+        this.streamRepo = streamRepo;
         this.wsNotificationService = wsNotificationService;
-        this.configRepo = configRepo;
         this.buckets = Caffeine.newBuilder()
                 .maximumSize(50_000)
                 .expireAfterAccess(Duration.ofHours(2))
                 .build();
     }
 
-    public QotdDtos.QotdSubmissionDto submit(String guildId, String userId, String username, String text) {
+    public QotdDtos.QotdSubmissionDto submit(String guildId, String userId, String username, String text, Long targetStreamId) {
         String trimmed = Optional.ofNullable(text).orElse("").trim();
         if (trimmed.isEmpty()) throw new IllegalArgumentException("Question cannot be empty");
         if (trimmed.length() > 300) throw new IllegalArgumentException("Question is too long (max 300 chars)");
@@ -51,25 +51,56 @@ public class QotdSubmissionService {
             throw new IllegalStateException("Rate limit exceeded. Try again later.");
         }
 
-        // Check if any channels in this guild have autoApprove enabled
-        List<QotdConfig> autoApproveChannels = configRepo.findByGuildId(guildId).stream()
-                .filter(QotdConfig::isAutoApprove)
-                .toList();
+        // Validate target stream if provided
+        QotdStream targetStream = null;
+        if (targetStreamId != null) {
+            targetStream = streamRepo.findById(targetStreamId)
+                    .orElseThrow(() -> new IllegalArgumentException("Target stream not found"));
+            if (!targetStream.getGuildId().equals(guildId)) {
+                throw new IllegalArgumentException("Target stream does not belong to this guild");
+            }
+        }
 
         QotdSubmission sub = new QotdSubmission(guildId, userId, username, trimmed);
-        
-        if (!autoApproveChannels.isEmpty()) {
-            // Auto-approve: add to all channels with autoApprove enabled and mark as approved
-            for (QotdConfig config : autoApproveChannels) {
-                questionRepo.save(new QotdQuestion(guildId, config.getChannelId(), trimmed, userId, username));
-                wsNotificationService.notifyQotdQuestionsChanged(guildId, config.getChannelId(), "auto-approved");
+        sub.setTargetStreamId(targetStreamId);
+
+        // Auto-approve logic based on streams
+        List<QotdStream> autoApproveStreams;
+        if (targetStream != null) {
+            // User specified a target stream - only auto-approve to that stream if it has autoApprove enabled
+            if (targetStream.getAutoApprove()) {
+                autoApproveStreams = List.of(targetStream);
+            } else {
+                autoApproveStreams = Collections.emptyList();
+            }
+        } else {
+            // No target specified - auto-approve to ALL streams with autoApprove enabled in this guild
+            autoApproveStreams = streamRepo.findByGuildIdOrderByChannelIdAscIdAsc(guildId).stream()
+                    .filter(QotdStream::getAutoApprove)
+                    .toList();
+        }
+
+        if (!autoApproveStreams.isEmpty()) {
+            // Auto-approve: add to streams with autoApprove enabled and mark as approved
+            for (QotdStream stream : autoApproveStreams) {
+                QotdQuestion question = new QotdQuestion(guildId, stream.getChannelId(), trimmed, userId, username);
+                question.setStreamId(stream.getId());
+
+                // Set display_order to add to END of queue (bottom)
+                List<QotdQuestion> existingQuestions = questionRepo.findByStreamIdOrderByDisplayOrderAsc(stream.getId());
+                int nextOrder = existingQuestions.isEmpty() ? 1 :
+                        existingQuestions.get(existingQuestions.size() - 1).getDisplayOrder() + 1;
+                question.setDisplayOrder(nextOrder);
+
+                questionRepo.save(question);
+                wsNotificationService.notifyQotdQuestionsChanged(guildId, stream.getChannelId(), "auto-approved");
             }
             sub.setStatus(QotdSubmission.Status.APPROVED);
             sub.setApprovedByUserId("system");
             sub.setApprovedByUsername("Auto-Approved");
             sub.setApprovedAt(Instant.now());
         }
-        
+
         sub = submissionRepo.save(sub);
         wsNotificationService.notifyQotdSubmissionsChanged(guildId, "submitted");
         return toDto(sub);
@@ -165,7 +196,8 @@ public class QotdSubmissionService {
     private QotdDtos.QotdSubmissionDto toDto(QotdSubmission s) {
         return new QotdDtos.QotdSubmissionDto(
                 s.getId(), s.getText(), s.getUserId(), s.getUsername(),
-                QotdDtos.SubmissionStatus.valueOf(s.getStatus().name()), s.getCreatedAt()
+                QotdDtos.SubmissionStatus.valueOf(s.getStatus().name()), s.getCreatedAt(),
+                s.getTargetStreamId()
         );
     }
 

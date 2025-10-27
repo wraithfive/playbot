@@ -2,8 +2,8 @@ package com.discordbot;
 
 import com.discordbot.entity.QotdQuestion;
 import com.discordbot.entity.QotdSubmission;
-import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdQuestionRepository;
+import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.repository.QotdSubmissionRepository;
 import com.discordbot.web.dto.qotd.QotdDtos;
 import com.discordbot.web.service.QotdSubmissionService;
@@ -28,31 +28,31 @@ class QotdSubmissionServiceTest {
     private QotdSubmissionService service;
     private QotdSubmissionRepository submissionRepo;
     private QotdQuestionRepository questionRepo;
+    private QotdStreamRepository streamRepo;
     private WebSocketNotificationService wsNotificationService;
-    private QotdConfigRepository configRepo;
 
     @BeforeEach
     void setUp() {
         submissionRepo = mock(QotdSubmissionRepository.class);
         questionRepo = mock(QotdQuestionRepository.class);
+        streamRepo = mock(QotdStreamRepository.class);
         wsNotificationService = mock(WebSocketNotificationService.class);
-        configRepo = mock(QotdConfigRepository.class);
-        service = new QotdSubmissionService(submissionRepo, questionRepo, wsNotificationService, configRepo);
+        service = new QotdSubmissionService(submissionRepo, questionRepo, streamRepo, wsNotificationService);
     }
 
     @Test
     @DisplayName("submit should reject empty text")
     void testSubmit_EmptyText() {
         assertThrows(IllegalArgumentException.class, () -> {
-            service.submit("guild123", "user123", "testuser", "");
+            service.submit("guild123", "user123", "testuser", "", null);
         }, "Should reject empty question text");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            service.submit("guild123", "user123", "testuser", "   ");
+            service.submit("guild123", "user123", "testuser", "   ", null);
         }, "Should reject whitespace-only question text");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            service.submit("guild123", "user123", "testuser", null);
+            service.submit("guild123", "user123", "testuser", null, null);
         }, "Should reject null question text");
     }
 
@@ -62,7 +62,7 @@ class QotdSubmissionServiceTest {
         String longText = "a".repeat(301);
 
         assertThrows(IllegalArgumentException.class, () -> {
-            service.submit("guild123", "user123", "testuser", longText);
+            service.submit("guild123", "user123", "testuser", longText, null);
         }, "Should reject text longer than 300 characters");
     }
 
@@ -77,7 +77,7 @@ class QotdSubmissionServiceTest {
                                          saved.getUsername(), saved.getText());
         });
 
-        QotdDtos.QotdSubmissionDto result = service.submit("guild123", "user123", "testuser", questionText);
+        QotdDtos.QotdSubmissionDto result = service.submit("guild123", "user123", "testuser", questionText, null);
 
         assertNotNull(result);
         assertEquals(questionText, result.text());
@@ -101,13 +101,13 @@ class QotdSubmissionServiceTest {
         });
 
         // First 3 submissions should succeed
-        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 1"));
-        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 2"));
-        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 3"));
+        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 1", null));
+        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 2", null));
+        assertDoesNotThrow(() -> service.submit(guildId, userId, username, "Question 3", null));
 
         // 4th submission should be rate limited
         assertThrows(IllegalStateException.class, () -> {
-            service.submit(guildId, userId, username, "Question 4");
+            service.submit(guildId, userId, username, "Question 4", null);
         }, "Should enforce rate limit after 3 submissions");
     }
 
@@ -123,17 +123,17 @@ class QotdSubmissionServiceTest {
         });
 
         // User 1 uses all 3 submissions
-        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q1"));
-        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q2"));
-        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q3"));
+        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q1", null));
+        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q2", null));
+        assertDoesNotThrow(() -> service.submit(guildId, "user1", "user1name", "Q3", null));
 
         // User 1 is rate limited
         assertThrows(IllegalStateException.class, () -> {
-            service.submit(guildId, "user1", "user1name", "Q4");
+            service.submit(guildId, "user1", "user1name", "Q4", null);
         });
 
         // User 2 should still be able to submit
-        assertDoesNotThrow(() -> service.submit(guildId, "user2", "user2name", "Q1"));
+        assertDoesNotThrow(() -> service.submit(guildId, "user2", "user2name", "Q1", null));
     }
 
     @Test
@@ -357,15 +357,15 @@ class QotdSubmissionServiceTest {
         });
 
         // Consume 3 in g1
-        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q1"));
-        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q2"));
-        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q3"));
-        assertThrows(IllegalStateException.class, () -> service.submit("g1", userId, "name", "Q4"));
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q1", null));
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q2", null));
+        assertDoesNotThrow(() -> service.submit("g1", userId, "name", "Q3", null));
+        assertThrows(IllegalStateException.class, () -> service.submit("g1", userId, "name", "Q4", null));
 
         // g2 should be independent
-        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q1"));
-        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q2"));
-        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q3"));
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q1", null));
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q2", null));
+        assertDoesNotThrow(() -> service.submit("g2", userId, "name", "Q3", null));
     }
 
     // Helper method to create a submission with ID using reflection
