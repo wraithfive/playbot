@@ -55,8 +55,16 @@ fi
 echo -e "${GREEN}✓ Environment checks passed${NC}"
 echo ""
 
+# Get version from pom.xml
+VERSION=$(grep -A 1 '<artifactId>playbot</artifactId>' pom.xml | grep '<version>' | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+if [ -z "$VERSION" ]; then
+    echo -e "${RED}Error: Could not determine version from pom.xml${NC}"
+    exit 1
+fi
+JAR_FILE="target/playbot-${VERSION}.jar"
+
 # Build backend if JAR doesn't exist
-if [ ! -f "target/playbot-1.0.0.jar" ]; then
+if [ ! -f "$JAR_FILE" ]; then
     echo -e "${YELLOW}Building backend...${NC}"
     mvn clean package -DskipTests
     if [ $? -ne 0 ]; then
@@ -104,7 +112,7 @@ trap cleanup SIGINT SIGTERM
 
 # Start backend
 echo -e "${BLUE}Starting backend on port 8080...${NC}"
-java -jar target/playbot-1.0.0.jar > logs/backend.log 2>&1 &
+java -jar "$JAR_FILE" > logs/backend.log 2>&1 &
 BACKEND_PID=$!
 
 # Wait a bit for backend to start

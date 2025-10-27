@@ -18,6 +18,13 @@ echo -e "${BLUE}║         Playbot Build Script         ║${NC}"
 echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
 echo ""
 
+# Get version from pom.xml
+VERSION=$(grep -A 1 '<artifactId>playbot</artifactId>' pom.xml | grep '<version>' | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
+if [ -z "$VERSION" ]; then
+    echo -e "${RED}Error: Could not determine version from pom.xml${NC}"
+    exit 1
+fi
+
 # Parse command line arguments
 SKIP_TESTS=false
 CLEAN=false
@@ -162,7 +169,7 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Backend built successfully${NC}"
 
     # Show JAR info
-    JAR_FILE="target/playbot-1.0.0.jar"
+    JAR_FILE="target/playbot-${VERSION}.jar"
     if [ -f "$JAR_FILE" ]; then
         JAR_SIZE=$(ls -lh "$JAR_FILE" | awk '{print $5}')
         echo -e "${YELLOW}JAR file:${NC} $JAR_FILE"
@@ -233,8 +240,8 @@ print_section "✅ Build Complete"
 echo -e "${GREEN}Both backend and frontend built successfully!${NC}"
 echo ""
 echo -e "${YELLOW}Backend:${NC}"
-echo -e "  JAR: target/playbot-1.0.0.jar"
-echo -e "  Run: java -jar target/playbot-1.0.0.jar"
+echo -e "  JAR: target/playbot-${VERSION}.jar"
+echo -e "  Run: java -jar target/playbot-${VERSION}.jar"
 echo ""
 echo -e "${YELLOW}Frontend:${NC}"
 echo -e "  Build: frontend/dist/"
