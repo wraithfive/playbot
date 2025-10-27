@@ -113,4 +113,25 @@ public class WebSocketNotificationService {
             logger.error("Failed to broadcast QOTD_SUBMISSIONS_CHANGED event: {}", e.getMessage());
         }
     }
+
+    /**
+     * Notify all connected clients that a QOTD stream has been modified.
+     * Clients should refresh the stream list for this channel.
+     */
+    public void notifyQotdStreamChanged(String guildId, String channelId, Long streamId, String action) {
+        try {
+            Map<String, Object> payload = Map.of(
+                "type", "QOTD_STREAM_CHANGED",
+                "guildId", guildId,
+                "channelId", channelId,
+                "streamId", streamId,
+                "action", action // e.g., "created", "updated", "deleted"
+            );
+            messagingTemplate.convertAndSend("/topic/guild-updates", payload);
+            logger.info("Broadcasted QOTD_STREAM_CHANGED event for guild: {} channel: {} stream: {} (action: {})",
+                guildId, channelId, streamId, action);
+        } catch (Exception e) {
+            logger.error("Failed to broadcast QOTD_STREAM_CHANGED event: {}", e.getMessage());
+        }
+    }
 }

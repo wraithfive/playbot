@@ -3,11 +3,12 @@ import SockJS from 'sockjs-client';
 import { Client, over } from 'stompjs';
 
 interface GuildUpdateMessage {
-  type: 'GUILD_JOINED' | 'GUILD_LEFT' | 'ROLES_CHANGED' | 'QOTD_QUESTIONS_CHANGED' | 'QOTD_SUBMISSIONS_CHANGED';
+  type: 'GUILD_JOINED' | 'GUILD_LEFT' | 'ROLES_CHANGED' | 'QOTD_QUESTIONS_CHANGED' | 'QOTD_SUBMISSIONS_CHANGED' | 'QOTD_STREAM_CHANGED';
   guildId: string;
   guildName?: string;
-  channelId?: string; // For QOTD_QUESTIONS_CHANGED
-  action?: string; // For ROLES_CHANGED: "created", "deleted", "updated"; For QOTD: "added", "deleted", "uploaded", "approved", "rejected", "submitted"
+  channelId?: string; // For QOTD_QUESTIONS_CHANGED and QOTD_STREAM_CHANGED
+  streamId?: number; // For QOTD_STREAM_CHANGED
+  action?: string; // For ROLES_CHANGED: "created", "deleted", "updated"; For QOTD: "added", "deleted", "uploaded", "approved", "rejected", "submitted"; For QOTD_STREAM_CHANGED: "created", "updated", "deleted"
 }
 
 export function useWebSocket(onGuildUpdate: (message: GuildUpdateMessage) => void) {

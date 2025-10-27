@@ -40,6 +40,9 @@ public class QotdSubmission {
 
     private Instant approvedAt;
 
+    @Column(name = "target_stream_id")
+    private Long targetStreamId;
+
     public QotdSubmission() {}
 
     public QotdSubmission(String guildId, String userId, String username, String text) {
@@ -71,4 +74,6 @@ public class QotdSubmission {
     public void setApprovedByUsername(String approvedByUsername) { this.approvedByUsername = approvedByUsername; }
     public Instant getApprovedAt() { return approvedAt; }
     public void setApprovedAt(Instant approvedAt) { this.approvedAt = approvedAt; }
+    public Long getTargetStreamId() { return targetStreamId; }
+    public void setTargetStreamId(Long targetStreamId) { this.targetStreamId = targetStreamId; }
 }

@@ -18,5 +18,10 @@
     <include file="db/changelog/changes/004-add-qotd-banner-embed-color.xml"/>
     <include file="db/changelog/changes/005-rollback-image-path.xml"/>
     <include file="db/changelog/changes/006-add-qotd-banner-mention-target.xml"/>
-    
+
+    <!-- Multi-streams feature (issue #1) -->
+    <include file="db/changelog/changes/007-add-qotd-streams.xml"/>
+    <include file="db/changelog/changes/008-rename-deprecated-qotd-tables.xml"/>
+    <include file="db/changelog/changes/009-add-submission-target-stream.xml"/>
+
 </databaseChangeLog>

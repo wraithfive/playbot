@@ -14,10 +14,11 @@ class SlashCommandHandlerLeaveTest {
     @Test
     void testOnGuildLeaveCleansUpData() {
         UserCooldownRepository repo = mock(UserCooldownRepository.class);
+        var streamRepo = mock(com.discordbot.repository.QotdStreamRepository.class);
         GuildsCache guildsCache = mock(GuildsCache.class);
         WebSocketNotificationService wsService = mock(WebSocketNotificationService.class);
         QotdSubmissionService qotdSubmissionService = mock(QotdSubmissionService.class);
-        SlashCommandHandler handler = new SlashCommandHandler(repo, guildsCache, wsService, qotdSubmissionService);
+        SlashCommandHandler handler = new SlashCommandHandler(repo, streamRepo, guildsCache, wsService, qotdSubmissionService);
 
         Guild guild = mock(Guild.class);
         when(guild.getId()).thenReturn("123");

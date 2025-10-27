@@ -11,11 +11,17 @@ public class QotdQuestion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // NOTE: guildId and channelId kept temporarily for migration compatibility
+    // These will be removed in a future migration after stream_id is fully populated
     @Column(nullable = false)
     private String guildId;
 
     @Column(nullable = false)
     private String channelId;
+
+    // NEW: Reference to stream (nullable during migration, required after)
+    @Column
+    private Long streamId;
 
     @Column(nullable = false, length = 2000)
     private String text;
@@ -73,4 +79,7 @@ public class QotdQuestion {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Long getStreamId() { return streamId; }
+    public void setStreamId(Long streamId) { this.streamId = streamId; }
 }

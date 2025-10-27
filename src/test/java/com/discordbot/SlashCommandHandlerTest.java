@@ -14,10 +14,11 @@ class SlashCommandHandlerTest {
     @Test
     void testOnGuildJoinRegistersCommands() {
     var cooldownRepo = mock(com.discordbot.repository.UserCooldownRepository.class);
+    var streamRepo = mock(com.discordbot.repository.QotdStreamRepository.class);
     var guildsCache = mock(GuildsCache.class);
     var wsService = mock(WebSocketNotificationService.class);
     var qotdSubmissionService = mock(QotdSubmissionService.class);
-    var handler = new SlashCommandHandler(cooldownRepo, guildsCache, wsService, qotdSubmissionService);
+    var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService);
         var guild = mock(Guild.class);
         var updateAction = mock(CommandListUpdateAction.class);
         var event = new GuildJoinEvent(null, 0, guild);

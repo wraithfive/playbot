@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="008-01-rename-qotd-configs" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="qotd_configs"/>
+        </preConditions>
+
+        <comment>
+            Rename qotd_configs to qotd_configs_deprecated (cleanup tracked in issue #3).
+            NOTE: This table will be dropped in a future migration after verification period.
+            This migration may be skipped on fresh installs (table never existed).
+        </comment>
+
+        <renameTable oldTableName="qotd_configs"
+                     newTableName="qotd_configs_deprecated"/>
+
+        <rollback>
+            <renameTable oldTableName="qotd_configs_deprecated"
+                         newTableName="qotd_configs"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="008-02-rename-qotd-banner" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="qotd_banner"/>
+        </preConditions>
+
+        <comment>
+            Rename qotd_banner to qotd_banner_deprecated (cleanup tracked in issue #3).
+            NOTE: This table will be dropped in a future migration after verification period.
+            This migration may be skipped on fresh installs (table never existed).
+        </comment>
+
+        <renameTable oldTableName="qotd_banner"
+                     newTableName="qotd_banner_deprecated"/>
+
+        <rollback>
+            <renameTable oldTableName="qotd_banner_deprecated"
+                         newTableName="qotd_banner"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

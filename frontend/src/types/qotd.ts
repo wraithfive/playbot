@@ -58,3 +58,48 @@ export interface BulkActionResult {
   failureCount: number;
   errors: string[];
 }
+
+// Stream types
+export interface QotdStreamDto {
+  id: number;
+  guildId: string;
+  channelId: string;
+  streamName: string;
+  enabled: boolean;
+  timezone: string;
+  scheduleCron: string | null;
+  randomize: boolean;
+  autoApprove: boolean;
+  lastPostedAt: string | null;
+  nextIndex: number;
+  bannerText: string;
+  embedColor: number | null;
+  mentionTarget: string | null;
+  createdAt: string;
+  nextRuns: string[];
+}
+
+export interface CreateStreamRequest {
+  streamName: string;
+  enabled: boolean;
+  timezone: string;
+  advancedCron?: string | null;
+  daysOfWeek?: string[];
+  timeOfDay?: string;
+  randomize: boolean;
+  autoApprove: boolean;
+  bannerText?: string | null;
+  embedColor?: number | null;
+  mentionTarget?: string | null;
+}
+
+export interface UpdateStreamRequest {
+  streamName: string;
+  enabled: boolean;
+  timezone: string;
+  advancedCron?: string | null;
+  daysOfWeek?: string[];
+  timeOfDay?: string;
+  randomize: boolean;
+  autoApprove: boolean;
+}
