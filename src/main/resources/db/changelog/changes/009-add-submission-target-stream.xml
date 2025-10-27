@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="009-add-target-stream-to-submissions" author="playbot">
+        <comment>Add target_stream_id to qotd_submissions for stream-targeted user submissions</comment>
+
+        <!-- Add target_stream_id column (nullable) -->
+        <addColumn tableName="qotd_submissions">
+            <column name="target_stream_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- Add foreign key with CASCADE delete (if stream is deleted, submissions targeting it are deleted too) -->
+        <addForeignKeyConstraint
+                baseTableName="qotd_submissions"
+                baseColumnNames="target_stream_id"
+                constraintName="fk_submission_target_stream"
+                referencedTableName="qotd_streams"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <!-- Add index for faster queries by target stream -->
+        <createIndex indexName="idx_submission_target_stream" tableName="qotd_submissions">
+            <column name="target_stream_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_submission_target_stream" tableName="qotd_submissions"/>
+            <dropForeignKeyConstraint baseTableName="qotd_submissions" constraintName="fk_submission_target_stream"/>
+            <dropColumn tableName="qotd_submissions" columnName="target_stream_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

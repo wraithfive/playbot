@@ -5,8 +5,15 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
+/**
+ * DEPRECATED: This entity is kept for backward compatibility with legacy QOTD system.
+ * Config data has been migrated to qotd_streams table.
+ * This table was renamed to qotd_configs_deprecated in migration 008.
+ * TODO: Remove this entity after all channels are migrated to streams and verified.
+ */
+@Deprecated
 @Entity
-@Table(name = "qotd_configs")
+@Table(name = "qotd_configs_deprecated")
 @IdClass(QotdConfig.QotdConfigId.class)
 public class QotdConfig {
 

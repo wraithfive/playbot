@@ -344,8 +344,8 @@ class QotdControllerTest {
     void testListPending_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         List<QotdDtos.QotdSubmissionDto> submissions = Arrays.asList(
-            new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.PENDING, Instant.now()),
-            new QotdDtos.QotdSubmissionDto(2L, "What is your favorite movie?", "user2", "User Two", QotdDtos.SubmissionStatus.PENDING, Instant.now())
+            new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.PENDING, Instant.now(), null),
+            new QotdDtos.QotdSubmissionDto(2L, "What is your favorite movie?", "user2", "User Two", QotdDtos.SubmissionStatus.PENDING, Instant.now(), null)
         );
         when(submissionService.listPending("guild123")).thenReturn(submissions);
 
@@ -361,10 +361,10 @@ class QotdControllerTest {
     void testApprove_NoPermission() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(false);
 
-        ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.approve("guild123", "channel1", 1L, mockAuth);
+        ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.approve("guild123", "channel1", 1L, null, mockAuth);
 
         assertEquals(403, response.getStatusCode().value());
-        verify(submissionService, never()).approve(anyString(), anyString(), anyLong(), anyString(), anyString());
+        verify(submissionService, never()).approve(anyString(), anyString(), anyLong(), any(), anyString(), anyString());
     }
 
     @Test
@@ -372,13 +372,10 @@ class QotdControllerTest {
     void testApprove_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(mockAuth.getName()).thenReturn("user123");
-        QotdDtos.QotdSubmissionDto approved = new QotdDtos.QotdSubmissionDto(
-            1L, "What is your favorite game?", "user1", "User One",
-            QotdDtos.SubmissionStatus.APPROVED, Instant.now()
-        );
-        when(submissionService.approve("guild123", "channel1", 1L, "user123", "user123")).thenReturn(approved);
+        QotdDtos.QotdSubmissionDto approved = new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.APPROVED, Instant.now(), null);
+        when(submissionService.approve("guild123", "channel1", 1L, null, "user123", "user123")).thenReturn(approved);
 
-        ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.approve("guild123", "channel1", 1L, mockAuth);
+        ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.approve("guild123", "channel1", 1L, null, mockAuth);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(QotdDtos.SubmissionStatus.APPROVED, response.getBody().status());
@@ -401,10 +398,7 @@ class QotdControllerTest {
     void testReject_Success() {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(mockAuth.getName()).thenReturn("user123");
-        QotdDtos.QotdSubmissionDto rejected = new QotdDtos.QotdSubmissionDto(
-            1L, "What is your favorite game?", "user1", "User One",
-            QotdDtos.SubmissionStatus.REJECTED, Instant.now()
-        );
+        QotdDtos.QotdSubmissionDto rejected = new QotdDtos.QotdSubmissionDto(1L, "What is your favorite game?", "user1", "User One", QotdDtos.SubmissionStatus.REJECTED, Instant.now(), null);
         when(submissionService.reject("guild123", 1L, "user123", "user123")).thenReturn(rejected);
 
         ResponseEntity<QotdDtos.QotdSubmissionDto> response = qotdController.reject("guild123", 1L, mockAuth);
@@ -421,10 +415,10 @@ class QotdControllerTest {
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(false);
         QotdDtos.BulkIdsRequest request = new QotdDtos.BulkIdsRequest(Arrays.asList(1L, 2L, 3L));
 
-        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, mockAuth);
+        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, null, mockAuth);
 
         assertEquals(403, response.getStatusCode().value());
-        verify(submissionService, never()).approveBulk(anyString(), anyString(), anyList(), anyString(), anyString());
+        verify(submissionService, never()).approveBulk(anyString(), anyString(), anyList(), any(), anyString(), anyString());
     }
 
     @Test
@@ -434,9 +428,9 @@ class QotdControllerTest {
         when(mockAuth.getName()).thenReturn("user123");
         QotdDtos.BulkIdsRequest request = new QotdDtos.BulkIdsRequest(Arrays.asList(1L, 2L, 3L));
         QotdDtos.BulkActionResult result = new QotdDtos.BulkActionResult(3, 0, Collections.emptyList());
-        when(submissionService.approveBulk("guild123", "channel1", Arrays.asList(1L, 2L, 3L), "user123", "user123")).thenReturn(result);
+        when(submissionService.approveBulk("guild123", "channel1", Arrays.asList(1L, 2L, 3L), null, "user123", "user123")).thenReturn(result);
 
-        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, mockAuth);
+        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, null, mockAuth);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(3, response.getBody().successCount());
@@ -479,9 +473,9 @@ class QotdControllerTest {
         QotdDtos.BulkActionResult result = new QotdDtos.BulkActionResult(
             2, 1, Arrays.asList("Submission 3 not found")
         );
-        when(submissionService.approveBulk("guild123", "channel1", Arrays.asList(1L, 2L, 3L), "user123", "user123")).thenReturn(result);
+        when(submissionService.approveBulk("guild123", "channel1", Arrays.asList(1L, 2L, 3L), null, "user123", "user123")).thenReturn(result);
 
-        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, mockAuth);
+        ResponseEntity<QotdDtos.BulkActionResult> response = qotdController.bulkApprove("guild123", "channel1", request, null, mockAuth);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(2, response.getBody().successCount());

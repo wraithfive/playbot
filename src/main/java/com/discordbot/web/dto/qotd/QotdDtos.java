@@ -40,9 +40,54 @@ public class QotdDtos {
     // Submissions
     public enum SubmissionStatus { PENDING, APPROVED, REJECTED }
 
-    public record QotdSubmissionDto(Long id, String text, String userId, String username, SubmissionStatus status, Instant createdAt) {}
+    public record QotdSubmissionDto(Long id, String text, String userId, String username, SubmissionStatus status, Instant createdAt, Long targetStreamId) {}
 
     public record BulkIdsRequest(List<Long> ids) {}
 
     public record BulkActionResult(int successCount, int failureCount, List<String> errors) {}
+
+    // Stream DTOs
+    public record QotdStreamDto(
+            Long id,
+            String guildId,
+            String channelId,
+            String streamName,
+            boolean enabled,
+            String timezone,
+            String scheduleCron,
+            boolean randomize,
+            boolean autoApprove,
+            Instant lastPostedAt,
+            int nextIndex,
+            String bannerText,
+            Integer embedColor,
+            String mentionTarget,
+            Instant createdAt,
+            List<String> nextRuns  // ISO strings for next 5 runs
+    ) {}
+
+    public record CreateStreamRequest(
+            String streamName,
+            boolean enabled,
+            String timezone,
+            String advancedCron,  // Optional cron expression
+            List<String> daysOfWeek,  // Optional: MON, TUE, etc.
+            String timeOfDay,  // Optional: HH:mm
+            boolean randomize,
+            boolean autoApprove,
+            String bannerText,
+            Integer embedColor,
+            String mentionTarget
+    ) {}
+
+    public record UpdateStreamRequest(
+            String streamName,
+            boolean enabled,
+            String timezone,
+            String advancedCron,
+            List<String> daysOfWeek,
+            String timeOfDay,
+            boolean randomize,
+            boolean autoApprove
+    ) {}
 }

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Step 1: Create qotd_streams table -->
+    <changeSet id="007-01-create-qotd-streams-table" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not><tableExists tableName="qotd_streams"/></not>
+        </preConditions>
+
+        <comment>Create qotd_streams table for multi-stream per channel support</comment>
+
+        <createTable tableName="qotd_streams">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel_id" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stream_name" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_cron" type="varchar(128)"/>
+            <column name="timezone" type="varchar(64)" defaultValue="UTC"/>
+            <column name="last_posted_at" type="timestamp"/>
+            <column name="randomize" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="next_index" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="banner_text" type="varchar(160)"
+                    defaultValue="❓❓ Question of the Day ❓❓"/>
+            <column name="embed_color" type="int"/>
+            <column name="mention_target" type="varchar(64)"/>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="auto_approve" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp"/>
+        </createTable>
+
+        <createIndex indexName="idx_guild_channel" tableName="qotd_streams">
+            <column name="guild_id"/>
+            <column name="channel_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_enabled_schedule" tableName="qotd_streams">
+            <column name="enabled"/>
+            <column name="last_posted_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Step 2: Add stream_id to qotd_questions (nullable initially for migration) -->
+    <changeSet id="007-02-add-stream-id-to-questions" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not><columnExists tableName="qotd_questions" columnName="stream_id"/></not>
+        </preConditions>
+
+        <comment>Add stream_id column to qotd_questions (nullable during migration, will be populated by Java service)</comment>
+
+        <addColumn tableName="qotd_questions">
+            <column name="stream_id" type="bigint">
+                <constraints nullable="true"/>  <!-- Temporarily nullable for migration -->
+            </column>
+        </addColumn>
+
+        <addForeignKeyConstraint
+            baseTableName="qotd_questions"
+            baseColumnNames="stream_id"
+            constraintName="fk_question_stream"
+            referencedTableName="qotd_streams"
+            referencedColumnNames="id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>

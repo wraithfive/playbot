@@ -1,6 +1,8 @@
 package com.discordbot;
 
+import com.discordbot.entity.QotdStream;
 import com.discordbot.entity.UserCooldown;
+import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.repository.UserCooldownRepository;
 import com.discordbot.web.service.GuildsCache;
 import com.discordbot.web.service.QotdSubmissionService;
@@ -12,9 +14,11 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +43,7 @@ public class SlashCommandHandler extends ListenerAdapter {
     private static final String GACHA_PREFIX = "gacha:";
 
     private final UserCooldownRepository cooldownRepository;
+    private final QotdStreamRepository streamRepository;
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
     private final QotdSubmissionService qotdSubmissionService;
@@ -46,15 +51,17 @@ public class SlashCommandHandler extends ListenerAdapter {
 
     @Autowired
     public SlashCommandHandler(
-            UserCooldownRepository cooldownRepository, 
+            UserCooldownRepository cooldownRepository,
+            QotdStreamRepository streamRepository,
             GuildsCache guildsCache,
             WebSocketNotificationService webSocketNotificationService,
             QotdSubmissionService qotdSubmissionService) {
         this.cooldownRepository = cooldownRepository;
+        this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
         this.qotdSubmissionService = qotdSubmissionService;
-        logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, and WebSocket notifications");
+        logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
 
@@ -75,6 +82,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             Commands.slash("help", "Show help information"),
             Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
                 .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
+                .addOption(OptionType.STRING, "stream", "Target stream (optional)", false, true)
         ).queue(
             success -> logger.info("Registered slash commands for guild: {}", event.getGuild().getName()),
             error -> logger.error("Failed to register slash commands for guild {}: {}",
@@ -101,6 +109,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             Commands.slash("help", "Show help information"),
             Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
                 .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
+                .addOption(OptionType.STRING, "stream", "Target stream (optional)", false, true)
         ).queue(
             success -> logger.info("Registered slash commands for newly joined guild: {}", guildName),
             error -> logger.error("Failed to register slash commands on guild join for {}: {}", guildName, error.getMessage())
@@ -141,6 +150,21 @@ public class SlashCommandHandler extends ListenerAdapter {
         }
     }
 
+    @Override
+    public void onCommandAutoCompleteInteraction(@NotNull CommandAutoCompleteInteractionEvent event) {
+        if (event.getName().equals("qotd-submit") && event.getFocusedOption().getName().equals("stream")) {
+            String guildId = event.getGuild().getId();
+            List<QotdStream> streams = streamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId);
+
+            List<Command.Choice> choices = streams.stream()
+                .map(s -> new Command.Choice(s.getBannerText(), String.valueOf(s.getId())))
+                .limit(25)  // Discord max
+                .toList();
+
+            event.replyChoices(choices).queue();
+        }
+    }
+
     private void handleQotdSubmit(SlashCommandInteractionEvent event) {
         if (event.getMember() == null) {
             event.reply("❌ This command can only be used in a server!").setEphemeral(true).queue();
@@ -152,11 +176,26 @@ public class SlashCommandHandler extends ListenerAdapter {
         String username = event.getUser().getName();
         String questionText = event.getOption("question").getAsString();
 
+        // Get optional stream parameter
+        Long targetStreamId = null;
+        if (event.getOption("stream") != null) {
+            try {
+                targetStreamId = Long.parseLong(event.getOption("stream").getAsString());
+            } catch (NumberFormatException e) {
+                event.reply("❌ Invalid stream selection. Please try again.").setEphemeral(true).queue();
+                return;
+            }
+        }
+
         try {
-            qotdSubmissionService.submit(guildId, userId, username, questionText);
-            event.reply("✓ Your question has been submitted for admin review. Thanks for contributing!")
-                .setEphemeral(true).queue();
-            logger.info("QOTD submission from {} in guild {}: {}", username, guildId, questionText);
+            qotdSubmissionService.submit(guildId, userId, username, questionText, targetStreamId);
+
+            String responseMessage = targetStreamId != null
+                ? "✓ Your question has been submitted to the selected stream for admin review. Thanks for contributing!"
+                : "✓ Your question has been submitted for admin review. Thanks for contributing!";
+
+            event.reply(responseMessage).setEphemeral(true).queue();
+            logger.info("QOTD submission from {} in guild {} (stream: {}): {}", username, guildId, targetStreamId, questionText);
         } catch (IllegalArgumentException | IllegalStateException e) {
             event.reply("❌ " + e.getMessage()).setEphemeral(true).queue();
         } catch (Exception e) {
