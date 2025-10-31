@@ -755,11 +755,24 @@ public class SlashCommandHandler extends ListenerAdapter {
         if (baseUrl == null) baseUrl = "http://localhost:8080";
         String gifUrl = baseUrl + "/images/d20-roll.gif";
 
+        // Generate random intermediate numbers (different from final roll for drama)
+        int tempFrame1 = random.nextInt(20) + 1;
+        while (tempFrame1 == finalRoll) {
+            tempFrame1 = random.nextInt(20) + 1;
+        }
+        final int frame1Number = tempFrame1;
+
+        int tempFrame2 = random.nextInt(20) + 1;
+        while (tempFrame2 == finalRoll) {
+            tempFrame2 = random.nextInt(20) + 1;
+        }
+        final int frame2Number = tempFrame2;
+
         // Frame 1: Initial roll with GIF
         EmbedBuilder embed1 = new EmbedBuilder();
         embed1.setTitle("🎲 Rolling d20...");
         embed1.setImage(gifUrl);
-        embed1.setDescription("Rolling... **7**");
+        embed1.setDescription("Rolling... **" + frame1Number + "**");
         embed1.setColor(Color.LIGHT_GRAY);
 
         event.replyEmbeds(embed1.build()).setEphemeral(true).queue(hook -> {
@@ -769,7 +782,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                 EmbedBuilder embed2 = new EmbedBuilder();
                 embed2.setTitle("🎲 Rolling d20...");
                 embed2.setImage(gifUrl);
-                embed2.setDescription("Rolling... **15**");
+                embed2.setDescription("Rolling... **" + frame2Number + "**");
                 embed2.setColor(Color.LIGHT_GRAY);
                 hook.editOriginalEmbeds(embed2.build()).queue();
 
