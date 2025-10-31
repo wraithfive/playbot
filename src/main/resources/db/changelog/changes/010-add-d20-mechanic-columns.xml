@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="010-add-d20-used-column" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <columnExists tableName="user_cooldowns" columnName="d20_used"/>
+            </not>
+        </preConditions>
+
+        <comment>Add d20_used column to user_cooldowns table for tracking d20 command usage</comment>
+
+        <!-- Step 1: Add column as nullable first -->
+        <addColumn tableName="user_cooldowns">
+            <column name="d20_used" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- Step 2: Set all existing rows to false (user hasn't used d20 yet) -->
+        <update tableName="user_cooldowns">
+            <column name="d20_used" valueBoolean="false"/>
+            <where>d20_used IS NULL</where>
+        </update>
+
+        <!-- Step 3: Make column non-nullable -->
+        <addNotNullConstraint tableName="user_cooldowns" columnName="d20_used" defaultNullValue="false"/>
+    </changeSet>
+
+    <changeSet id="010-add-guaranteed-epic-plus-column" author="nwatson">
+        <preConditions onFail="CONTINUE">
+            <not>
+                <columnExists tableName="user_cooldowns" columnName="guaranteed_epic_plus"/>
+            </not>
+        </preConditions>
+
+        <comment>Add guaranteed_epic_plus column to user_cooldowns table for nat 20 buff tracking</comment>
+
+        <!-- Step 1: Add column as nullable first -->
+        <addColumn tableName="user_cooldowns">
+            <column name="guaranteed_epic_plus" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- Step 2: Set all existing rows to false (no active buffs) -->
+        <update tableName="user_cooldowns">
+            <column name="guaranteed_epic_plus" valueBoolean="false"/>
+            <where>guaranteed_epic_plus IS NULL</where>
+        </update>
+
+        <!-- Step 3: Make column non-nullable -->
+        <addNotNullConstraint tableName="user_cooldowns" columnName="guaranteed_epic_plus" defaultNullValue="false"/>
+    </changeSet>
+
+</databaseChangeLog>

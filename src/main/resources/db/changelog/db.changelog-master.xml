@@ -24,4 +24,7 @@
     <include file="db/changelog/changes/008-rename-deprecated-qotd-tables.xml"/>
     <include file="db/changelog/changes/009-add-submission-target-stream.xml"/>
 
+    <!-- D20 roll mechanic (issue #5) -->
+    <include file="db/changelog/changes/010-add-d20-mechanic-columns.xml"/>
+
 </databaseChangeLog>
