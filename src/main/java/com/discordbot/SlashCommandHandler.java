@@ -76,6 +76,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         // Register slash commands for this guild
         event.getGuild().updateCommands().addCommands(
             Commands.slash("roll", "Roll for a random gacha role (once per day)"),
+            Commands.slash("d20", "Roll a d20 for bonus/penalty (60 min after /roll)"),
             Commands.slash("testroll", "Test roll without cooldown (admin only)"),
             Commands.slash("mycolor", "Check your current gacha role"),
             Commands.slash("colors", "View all available gacha roles"),
@@ -103,6 +104,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         
         event.getGuild().updateCommands().addCommands(
             Commands.slash("roll", "Roll for a random gacha role (once per day)"),
+            Commands.slash("d20", "Roll a d20 for bonus/penalty (60 min after /roll)"),
             Commands.slash("testroll", "Test roll without cooldown (admin only)"),
             Commands.slash("mycolor", "Check your current gacha role"),
             Commands.slash("colors", "View all available gacha roles"),
@@ -141,6 +143,7 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         switch (commandName) {
             case "roll" -> handleRoll(event, false);
+            case "d20" -> handleD20(event);
             case "testroll" -> handleTestRoll(event);
             case "mycolor" -> handleMyColor(event);
             case "colors" -> handleColors(event);
@@ -245,8 +248,31 @@ public class SlashCommandHandler extends ListenerAdapter {
             return;
         }
 
-        // Roll a random role based on rarity weights
-        RoleInfo rolledRole = rollRandomRole(gachaRoles);
+        // Check if user has Epic+ buff from nat 20
+        boolean hasEpicPlusBuff = false;
+        if (!isTest) {
+            Optional<UserCooldown> cooldownOpt = cooldownRepository.findByUserIdAndGuildId(userId, guildId);
+            if (cooldownOpt.isPresent() && cooldownOpt.get().isGuaranteedEpicPlus()) {
+                hasEpicPlusBuff = true;
+            }
+        }
+
+        // Roll a random role based on rarity weights (filter to Epic+ if buff active)
+        RoleInfo rolledRole;
+        if (hasEpicPlusBuff) {
+            List<RoleInfo> epicPlusRoles = gachaRoles.stream()
+                .filter(r -> r.rarity == Rarity.EPIC || r.rarity == Rarity.LEGENDARY)
+                .toList();
+
+            if (epicPlusRoles.isEmpty()) {
+                // Fallback if no Epic+ roles (shouldn't happen if d20 validation works)
+                rolledRole = rollRandomRole(gachaRoles);
+            } else {
+                rolledRole = rollRandomRole(epicPlusRoles);
+            }
+        } else {
+            rolledRole = rollRandomRole(gachaRoles);
+        }
         Role discordRole = event.getGuild().getRoleById(rolledRole.roleId);
 
         if (discordRole == null) {
@@ -276,6 +302,8 @@ public class SlashCommandHandler extends ListenerAdapter {
                     UserCooldown cooldown = existingCooldown.get();
                     cooldown.setLastRollTime(now);
                     cooldown.setUsername(event.getUser().getName());
+                    cooldown.setD20Used(false); // Reset d20 usage for new roll cycle
+                    cooldown.setGuaranteedEpicPlus(false); // Clear buff after use
                     cooldownRepository.save(cooldown);
                 } else {
                     // Create new record
@@ -291,13 +319,25 @@ public class SlashCommandHandler extends ListenerAdapter {
             embed.setColor(discordRole.getColor() != null ? discordRole.getColor() : Color.MAGENTA);
 
             String rarityEmoji = getRarityEmoji(rolledRole.rarity);
-            embed.setDescription(String.format("You rolled: **%s** %s\n\nRarity: **%s**",
+            String description = String.format("You rolled: **%s** %s\n\nRarity: **%s**",
                 rolledRole.displayName,
                 rarityEmoji,
-                rolledRole.rarity != null ? rolledRole.rarity.name() : "Unknown"));
+                rolledRole.rarity != null ? rolledRole.rarity.name() : "Unknown");
+
+            if (hasEpicPlusBuff) {
+                description += "\n\n✨ **Lucky Streak used!** You were guaranteed Epic or higher!";
+            }
+            embed.setDescription(description);
 
             if (rolledRole.rarity != null) {
                 embed.addField("Drop Rate", String.format("%.1f%%", getRarityWeight(rolledRole.rarity) * 100), true);
+            }
+
+            // Add d20 hint if conditions are met (3+ Epic roles and not test)
+            if (!isTest && countEpicPlusRoles(gachaRoles) >= 3) {
+                embed.addField("🎲 Feeling Lucky?",
+                    "Use `/d20` within 60 minutes to roll for a bonus or penalty!",
+                    false);
             }
 
             if (!isTest) {
@@ -372,6 +412,9 @@ public class SlashCommandHandler extends ListenerAdapter {
             return;
         }
 
+        String userId = event.getUser().getId();
+        String guildId = event.getGuild().getId();
+
         // Find user's current gacha role
         Optional<Role> currentRole = member.getRoles().stream()
             .filter(role -> role.getName().toLowerCase().startsWith(GACHA_PREFIX))
@@ -399,6 +442,42 @@ public class SlashCommandHandler extends ListenerAdapter {
         } else {
             embed.setColor(Color.GRAY);
             embed.setDescription("You don't have any gacha role yet!\n\nUse `/roll` to get your first color!");
+        }
+
+        // Check for d20 buffs/status
+        Optional<UserCooldown> cooldownOpt = cooldownRepository.findByUserIdAndGuildId(userId, guildId);
+        if (cooldownOpt.isPresent()) {
+            UserCooldown cooldown = cooldownOpt.get();
+
+            // Show Epic+ buff if active
+            if (cooldown.isGuaranteedEpicPlus()) {
+                embed.addField("🎲 Lucky Streak Active!",
+                    "Your next roll is guaranteed to be Epic or Legendary!",
+                    false);
+            }
+
+            // Show d20 window if active and not used
+            if (!cooldown.isD20Used() && isWithinD20Window(cooldown)) {
+                long minutesLeft = 60 - java.time.Duration.between(cooldown.getLastRollTime(), LocalDateTime.now()).toMinutes();
+                embed.addField("🎲 /d20 Available",
+                    String.format("Use `/d20` within %d minutes for a bonus or penalty!", minutesLeft),
+                    false);
+            }
+
+            // Show extended cooldown if applicable
+            LocalDate today = LocalDate.now(ZoneId.systemDefault());
+            LocalDate lastRoll = cooldown.getLastRollTime().toLocalDate();
+            if (lastRoll.equals(today)) {
+                long hoursUntilRoll = java.time.Duration.between(LocalDateTime.now(),
+                    cooldown.getLastRollTime().plusHours(24)).toHours();
+
+                if (hoursUntilRoll > 24) {
+                    // Extended cooldown from nat 1
+                    embed.addField("⏳ Cooldown (Critical Failure)",
+                        String.format("%d hours remaining", hoursUntilRoll),
+                        false);
+                }
+            }
         }
 
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
@@ -561,6 +640,171 @@ public class SlashCommandHandler extends ListenerAdapter {
             case UNCOMMON -> "🟢";
             case COMMON -> "⚪";
         };
+    }
+
+    /**
+     * Count the number of Epic and Legendary roles
+     */
+    private long countEpicPlusRoles(List<RoleInfo> roles) {
+        return roles.stream()
+            .filter(r -> r.rarity == Rarity.EPIC || r.rarity == Rarity.LEGENDARY)
+            .count();
+    }
+
+    /**
+     * Check if user is within 60-minute window after /roll
+     */
+    private boolean isWithinD20Window(UserCooldown cooldown) {
+        if (cooldown == null || cooldown.getLastRollTime() == null) {
+            return false;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime rollTime = cooldown.getLastRollTime();
+        return java.time.Duration.between(rollTime, now).toMinutes() < 60;
+    }
+
+    /**
+     * Handle the /d20 command
+     */
+    private void handleD20(SlashCommandInteractionEvent event) {
+        Member member = event.getMember();
+        if (member == null) {
+            event.reply("❌ This command can only be used in a server!").setEphemeral(true).queue();
+            return;
+        }
+
+        String userId = event.getUser().getId();
+        String guildId = event.getGuild().getId();
+
+        // Check if server has 3+ Epic/Legendary roles
+        List<RoleInfo> gachaRoles = event.getGuild().getRoles().stream()
+            .filter(role -> role.getName().toLowerCase().startsWith(GACHA_PREFIX))
+            .map(this::parseRoleInfo)
+            .filter(Objects::nonNull)
+            .toList();
+
+        long epicPlusCount = countEpicPlusRoles(gachaRoles);
+        if (epicPlusCount < 3) {
+            event.reply("🎲 The /d20 feature requires at least 3 Epic or Legendary roles to be configured.\n" +
+                "Ask your server admin to add more high-tier roles!").setEphemeral(true).queue();
+            return;
+        }
+
+        // Check cooldown and window
+        Optional<UserCooldown> cooldownOpt = cooldownRepository.findByUserIdAndGuildId(userId, guildId);
+        if (cooldownOpt.isEmpty()) {
+            event.reply("⏳ You must use `/roll` first!\n" +
+                "The `/d20` command is only available for 60 minutes after using `/roll`.").setEphemeral(true).queue();
+            return;
+        }
+
+        UserCooldown cooldown = cooldownOpt.get();
+
+        // Check if already used d20 this cycle
+        if (cooldown.isD20Used()) {
+            event.reply("🎲 You've already used `/d20` for this roll!\n" +
+                "Wait for your cooldown to reset, then use `/roll` to start a new cycle.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Check if within 60-minute window
+        if (!isWithinD20Window(cooldown)) {
+            event.reply("⏱️ The `/d20` window has expired!\n" +
+                "You have 60 minutes after using `/roll` to use `/d20`.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Roll the d20!
+        int d20Roll = random.nextInt(20) + 1;
+
+        // Mark d20 as used
+        cooldown.setD20Used(true);
+
+        // Handle special results
+        if (d20Roll == 20) {
+            // Nat 20 - Grant Epic+ buff
+            cooldown.setGuaranteedEpicPlus(true);
+            cooldownRepository.save(cooldown);
+
+            // Show animated response
+            showD20Animation(event, d20Roll, "nat20");
+        } else if (d20Roll == 1) {
+            // Nat 1 - Extend cooldown to 48 hours
+            cooldown.setLastRollTime(LocalDateTime.now().minusHours(24).plusHours(48));
+            cooldownRepository.save(cooldown);
+
+            // Show animated response
+            showD20Animation(event, d20Roll, "nat1");
+        } else {
+            // Normal roll
+            cooldownRepository.save(cooldown);
+
+            // Show animated response
+            showD20Animation(event, d20Roll, "normal");
+        }
+
+        logger.info("User {} rolled d20={} in guild {}", event.getUser().getName(), d20Roll, event.getGuild().getName());
+    }
+
+    /**
+     * Show animated d20 roll with GIF and progressive text reveal
+     */
+    private void showD20Animation(SlashCommandInteractionEvent event, int finalRoll, String resultType) {
+        // Get server URL for GIF (use environment variable or default to localhost)
+        String baseUrl = System.getenv("ADMIN_PANEL_URL");
+        if (baseUrl == null) baseUrl = "http://localhost:8080";
+        String gifUrl = baseUrl + "/images/d20-roll.gif";
+
+        // Frame 1: Initial roll with GIF
+        EmbedBuilder embed1 = new EmbedBuilder();
+        embed1.setTitle("🎲 Rolling d20...");
+        embed1.setImage(gifUrl);
+        embed1.setDescription("Rolling... **7**");
+        embed1.setColor(Color.LIGHT_GRAY);
+
+        event.replyEmbeds(embed1.build()).setEphemeral(true).queue(hook -> {
+            try {
+                // Frame 2: Second number
+                Thread.sleep(600);
+                EmbedBuilder embed2 = new EmbedBuilder();
+                embed2.setTitle("🎲 Rolling d20...");
+                embed2.setImage(gifUrl);
+                embed2.setDescription("Rolling... **15**");
+                embed2.setColor(Color.LIGHT_GRAY);
+                hook.editOriginalEmbeds(embed2.build()).queue();
+
+                // Frame 3: Final result
+                Thread.sleep(600);
+                EmbedBuilder embed3 = new EmbedBuilder();
+
+                if (resultType.equals("nat20")) {
+                    embed3.setTitle("🎲 NAT 20!");
+                    embed3.setDescription("Rolling... **" + finalRoll + "!**\n\n" +
+                        "🎉 **Lucky Streak!**\n" +
+                        "Your next roll is guaranteed to be Epic or Legendary!");
+                    embed3.setColor(Color.YELLOW);
+                } else if (resultType.equals("nat1")) {
+                    embed3.setTitle("🎲 NAT 1!");
+                    embed3.setDescription("Rolling... **" + finalRoll + "!**\n\n" +
+                        "💀 **Critical Failure!**\n" +
+                        "Your cooldown has been extended to 48 hours.");
+                    embed3.setColor(Color.RED);
+                } else {
+                    embed3.setTitle("🎲 d20 Result");
+                    embed3.setDescription("Rolling... **" + finalRoll + "**\n\n" +
+                        "No special effect this time. Better luck next roll!");
+                    embed3.setColor(Color.GRAY);
+                }
+
+                embed3.setImage(gifUrl);
+                embed3.setTimestamp(Instant.now());
+                hook.editOriginalEmbeds(embed3.build()).queue();
+
+            } catch (InterruptedException e) {
+                logger.error("D20 animation interrupted: {}", e.getMessage());
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     // Inner classes

@@ -42,6 +42,18 @@ public class UserCooldown {
     private String username;
 
     /**
+     * Whether the user has used /d20 this roll cycle
+     */
+    @Column(nullable = false)
+    private boolean d20Used = false;
+
+    /**
+     * Whether the user has a guaranteed Epic+ buff for their next roll (from nat 20)
+     */
+    @Column(nullable = false)
+    private boolean guaranteedEpicPlus = false;
+
+    /**
      * Default constructor required by JPA
      */
     public UserCooldown() {
@@ -99,6 +111,22 @@ public class UserCooldown {
         this.username = username;
     }
 
+    public boolean isD20Used() {
+        return d20Used;
+    }
+
+    public void setD20Used(boolean d20Used) {
+        this.d20Used = d20Used;
+    }
+
+    public boolean isGuaranteedEpicPlus() {
+        return guaranteedEpicPlus;
+    }
+
+    public void setGuaranteedEpicPlus(boolean guaranteedEpicPlus) {
+        this.guaranteedEpicPlus = guaranteedEpicPlus;
+    }
+
     @Override
     public String toString() {
         return "UserCooldown{" +
@@ -107,6 +135,8 @@ public class UserCooldown {
                 ", guildId='" + guildId + '\'' +
                 ", lastRollTime=" + lastRollTime +
                 ", username='" + username + '\'' +
+                ", d20Used=" + d20Used +
+                ", guaranteedEpicPlus=" + guaranteedEpicPlus +
                 '}';
     }
 }
