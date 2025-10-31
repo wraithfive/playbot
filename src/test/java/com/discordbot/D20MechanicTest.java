@@ -106,6 +106,7 @@ class D20MechanicTest {
 
         when(event.getMember()).thenReturn(member);
         when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
         when(event.getUser()).thenReturn(user);
         when(user.getId()).thenReturn("user1");
 
@@ -123,7 +124,7 @@ class D20MechanicTest {
 
         handler.onSlashCommandInteraction(event);
 
-        verify(event).reply(contains("must use /roll first"));
+        verify(event).reply(contains("You must use `/roll` first"));
     }
 
     @Test
@@ -136,6 +137,7 @@ class D20MechanicTest {
 
         when(event.getMember()).thenReturn(member);
         when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
         when(event.getUser()).thenReturn(user);
         when(user.getId()).thenReturn("user1");
 
@@ -154,7 +156,7 @@ class D20MechanicTest {
 
         handler.onSlashCommandInteraction(event);
 
-        verify(event).reply(contains("already used /d20"));
+        verify(event).reply(contains("already used `/d20`"));
     }
 
     @Test
@@ -167,6 +169,7 @@ class D20MechanicTest {
 
         when(event.getMember()).thenReturn(member);
         when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
         when(event.getUser()).thenReturn(user);
         when(user.getId()).thenReturn("user1");
 
@@ -200,6 +203,7 @@ class D20MechanicTest {
 
         when(event.getMember()).thenReturn(member);
         when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
         when(event.getUser()).thenReturn(user);
         when(user.getId()).thenReturn("user1");
         when(user.getName()).thenReturn("TestUser");
