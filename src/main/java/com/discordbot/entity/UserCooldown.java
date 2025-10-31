@@ -44,13 +44,13 @@ public class UserCooldown {
     /**
      * Whether the user has used /d20 this roll cycle
      */
-    @Column(nullable = false)
+    @Column(name = "d20_used", nullable = false)
     private boolean d20Used = false;
 
     /**
      * Whether the user has a guaranteed Epic+ buff for their next roll (from nat 20)
      */
-    @Column(nullable = false)
+    @Column(name = "guaranteed_epic_plus", nullable = false)
     private boolean guaranteedEpicPlus = false;
 
     /**
