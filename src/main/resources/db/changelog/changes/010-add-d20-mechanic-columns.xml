@@ -5,13 +5,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
-    <changeSet id="010-add-d20-used-column" author="nwatson">
-        <preConditions onFail="CONTINUE">
-            <not>
-                <columnExists tableName="user_cooldowns" columnName="d20_used"/>
-            </not>
-        </preConditions>
-
+    <changeSet id="010-add-d20-used-column-v2" author="nwatson">
         <comment>Add d20_used column to user_cooldowns table for tracking d20 command usage</comment>
 
         <!-- Step 1: Add column as nullable first -->
@@ -20,6 +14,9 @@
                 <constraints nullable="true"/>
             </column>
         </addColumn>
+        <rollback>
+            <dropColumn tableName="user_cooldowns" columnName="d20_used"/>
+        </rollback>
 
         <!-- Step 2: Set all existing rows to false (user hasn't used d20 yet) -->
         <update tableName="user_cooldowns">
@@ -31,13 +28,7 @@
         <addNotNullConstraint tableName="user_cooldowns" columnName="d20_used" defaultNullValue="false"/>
     </changeSet>
 
-    <changeSet id="010-add-guaranteed-epic-plus-column" author="nwatson">
-        <preConditions onFail="CONTINUE">
-            <not>
-                <columnExists tableName="user_cooldowns" columnName="guaranteed_epic_plus"/>
-            </not>
-        </preConditions>
-
+    <changeSet id="010-add-guaranteed-epic-plus-column-v2" author="nwatson">
         <comment>Add guaranteed_epic_plus column to user_cooldowns table for nat 20 buff tracking</comment>
 
         <!-- Step 1: Add column as nullable first -->
