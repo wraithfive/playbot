@@ -83,7 +83,7 @@ npm run lint            # Run ESLint
 - Creates JDA bean with required gateway intents and event listeners
 
 **Discord Bot Layer:**
-- `SlashCommandHandler.java` - Handles all slash command interactions (/roll, /mycolor, /colors, /help, /testroll, /qotd commands)
+- `SlashCommandHandler.java` - Handles all slash command interactions (/roll, /d20, /mycolor, /colors, /help, /testroll, /qotd commands)
 - `ColorGachaHandler.java` - Legacy message command handler (deprecated, kept for compatibility)
 
 **Web Layer:**
@@ -201,6 +201,21 @@ Commands are defined in `SlashCommandHandler.onGuildReady()`
 - User can roll once per day (disabled in testing mode)
 - Cooldown stored in `UserCooldown` entity (per user, per guild)
 - Testing mode check in `SlashCommandHandler` (search for "TESTING MODE")
+
+### D20 Roll Mechanic
+
+- **Optional risk/reward system** - Users can roll a d20 after using `/roll` for bonuses or penalties
+- **Availability**: Only when server has 3+ Epic or Legendary gacha roles configured
+- **60-minute window**: Must use `/d20` within 60 minutes of using `/roll`
+- **One-time use**: Can only use `/d20` once per roll cycle
+- **Outcomes**:
+  - **Nat 20 (5%)**: Grants "Lucky Streak" buff - next roll guaranteed Epic or Legendary
+  - **Nat 1 (5%)**: "Critical Failure" - cooldown extended to 48 hours instead of 24
+  - **2-19 (90%)**: No effect
+- **State tracking**: `d20Used`, `guaranteedEpicPlus`, and `extendedCooldown` flags in `UserCooldown` entity (auto-created via JPA)
+- **Visual presentation**: Animated d20 GIF at `/images/d20-roll.gif` with progressive text reveal (6 frames, 500ms each)
+- **Status display**: `/mycolor` shows active buffs, d20 window availability, and extended cooldowns
+- **No admin configuration needed**: Feature automatically enables when 3+ Epic/Legendary roles exist
 
 ### QOTD System
 
