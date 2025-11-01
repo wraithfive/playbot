@@ -853,7 +853,7 @@ public class SlashCommandHandler extends ListenerAdapter {
      * - JDA's queueAfter() is thread-safe and uses JDA's executor
      * - Error handling ensures fallback if any frame fails
      *
-     * @param frameIndex Current frame index (1-5 for intermediate frames)
+     * @param frameIndex Current frame index (1 to D20_ANIMATION_FRAMES-1 for intermediate frames)
      */
     private void showIntermediateFrame(InteractionHook hook, String gifUrl, int[] intermediateNumbers,
                                       int frameIndex, int finalRoll, String resultType) {
