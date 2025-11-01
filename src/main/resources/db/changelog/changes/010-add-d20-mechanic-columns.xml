@@ -37,6 +37,9 @@
                 <constraints nullable="true"/>
             </column>
         </addColumn>
+        <rollback>
+            <dropColumn tableName="user_cooldowns" columnName="guaranteed_epic_plus"/>
+        </rollback>
 
         <!-- Step 2: Set all existing rows to false (no active buffs) -->
         <update tableName="user_cooldowns">
@@ -46,6 +49,29 @@
 
         <!-- Step 3: Make column non-nullable -->
         <addNotNullConstraint tableName="user_cooldowns" columnName="guaranteed_epic_plus" defaultNullValue="false"/>
+    </changeSet>
+
+    <changeSet id="010-add-extended-cooldown-column-v2" author="nwatson">
+        <comment>Add extended_cooldown column to user_cooldowns table for nat 1 penalty tracking</comment>
+
+        <!-- Step 1: Add column as nullable first -->
+        <addColumn tableName="user_cooldowns">
+            <column name="extended_cooldown" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="user_cooldowns" columnName="extended_cooldown"/>
+        </rollback>
+
+        <!-- Step 2: Set all existing rows to false (no active penalties) -->
+        <update tableName="user_cooldowns">
+            <column name="extended_cooldown" valueBoolean="false"/>
+            <where>extended_cooldown IS NULL</where>
+        </update>
+
+        <!-- Step 3: Make column non-nullable -->
+        <addNotNullConstraint tableName="user_cooldowns" columnName="extended_cooldown" defaultNullValue="false"/>
     </changeSet>
 
 </databaseChangeLog>

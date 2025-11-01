@@ -473,11 +473,8 @@ class D20MechanicTest {
 
         spyHandler.onSlashCommandInteraction(event);
 
-        // Verify cooldown was extended (lastRollTime should be in the past to create 48hr cooldown)
-        verify(cooldownRepo, atLeastOnce()).save(argThat(c -> {
-            long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), c.getLastRollTime().plusHours(24)).toMinutes();
-            return minutesRemaining > 1380; // More than 23 hours remaining = 48hr cooldown
-        }));
+        // Verify extended cooldown flag was set
+        verify(cooldownRepo, atLeastOnce()).save(argThat(UserCooldown::isExtendedCooldown));
     }
 
     @Test
@@ -525,12 +522,8 @@ class D20MechanicTest {
 
         // Verify no buff was granted and cooldown wasn't extended
         verify(cooldownRepo, atLeastOnce()).save(argThat(c -> {
-            // Should not have buff
-            boolean noBuff = !c.isGuaranteedEpicPlus();
-            // Should have normal cooldown (not extended to 48 hours)
-            long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), c.getLastRollTime().plusHours(24)).toMinutes();
-            boolean normalCooldown = minutesRemaining < 1440; // Less than 24 hours remaining
-            return noBuff && normalCooldown;
+            // Should not have buff or extended cooldown
+            return !c.isGuaranteedEpicPlus() && !c.isExtendedCooldown();
         }));
     }
 

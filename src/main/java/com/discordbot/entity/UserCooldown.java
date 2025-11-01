@@ -54,6 +54,12 @@ public class UserCooldown {
     private boolean guaranteedEpicPlus = false;
 
     /**
+     * Whether the user has an extended 48-hour cooldown (from nat 1)
+     */
+    @Column(name = "extended_cooldown", nullable = false)
+    private boolean extendedCooldown = false;
+
+    /**
      * Default constructor required by JPA
      */
     public UserCooldown() {
@@ -127,6 +133,14 @@ public class UserCooldown {
         this.guaranteedEpicPlus = guaranteedEpicPlus;
     }
 
+    public boolean isExtendedCooldown() {
+        return extendedCooldown;
+    }
+
+    public void setExtendedCooldown(boolean extendedCooldown) {
+        this.extendedCooldown = extendedCooldown;
+    }
+
     @Override
     public String toString() {
         return "UserCooldown{" +
@@ -137,6 +151,7 @@ public class UserCooldown {
                 ", username='" + username + '\'' +
                 ", d20Used=" + d20Used +
                 ", guaranteedEpicPlus=" + guaranteedEpicPlus +
+                ", extendedCooldown=" + extendedCooldown +
                 '}';
     }
 }

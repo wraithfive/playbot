@@ -30,9 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.awt.Color;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -224,19 +222,29 @@ public class SlashCommandHandler extends ListenerAdapter {
         String userId = event.getUser().getId();
         String guildId = event.getGuild().getId();
         LocalDateTime now = LocalDateTime.now();
-        LocalDate today = LocalDate.now(ZoneId.systemDefault());
 
         // Check cooldown (skip for test rolls)
         if (!isTest) {
             Optional<UserCooldown> cooldownOpt = cooldownRepository.findByUserIdAndGuildId(userId, guildId);
             if (cooldownOpt.isPresent()) {
                 UserCooldown cooldown = cooldownOpt.get();
-                LocalDate lastRoll = cooldown.getLastRollTime().toLocalDate();
-                if (lastRoll.equals(today)) {
-                    event.reply("⏰ You've already rolled today! Come back tomorrow for another chance!")
+
+                // Determine cooldown duration based on extended cooldown flag
+                long cooldownHours = cooldown.isExtendedCooldown() ? 48 : 24;
+
+                // Calculate hours since last roll
+                long hoursSinceLastRoll = java.time.Duration.between(cooldown.getLastRollTime(), now).toHours();
+
+                if (hoursSinceLastRoll < cooldownHours) {
+                    long hoursRemaining = cooldownHours - hoursSinceLastRoll;
+                    String cooldownMessage = cooldown.isExtendedCooldown()
+                        ? String.format("💀 **Critical Failure Penalty Active!**\n⏰ You must wait **%d hours** before rolling again.\n\nYour nat 1 extended your cooldown to 48 hours.", hoursRemaining)
+                        : String.format("⏰ You've already rolled! Come back in **%d hours** for another chance!", hoursRemaining);
+
+                    event.reply(cooldownMessage)
                         .setEphemeral(true).queue();
-                    logger.info("User {} attempted duplicate roll in guild {}",
-                        event.getUser().getName(), event.getGuild().getName());
+                    logger.info("User {} attempted duplicate roll in guild {} ({} hours remaining, extended={})",
+                        event.getUser().getName(), event.getGuild().getName(), hoursRemaining, cooldown.isExtendedCooldown());
                     return;
                 }
             }
@@ -308,6 +316,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                 cooldown.setUsername(event.getUser().getName());
                 cooldown.setD20Used(false); // Reset d20 usage for new roll cycle
                 cooldown.setGuaranteedEpicPlus(false); // Clear buff after use
+                cooldown.setExtendedCooldown(false); // Clear penalty after new roll
                 cooldownRepository.save(cooldown);
             } else {
                 // Create new record
@@ -461,19 +470,19 @@ public class SlashCommandHandler extends ListenerAdapter {
             }
 
             // Always show roll cooldown status
-            long hoursUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(24)).toHours();
-            long minutesUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(24)).toMinutes();
+            // Determine cooldown duration based on extended cooldown flag
+            long cooldownHours = cooldown.isExtendedCooldown() ? 48 : 24;
+            long hoursUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(cooldownHours)).toHours();
+            long minutesUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(cooldownHours)).toMinutes();
 
-            if (hoursUntilRoll > 24) {
-                // Extended cooldown from nat 1
-                embed.addField("⏳ Next Roll Available",
-                    String.format("**%d hours** remaining (Critical Failure penalty)", hoursUntilRoll),
-                    false);
-            } else if (minutesUntilRoll > 0) {
-                // Normal cooldown
+            if (minutesUntilRoll > 0) {
+                // Cooldown still active
                 if (hoursUntilRoll > 0) {
                     long remainingMinutes = minutesUntilRoll % 60;
-                    embed.addField("⏳ Next Roll Available",
+                    String cooldownLabel = cooldown.isExtendedCooldown()
+                        ? "⏳ Next Roll Available (💀 Critical Failure Penalty)"
+                        : "⏳ Next Roll Available";
+                    embed.addField(cooldownLabel,
                         String.format("In **%d hours %d minutes**", hoursUntilRoll, remainingMinutes),
                         false);
                 } else {
@@ -771,8 +780,8 @@ public class SlashCommandHandler extends ListenerAdapter {
             // Show animated response
             showD20Animation(event, d20Roll, "nat20");
         } else if (d20Roll == 1) {
-            // Nat 1 - Extend cooldown to 48 hours
-            cooldown.setLastRollTime(LocalDateTime.now().minusHours(24).plusHours(48));
+            // Nat 1 - Set extended cooldown flag for 48-hour penalty
+            cooldown.setExtendedCooldown(true);
             cooldownRepository.save(cooldown);
 
             // Show animated response
@@ -792,14 +801,15 @@ public class SlashCommandHandler extends ListenerAdapter {
      * Show animated d20 roll with GIF and progressive text reveal
      */
     private void showD20Animation(SlashCommandInteractionEvent event, int finalRoll, String resultType) {
-        // Get GIF URL - use GitHub raw URL for development/testing, production URL from env var
+        // Get GIF URL - use publicly accessible URL
         String gifUrl;
         String baseUrl = System.getenv("ADMIN_PANEL_URL");
         if (baseUrl == null || baseUrl.contains("localhost")) {
             // Development: use GitHub raw URL so Discord can fetch it
+            // Note: This requires the image to be committed to the repository
             gifUrl = "https://raw.githubusercontent.com/wraithfive/playbot/master/src/main/resources/static/images/d20-roll.gif";
         } else {
-            // Production: use the hosted server URL
+            // Production: use the configured server URL (must be publicly accessible)
             gifUrl = baseUrl + "/images/d20-roll.gif";
         }
 
