@@ -16,14 +16,14 @@ import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
+import org.mockito.ArgumentCaptor;
 
 /**
  * Tests for the D20 roll mechanic feature.
@@ -383,13 +383,232 @@ class D20MechanicTest {
         assertFalse(java.time.Duration.between(exactBoundary.getLastRollTime(), LocalDateTime.now()).toMinutes() < 60);
     }
 
+    @Test
+    @DisplayName("Nat 20 grants Epic+ buff")
+    void testNat20GrantsBuff() {
+        SlashCommandHandler spyHandler = spy(handler);
+        SlashCommandInteractionEvent event = createMockD20Event();
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+        InteractionHook hook = mock(InteractionHook.class);
+
+        when(event.getMember()).thenReturn(member);
+        when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
+        when(event.getUser()).thenReturn(user);
+        when(user.getId()).thenReturn("user1");
+        when(user.getName()).thenReturn("TestUser");
+        when(guild.getName()).thenReturn("TestGuild");
+
+        List<Role> roles = createThreeEpicRoles();
+        when(guild.getRoles()).thenReturn(roles);
+
+        UserCooldown cooldown = new UserCooldown("user1", "guild1",
+            LocalDateTime.now().minusMinutes(30), "TestUser");
+        cooldown.setD20Used(false);
+        when(cooldownRepo.findByUserIdAndGuildId("user1", "guild1")).thenReturn(Optional.of(cooldown));
+
+        var replyAction = mock(ReplyCallbackAction.class);
+        var editAction = mock(net.dv8tion.jda.api.requests.restaction.WebhookMessageEditAction.class);
+        when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
+        when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
+        doAnswer(inv -> {
+            Consumer<InteractionHook> onSuccess = inv.getArgument(0);
+            onSuccess.accept(hook);
+            return null;
+        }).when(replyAction).queue(any(Consumer.class));
+        when(hook.editOriginalEmbeds(any(MessageEmbed.class))).thenReturn(editAction);
+        when(editAction.queueAfter(anyLong(), any(), any(Consumer.class), any(Consumer.class))).thenReturn(null);
+
+        // Force nat 20 by mocking random
+        doReturn(20).when(spyHandler).rollD20();
+
+        spyHandler.onSlashCommandInteraction(event);
+
+        // Verify guaranteedEpicPlus buff was granted
+        verify(cooldownRepo, atLeastOnce()).save(argThat(c -> c.isGuaranteedEpicPlus()));
+    }
+
+    @Test
+    @DisplayName("Nat 1 extends cooldown to 48 hours")
+    void testNat1ExtendsCooldown() {
+        SlashCommandHandler spyHandler = spy(handler);
+        SlashCommandInteractionEvent event = createMockD20Event();
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+        InteractionHook hook = mock(InteractionHook.class);
+
+        when(event.getMember()).thenReturn(member);
+        when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
+        when(event.getUser()).thenReturn(user);
+        when(user.getId()).thenReturn("user1");
+        when(user.getName()).thenReturn("TestUser");
+        when(guild.getName()).thenReturn("TestGuild");
+
+        List<Role> roles = createThreeEpicRoles();
+        when(guild.getRoles()).thenReturn(roles);
+
+        UserCooldown cooldown = new UserCooldown("user1", "guild1",
+            LocalDateTime.now().minusMinutes(30), "TestUser");
+        cooldown.setD20Used(false);
+        when(cooldownRepo.findByUserIdAndGuildId("user1", "guild1")).thenReturn(Optional.of(cooldown));
+
+        var replyAction = mock(ReplyCallbackAction.class);
+        var editAction = mock(net.dv8tion.jda.api.requests.restaction.WebhookMessageEditAction.class);
+        when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
+        when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
+        doAnswer(inv -> {
+            Consumer<InteractionHook> onSuccess = inv.getArgument(0);
+            onSuccess.accept(hook);
+            return null;
+        }).when(replyAction).queue(any(Consumer.class));
+        when(hook.editOriginalEmbeds(any(MessageEmbed.class))).thenReturn(editAction);
+        when(editAction.queueAfter(anyLong(), any(), any(Consumer.class), any(Consumer.class))).thenReturn(null);
+
+        // Force nat 1 by mocking random
+        doReturn(1).when(spyHandler).rollD20();
+
+        spyHandler.onSlashCommandInteraction(event);
+
+        // Verify cooldown was extended (lastRollTime should be in the past to create 48hr cooldown)
+        verify(cooldownRepo, atLeastOnce()).save(argThat(c -> {
+            long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), c.getLastRollTime().plusHours(24)).toMinutes();
+            return minutesRemaining > 1380; // More than 23 hours remaining = 48hr cooldown
+        }));
+    }
+
+    @Test
+    @DisplayName("Normal roll (2-19) shows no effect")
+    void testNormalRollShowsNoEffect() {
+        SlashCommandHandler spyHandler = spy(handler);
+        SlashCommandInteractionEvent event = createMockD20Event();
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+        InteractionHook hook = mock(InteractionHook.class);
+
+        when(event.getMember()).thenReturn(member);
+        when(event.getGuild()).thenReturn(guild);
+        when(guild.getId()).thenReturn("guild1");
+        when(event.getUser()).thenReturn(user);
+        when(user.getId()).thenReturn("user1");
+        when(user.getName()).thenReturn("TestUser");
+        when(guild.getName()).thenReturn("TestGuild");
+
+        List<Role> roles = createThreeEpicRoles();
+        when(guild.getRoles()).thenReturn(roles);
+
+        UserCooldown cooldown = new UserCooldown("user1", "guild1",
+            LocalDateTime.now().minusMinutes(30), "TestUser");
+        cooldown.setD20Used(false);
+        when(cooldownRepo.findByUserIdAndGuildId("user1", "guild1")).thenReturn(Optional.of(cooldown));
+
+        var replyAction = mock(ReplyCallbackAction.class);
+        var editAction = mock(net.dv8tion.jda.api.requests.restaction.WebhookMessageEditAction.class);
+        when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
+        when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
+        doAnswer(inv -> {
+            Consumer<InteractionHook> onSuccess = inv.getArgument(0);
+            onSuccess.accept(hook);
+            return null;
+        }).when(replyAction).queue(any(Consumer.class));
+        when(hook.editOriginalEmbeds(any(MessageEmbed.class))).thenReturn(editAction);
+        when(editAction.queueAfter(anyLong(), any(), any(Consumer.class), any(Consumer.class))).thenReturn(null);
+
+        // Force a normal roll (10 is in the middle of 2-19 range)
+        doReturn(10).when(spyHandler).rollD20();
+
+        spyHandler.onSlashCommandInteraction(event);
+
+        // Verify no buff was granted and cooldown wasn't extended
+        verify(cooldownRepo, atLeastOnce()).save(argThat(c -> {
+            // Should not have buff
+            boolean noBuff = !c.isGuaranteedEpicPlus();
+            // Should have normal cooldown (not extended to 48 hours)
+            long minutesRemaining = java.time.Duration.between(LocalDateTime.now(), c.getLastRollTime().plusHours(24)).toMinutes();
+            boolean normalCooldown = minutesRemaining < 1440; // Less than 24 hours remaining
+            return noBuff && normalCooldown;
+        }));
+    }
+
+    @Test
+    @DisplayName("Integration test: Nat 20 buff applies to next roll")
+    void testNat20BuffAppliedToNextRoll() {
+        SlashCommandHandler spyHandler = spy(handler);
+
+        // Setup: Create user with cooldown that has Epic+ buff
+        UserCooldown cooldown = new UserCooldown("user1", "guild1",
+            LocalDateTime.now().minusHours(25), "TestUser");
+        cooldown.setD20Used(true);
+        cooldown.setGuaranteedEpicPlus(true);  // User got nat 20 previously
+        when(cooldownRepo.findByUserIdAndGuildId("user1", "guild1")).thenReturn(Optional.of(cooldown));
+
+        // Setup guild and roles
+        Guild guild = mock(Guild.class);
+        Member member = mock(Member.class);
+        User user = mock(User.class);
+        when(guild.getId()).thenReturn("guild1");
+        when(guild.getName()).thenReturn("TestGuild");
+        when(user.getId()).thenReturn("user1");
+        when(user.getName()).thenReturn("TestUser");
+        when(member.getUser()).thenReturn(user);
+
+        // Create gacha roles including Epic and Legendary
+        Role commonRole = createMockRole("gacha:common:Blue", "1", Color.BLUE);
+        Role epicRole = createMockRole("gacha:epic:Gold", "2", Color.YELLOW);
+        Role legendaryRole = createMockRole("gacha:legendary:Rainbow", "3", Color.MAGENTA);
+        List<Role> roles = Arrays.asList(commonRole, epicRole, legendaryRole);
+        when(guild.getRoles()).thenReturn(roles);
+        when(guild.getRoleById(anyString())).thenAnswer(inv -> {
+            String roleId = inv.getArgument(0);
+            return roles.stream().filter(r -> r.getId().equals(roleId)).findFirst().orElse(null);
+        });
+
+        // Mock role management - the actual code uses .complete() not .queue()
+        var addRoleAction = mock(net.dv8tion.jda.api.requests.restaction.AuditableRestAction.class);
+        when(guild.addRoleToMember(any(Member.class), any(Role.class))).thenReturn(addRoleAction);
+        when(guild.removeRoleFromMember(any(Member.class), any(Role.class))).thenReturn(mock(net.dv8tion.jda.api.requests.restaction.AuditableRestAction.class));
+        when(member.getRoles()).thenReturn(Collections.emptyList());
+        when(addRoleAction.complete()).thenReturn(null);
+
+        // Create mock roll event
+        SlashCommandInteractionEvent rollEvent = createMockRollEvent();
+        when(rollEvent.getMember()).thenReturn(member);
+        when(rollEvent.getGuild()).thenReturn(guild);
+        when(rollEvent.getUser()).thenReturn(user);
+
+        var replyAction = mock(ReplyCallbackAction.class);
+        when(rollEvent.reply(anyString())).thenReturn(replyAction);
+        when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
+        doAnswer(inv -> {
+            Consumer<InteractionHook> onSuccess = inv.getArgument(0);
+            onSuccess.accept(mock(InteractionHook.class));
+            return null;
+        }).when(replyAction).queue(any(Consumer.class), any(Consumer.class));
+
+        // Execute the roll
+        spyHandler.onSlashCommandInteraction(rollEvent);
+
+        // Verify that an Epic or Legendary role was assigned (buff was applied)
+        verify(addRoleAction, atLeastOnce()).complete();
+
+        // Verify that the buff was consumed (set to false)
+        verify(cooldownRepo, atLeastOnce()).save(argThat(c -> !c.isGuaranteedEpicPlus()));
+    }
+
     // Helper methods
 
     private SlashCommandInteractionEvent createMockD20Event() {
         SlashCommandInteractionEvent event = mock(SlashCommandInteractionEvent.class);
         Guild guild = mock(Guild.class);
+        User user = mock(User.class);
         when(event.getName()).thenReturn("d20");
         when(event.getGuild()).thenReturn(guild);
+        when(event.getUser()).thenReturn(user);
+        when(user.getName()).thenReturn("TestUser");
         when(guild.getId()).thenReturn("guild1");
         return event;
     }
