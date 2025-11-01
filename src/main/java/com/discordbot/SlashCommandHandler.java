@@ -447,10 +447,11 @@ public class SlashCommandHandler extends ListenerAdapter {
             embed.setDescription("You don't have any gacha role yet!\n\nUse `/roll` to get your first color!");
         }
 
-        // Check for d20 buffs/status
+        // Check for cooldown status and d20 buffs
         Optional<UserCooldown> cooldownOpt = cooldownRepository.findByUserIdAndGuildId(userId, guildId);
         if (cooldownOpt.isPresent()) {
             UserCooldown cooldown = cooldownOpt.get();
+            LocalDateTime now = LocalDateTime.now();
 
             // Show Epic+ buff if active
             if (cooldown.isGuaranteedEpicPlus()) {
@@ -459,28 +460,64 @@ public class SlashCommandHandler extends ListenerAdapter {
                     false);
             }
 
-            // Show d20 window if active and not used
-            if (!cooldown.isD20Used() && isWithinD20Window(cooldown)) {
-                long minutesLeft = D20_WINDOW_MINUTES - java.time.Duration.between(cooldown.getLastRollTime(), LocalDateTime.now()).toMinutes();
-                embed.addField("🎲 /d20 Available",
-                    String.format("Use `/d20` within %d minutes for a bonus or penalty!", minutesLeft),
+            // Always show roll cooldown status
+            long hoursUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(24)).toHours();
+            long minutesUntilRoll = java.time.Duration.between(now, cooldown.getLastRollTime().plusHours(24)).toMinutes();
+
+            if (hoursUntilRoll > 24) {
+                // Extended cooldown from nat 1
+                embed.addField("⏳ Next Roll Available",
+                    String.format("**%d hours** remaining (Critical Failure penalty)", hoursUntilRoll),
+                    false);
+            } else if (minutesUntilRoll > 0) {
+                // Normal cooldown
+                if (hoursUntilRoll > 0) {
+                    long remainingMinutes = minutesUntilRoll % 60;
+                    embed.addField("⏳ Next Roll Available",
+                        String.format("In **%d hours %d minutes**", hoursUntilRoll, remainingMinutes),
+                        false);
+                } else {
+                    embed.addField("⏳ Next Roll Available",
+                        String.format("In **%d minutes**", minutesUntilRoll),
+                        false);
+                }
+            } else {
+                // Ready to roll
+                embed.addField("✅ Ready to Roll!",
+                    "Use `/roll` to get a new color now!",
                     false);
             }
 
-            // Show extended cooldown if applicable
-            LocalDate today = LocalDate.now(ZoneId.systemDefault());
-            LocalDate lastRoll = cooldown.getLastRollTime().toLocalDate();
-            if (lastRoll.equals(today)) {
-                long hoursUntilRoll = java.time.Duration.between(LocalDateTime.now(),
-                    cooldown.getLastRollTime().plusHours(24)).toHours();
+            // Always show d20 status (check if feature is available first)
+            List<Role> gachaRoles = event.getGuild().getRoles().stream()
+                .filter(r -> r.getName().toLowerCase().startsWith(GACHA_PREFIX))
+                .toList();
+            long epicLegendaryCount = gachaRoles.stream()
+                .map(this::parseRoleInfo)
+                .filter(ri -> ri.rarity == Rarity.EPIC || ri.rarity == Rarity.LEGENDARY)
+                .count();
 
-                if (hoursUntilRoll > 24) {
-                    // Extended cooldown from nat 1
-                    embed.addField("⏳ Cooldown (Critical Failure)",
-                        String.format("%d hours remaining", hoursUntilRoll),
+            if (epicLegendaryCount >= 3) {
+                if (!cooldown.isD20Used() && isWithinD20Window(cooldown)) {
+                    long minutesLeft = D20_WINDOW_MINUTES - java.time.Duration.between(cooldown.getLastRollTime(), now).toMinutes();
+                    embed.addField("🎲 /d20 Available",
+                        String.format("Use `/d20` within **%d minutes** for a bonus or penalty!", minutesLeft),
+                        false);
+                } else if (cooldown.isD20Used()) {
+                    embed.addField("🎲 /d20 Status",
+                        "Already used this cycle. Use `/roll` to reset.",
+                        false);
+                } else {
+                    embed.addField("🎲 /d20 Status",
+                        "Use `/roll` to enable `/d20` for 60 minutes.",
                         false);
                 }
             }
+        } else {
+            // No cooldown record yet
+            embed.addField("✅ Ready to Roll!",
+                "Use `/roll` to get your first color!",
+                false);
         }
 
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
