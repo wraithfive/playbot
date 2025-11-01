@@ -25,7 +25,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * while overriding the JDA bean with a mock. This validates wiring and
  * controller behavior without making real Discord connections.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+        "spring.datasource.url=jdbc:h2:mem:testdb",
+        "spring.jpa.hibernate.ddl-auto=create-drop"
+    }
+)
 @AutoConfigureMockMvc
 class SmokeE2ETest {
     @MockitoBean(name = "jda")
