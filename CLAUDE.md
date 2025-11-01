@@ -213,7 +213,7 @@ Commands are defined in `SlashCommandHandler.onGuildReady()`
   - **Nat 1 (5%)**: "Critical Failure" - cooldown extended to 48 hours instead of 24
   - **2-19 (90%)**: No effect
 - **State tracking**: `d20Used`, `guaranteedEpicPlus` flags in `UserCooldown` entity (auto-created via JPA)
-- **Visual presentation**: Animated d20 GIF at `/images/d20-roll.gif` with progressive text reveal (3 frames, 600ms each)
+- **Visual presentation**: Animated d20 GIF at `/images/d20-roll.gif` with progressive text reveal (6 frames, 500ms each)
 - **Status display**: `/mycolor` shows active buffs, d20 window availability, and extended cooldowns
 - **No admin configuration needed**: Feature automatically enables when 3+ Epic/Legendary roles exist
 
