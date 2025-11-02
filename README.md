@@ -12,20 +12,27 @@ A Discord bot that lets users roll for random colored name roles once per day, a
 ## Features
 
 - **Discord Bot** - Users roll for random colored roles with rarity-based weighting
-- **Web Admin Panel** - Manage gacha roles through an intuitive web interface
+- **D20 Roll Mechanic** - Risk/reward system: roll d20 within 60 minutes after daily roll for nat 20 (guaranteed Epic+) or nat 1 (48hr cooldown)
+- **Web Admin Panel** - Manage gacha roles and QOTD streams through an intuitive web interface
 - **OAuth2 Authentication** - Secure Discord login for server administrators
 - **Rarity System** - 5-tier rarity system (Legendary, Epic, Rare, Uncommon, Common)
-- **Daily Rolls** - Users can roll once per day (admins can use `!testroll` for unlimited testing)
+- **Daily Rolls** - Users can roll once per day (admins can use `/testroll` for unlimited testing)
 - **Database Migrations** - Schema fully managed by Liquibase with a clean baseline and safe, idempotent changesets
 - **Real-time Updates** - WebSocket/STOMP channel for live server/role/QOTD updates to the admin UI
-- **QOTD (Question of the Day)** - Collect user submissions, moderate (approve/reject/bulk), schedule posting per channel, and bulk import via CSV
+- **QOTD (Question of the Day)** - Multi-stream support with independent scheduling per channel
+  - Multiple QOTD streams per channel with custom banners, mentions, and cron schedules
+  - Per-stream timezone configuration (e.g., America/Chicago, UTC)
+  - User submissions with optional stream targeting and autocomplete
+  - Moderate submissions (approve/reject/bulk operations)
+  - Auto-approve mode per stream
+  - Bulk import via CSV with author attribution
 
 ## Technology Stack
 
 **Backend:**
 - Java 21 (LTS) with modern features
 - Spring Boot 3.4.1
-- JDA 5.0.0 (Java Discord API)
+- JDA 6.1.0 (Java Discord API)
 - Java Records for immutable DTOs
 - Spring Security OAuth2 (Discord) with JDBC-backed sessions and token storage
 - Spring Session (JDBC) for persistent HTTP sessions
@@ -413,9 +420,11 @@ All commands use Discord's slash command system. Type `/` in Discord to see avai
 | Command | Description | Restrictions | Visibility |
 |---------|-------------|--------------|------------|
 | `/roll` | Roll for a random color | Once per day | Public (everyone sees result) |
+| `/d20` | Roll d20 for bonus/penalty | Available 60 min after `/roll` | Public (everyone sees result) |
 | `/mycolor` | Check your current color and rarity | None | Private (only you see) |
 | `/colors` | View all available colors and rarities | None | Private (only you see) |
 | `/help` | Show help message and legal links | None | Private (only you see) |
+| `/qotd-submit` | Submit a question suggestion | None | Private (only you see) |
 
 ### Admin/Moderator Commands
 
