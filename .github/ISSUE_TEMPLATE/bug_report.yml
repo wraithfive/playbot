@@ -28,10 +28,13 @@ body:
       description: What area of Playbot is the issue in?
       options:
         - Color Gacha (rolling, cooldowns)
+        - D20 Roll Mechanic
+        - QOTD (submissions, scheduling, streams)
         - Role Management (creating, deleting roles)
         - Admin Panel (web interface)
         - Bot Commands
         - OAuth/Authentication
+        - Database/Migrations
         - Other
     validations:
       required: true
