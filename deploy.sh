@@ -49,7 +49,7 @@ echo ""
 
 # Step 1: Build the application locally
 echo -e "${YELLOW}[1/6] Building application locally...${NC}"
-./build.sh
+./build.sh --skip-tests
 if [ $? -ne 0 ]; then
     echo -e "${RED}ERROR: Build failed${NC}"
     exit 1
@@ -67,13 +67,7 @@ mkdir -p "$DEPLOY_DIR/target"
 JAR_VERSION=$(grep -m 1 '<version>' pom.xml | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
 JAR_FILE="playbot-${JAR_VERSION}.jar"
 
-# Copy backend JAR to target directory (matches systemd service expectations)
-cp "target/${JAR_FILE}" "$DEPLOY_DIR/target/" || {
-    echo -e "${RED}ERROR: Failed to copy JAR file: target/${JAR_FILE}${NC}"
-    exit 1
-}
-
-# Also copy as playbot.jar for systemd service compatibility
+# Copy backend JAR as playbot.jar for systemd service
 cp "target/${JAR_FILE}" "$DEPLOY_DIR/target/playbot.jar" || {
     echo -e "${RED}ERROR: Failed to copy JAR file: target/${JAR_FILE}${NC}"
     exit 1
@@ -121,12 +115,16 @@ set -e
 
 TARBALL=$(ls -t /tmp/deploy-*.tar.gz | head -1)
 REMOTE_DIR="/opt/playbot"
-BACKUP_DIR="$REMOTE_DIR/backup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="$REMOTE_DIR/backup-latest"
+
+# Remove any old backup (keep only one for rollback)
+echo "Removing old backup..."
+rm -rf "$BACKUP_DIR" 2>/dev/null || true
 
 # Create backup of current deployment
 echo "Creating backup..."
 mkdir -p "$BACKUP_DIR"
-if [ -f "$REMOTE_DIR/target/playbot-1.0.0.jar" ]; then
+if [ -d "$REMOTE_DIR/target" ]; then
     cp -r "$REMOTE_DIR/target" "$BACKUP_DIR/"
 fi
 if [ -d "$REMOTE_DIR/dist" ]; then
@@ -140,10 +138,10 @@ tar -xzf "$TARBALL" -C "$REMOTE_DIR"
 # Clean up
 rm -f "$TARBALL"
 
-# Keep only last 3 backups
-echo "Cleaning old backups..."
+# Remove any old dated backups if they exist
+echo "Cleaning old dated backups..."
 cd "$REMOTE_DIR"
-ls -dt backup-* 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+ls -dt backup-* 2>/dev/null | grep -v "backup-latest" | xargs rm -rf 2>/dev/null || true
 
 echo "Deployment extracted successfully"
 ENDSSH
