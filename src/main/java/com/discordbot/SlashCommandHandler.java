@@ -834,7 +834,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         embed1.setColor(Color.LIGHT_GRAY);
 
         // Start the animation sequence
-        event.replyEmbeds(embed1.build()).setEphemeral(true).queue(hook -> {
+        event.replyEmbeds(embed1.build()).queue(hook -> {
             // Show remaining intermediate frames (1-5) then final result
             showIntermediateFrame(hook, gifUrl, intermediateNumbers, 1, finalRoll, resultType);
         }, error -> {
