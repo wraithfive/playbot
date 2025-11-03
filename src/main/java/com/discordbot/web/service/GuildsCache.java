@@ -43,7 +43,9 @@ public class GuildsCache {
     public void evictForToken(String accessToken) {
         if (accessToken != null) {
             guildsCache.invalidate(accessToken);
-            logger.info("Evicted guilds cache for access token: {}", accessToken);
+            // Log only a fingerprint to avoid exposing sensitive tokens
+            logger.info("Evicted guilds cache for token ending in: {}", 
+                accessToken.length() > 4 ? "..." + accessToken.substring(accessToken.length() - 4) : "****");
         }
     }
 
