@@ -546,6 +546,10 @@ public class SlashCommandHandler extends ListenerAdapter {
             return;
         }
 
+        // Build a map of roleId -> actual Role for color lookup
+        Map<String, Role> roleMap = event.getGuild().getRoles().stream()
+            .collect(Collectors.toMap(Role::getId, r -> r));
+
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("🎨 Available Colors");
         embed.setColor(Color.MAGENTA);
@@ -563,14 +567,21 @@ public class SlashCommandHandler extends ListenerAdapter {
         List<Rarity> sortedRarities = Arrays.asList(Rarity.LEGENDARY, Rarity.EPIC, Rarity.RARE, Rarity.UNCOMMON, Rarity.COMMON);
         for (Rarity rarity : sortedRarities) {
             if (byRarity.containsKey(rarity)) {
-                List<String> roleNames = byRarity.get(rarity).stream()
-                    .map(r -> r.displayName)
+                List<String> roleDisplays = byRarity.get(rarity).stream()
+                    .map(r -> {
+                        Role role = roleMap.get(r.roleId);
+                        if (role == null) return r.displayName;
+                        
+                        // Get role color preview
+                        String colorPreview = getColorPreview(role, r.displayName);
+                        return colorPreview + " " + r.displayName;
+                    })
                     .toList();
 
                 String rarityEmoji = getRarityEmoji(rarity);
                 embed.addField(
                     String.format("%s %s (%.1f%%)", rarityEmoji, rarity.name(), getRarityWeight(rarity) * 100),
-                    String.join(", ", roleNames),
+                    String.join("\n", roleDisplays),
                     false
                 );
             }
@@ -580,6 +591,76 @@ public class SlashCommandHandler extends ListenerAdapter {
         embed.setTimestamp(Instant.now());
 
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
+    }
+
+    /**
+     * Generate a color preview for a role. Handles solid colors, gradients, and holographic effects.
+     */
+    private String getColorPreview(Role role, String displayName) {
+        String lowerName = displayName.toLowerCase();
+        
+        // Check for gradient/holographic in name
+        if (lowerName.contains("gradient") || lowerName.contains("→") || lowerName.contains("->")) {
+            return "🌈"; // Gradient indicator
+        }
+        if (lowerName.contains("holo") || lowerName.contains("holographic")) {
+            return "✨"; // Holographic indicator
+        }
+        
+        // Get solid color and show a color block indicator
+        Color roleColor = role.getColor();
+        if (roleColor == null) {
+            return "⬜"; // No color set
+        }
+        
+        // Pick the closest color emoji based on the role's RGB values
+        return getColorEmoji(roleColor);
+    }
+
+    /**
+     * Map RGB color to closest color emoji for preview
+     */
+    private String getColorEmoji(Color color) {
+        int r = color.getRed();
+        int g = color.getGreen();
+        int b = color.getBlue();
+        
+        // Calculate luminance
+        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+        
+        // Very dark/black
+        if (luminance < 0.15) return "⬛";
+        
+        // Very light/white
+        if (luminance > 0.85) return "⬜";
+        
+        // Determine dominant color
+        int max = Math.max(r, Math.max(g, b));
+        int min = Math.min(r, Math.min(g, b));
+        double saturation = max == 0 ? 0 : (double)(max - min) / max;
+        
+        // Gray (low saturation)
+        if (saturation < 0.15) {
+            return luminance < 0.5 ? "⬛" : "⬜";
+        }
+        
+        // Determine hue
+        if (r >= g && r >= b) {
+            // Red-ish
+            if (g > b * 1.5) return "🟧"; // Orange
+            if (b > g * 1.2) return "🟪"; // Purple/Magenta
+            return "🟥"; // Red
+        } else if (g >= r && g >= b) {
+            // Green-ish
+            if (r > b * 1.3 && g > r * 1.1) return "🟨"; // Yellow
+            if (b > r * 1.2) return "🟦"; // Cyan/Teal
+            return "🟩"; // Green
+        } else {
+            // Blue-ish
+            if (r > g * 1.3) return "🟪"; // Purple
+            if (g > r * 1.2) return "🟦"; // Cyan
+            return "🟦"; // Blue
+        }
     }
 
     private void handleHelp(SlashCommandInteractionEvent event) {
