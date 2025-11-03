@@ -807,7 +807,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         if (baseUrl == null || baseUrl.contains("localhost")) {
             // Development: use GitHub raw URL so Discord can fetch it
             // Note: This requires the image to be committed to the repository
-            gifUrl = "https://raw.githubusercontent.com/wraithfive/playbot/master/src/main/resources/static/images/d20-roll.gif";
+            gifUrl = "https://raw.githubusercontent.com/wraithfive/playbot/master/frontend/public/images/d20-roll.gif";
         } else {
             // Production: use the configured server URL (must be publicly accessible)
             gifUrl = baseUrl + "/images/d20-roll.gif";

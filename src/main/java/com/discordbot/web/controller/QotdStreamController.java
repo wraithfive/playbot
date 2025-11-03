@@ -3,6 +3,7 @@ package com.discordbot.web.controller;
 import com.discordbot.web.dto.qotd.QotdDtos.*;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.QotdStreamService;
+import com.discordbot.web.service.RateLimitService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +21,12 @@ public class QotdStreamController {
 
     private final QotdStreamService streamService;
     private final AdminService adminService;
+    private final RateLimitService rateLimitService;
 
-    public QotdStreamController(QotdStreamService streamService, AdminService adminService) {
+    public QotdStreamController(QotdStreamService streamService, AdminService adminService, RateLimitService rateLimitService) {
         this.streamService = streamService;
         this.adminService = adminService;
+        this.rateLimitService = rateLimitService;
     }
 
     private boolean canManage(String guildId, Authentication authentication) {
@@ -230,8 +233,25 @@ public class QotdStreamController {
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
 
+        // Rate limiting check
+        if (!rateLimitService.allowBulkOperation(authentication)) {
+            return ResponseEntity.status(429).build();
+        }
+
         if (!canManage(guildId, authentication)) {
             return ResponseEntity.status(403).build();
+        }
+
+        // File size validation (2MB limit)
+        long maxSize = 2 * 1024 * 1024;
+        if (file.getSize() > maxSize) {
+            return ResponseEntity.status(413).build();
+        }
+
+        // Content-type validation
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().contains("csv")) {
+            return ResponseEntity.badRequest().build();
         }
 
         try {

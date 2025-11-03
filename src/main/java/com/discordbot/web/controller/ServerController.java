@@ -38,8 +38,7 @@ public class ServerController {
         logger.info("Fetching manageable servers for authenticated user");
         List<GuildInfo> guilds = adminService.getManageableGuilds(authentication);
 
-        // Log the actual response to debug frontend type mismatch
-        logger.info("Returning {} guilds: {}", guilds.size(), guilds);
+        logger.info("Returning {} guilds", guilds.size());
 
         return ResponseEntity.ok(guilds);
     }
