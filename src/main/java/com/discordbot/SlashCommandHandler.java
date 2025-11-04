@@ -728,14 +728,18 @@ public class SlashCommandHandler extends ListenerAdapter {
                     if (apiGradient && colorsObj != null) {
                         // Build gradient from API primary/secondary/tertiary colors
                         List<Color> apiStops = new ArrayList<>();
-                        if (colorsObj.primaryColor != null && colorsObj.primaryColor != 0) {
-                            apiStops.add(new Color(colorsObj.primaryColor));
+                        int primary = colorsObj.getPrimaryColor();
+                        int secondary = colorsObj.getSecondaryColor();
+                        int tertiary = colorsObj.getTertiaryColor();
+                        
+                        if (primary != com.discordbot.discord.DiscordApiClient.RoleColors.DEFAULT_COLOR_RAW) {
+                            apiStops.add(new Color(primary));
                         }
-                        if (colorsObj.secondaryColor != null) {
-                            apiStops.add(new Color(colorsObj.secondaryColor));
+                        if (secondary != -1) { // -1 is COLOR_NOT_SET
+                            apiStops.add(new Color(secondary));
                         }
-                        if (colorsObj.tertiaryColor != null) {
-                            apiStops.add(new Color(colorsObj.tertiaryColor));
+                        if (tertiary != -1) { // -1 is COLOR_NOT_SET
+                            apiStops.add(new Color(tertiary));
                         }
 
                         if (apiStops.size() >= 2) {
