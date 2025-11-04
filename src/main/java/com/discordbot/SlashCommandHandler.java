@@ -474,19 +474,18 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("🎨 Your Current Color");
-        embed.setTimestamp(Instant.now());
+        embed.setColor(currentRole.map(Role::getColor).orElse(Color.MAGENTA));
 
         if (currentRole.isPresent()) {
             Role role = currentRole.get();
             RoleInfo roleInfo = parseRoleInfo(role);
 
-            embed.setColor(role.getColor() != null ? role.getColor() : Color.MAGENTA);
-            embed.setDescription(String.format("**%s** %s",
-                roleInfo.displayName,
-                getRarityEmoji(roleInfo.rarity)));
+            // Show clean name (no inline rarity emoji next to the name)
+            embed.setDescription(String.format("**%s**", roleInfo.displayName));
 
+            // Show rarity and drop rate as dedicated fields
             if (roleInfo.rarity != null) {
-                embed.addField("Rarity", roleInfo.rarity.name(), true);
+                embed.addField("Rarity", getRarityEmoji(roleInfo.rarity) + " " + roleInfo.rarity.name(), true);
                 embed.addField("Drop Rate", String.format("%.1f%%", getRarityWeight(roleInfo.rarity) * 100), true);
             }
 
@@ -569,6 +568,28 @@ public class SlashCommandHandler extends ListenerAdapter {
                 false);
         }
 
+        // Attach a color preview thumbnail if the user has a gacha role
+        if (currentRole.isPresent()) {
+            Role role = currentRole.get();
+            try {
+                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
+                    discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
+                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(role.getId());
+                byte[] swatch = renderSingleColorSwatch(role, colorsObj);
+                if (swatch != null && swatch.length > 0) {
+                    embed.setThumbnail("attachment://mycolor.png");
+                    event.replyFiles(FileUpload.fromData(swatch, "mycolor.png"))
+                        .addEmbeds(embed.build())
+                        .setEphemeral(true)
+                        .queue();
+                    return;
+                }
+            } catch (Exception ex) {
+                logger.warn("Failed to generate /mycolor preview: {}", ex.getMessage());
+            }
+        }
+
+        // Fallback: send embed without image
         event.replyEmbeds(embed.build()).setEphemeral(true).queue();
     }
 
