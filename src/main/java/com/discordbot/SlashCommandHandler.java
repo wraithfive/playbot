@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.RoleIcon;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
@@ -22,6 +23,7 @@ import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.utils.FileUpload;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.awt.Color;
+import java.awt.Font;
+import java.awt.LinearGradientPaint;
+import com.discordbot.discord.DiscordApiClient;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -52,7 +64,10 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
     private final QotdSubmissionService qotdSubmissionService;
+    private final DiscordApiClient discordApiClient;
     private final Random random = new Random();
+
+    // (Removed image icon cache - using emoji-only inline in text rendering)
 
     @Autowired
     public SlashCommandHandler(
@@ -60,12 +75,14 @@ public class SlashCommandHandler extends ListenerAdapter {
             QotdStreamRepository streamRepository,
             GuildsCache guildsCache,
             WebSocketNotificationService webSocketNotificationService,
-            QotdSubmissionService qotdSubmissionService) {
+            QotdSubmissionService qotdSubmissionService,
+            DiscordApiClient discordApiClient) {
         this.cooldownRepository = cooldownRepository;
         this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
         this.qotdSubmissionService = qotdSubmissionService;
+        this.discordApiClient = discordApiClient;
         logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
@@ -550,118 +567,306 @@ public class SlashCommandHandler extends ListenerAdapter {
         Map<String, Role> roleMap = event.getGuild().getRoles().stream()
             .collect(Collectors.toMap(Role::getId, r -> r));
 
-        EmbedBuilder embed = new EmbedBuilder();
-        embed.setTitle("🎨 Available Colors");
-        embed.setColor(Color.MAGENTA);
-        embed.setDescription("Here are all the gacha roles you can roll for:");
+        // Render color preview images with headings and pagination
+        try {
+            // Fetch role colors via Discord API (new Role Colors Object)
+            Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
+                discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
 
-        // Group by rarity
-        Map<Rarity, List<RoleInfo>> byRarity = gachaRoles.stream()
-            .collect(Collectors.groupingBy(
-                r -> r.rarity != null ? r.rarity : Rarity.COMMON,
-                LinkedHashMap::new,
-                Collectors.toList()
-            ));
+            List<byte[]> imagePages = renderColorSwatchPages(gachaRoles, roleMap, apiColors, 20);
+            if (imagePages.isEmpty()) {
+                event.reply("❌ Failed to generate color preview. Please try again.")
+                    .setEphemeral(true).queue();
+                return;
+            }
 
-        // Add fields for each rarity (in reverse order - legendary first)
-        List<Rarity> sortedRarities = Arrays.asList(Rarity.LEGENDARY, Rarity.EPIC, Rarity.RARE, Rarity.UNCOMMON, Rarity.COMMON);
-        for (Rarity rarity : sortedRarities) {
-            if (byRarity.containsKey(rarity)) {
-                List<String> roleDisplays = byRarity.get(rarity).stream()
-                    .map(r -> {
-                        Role role = roleMap.get(r.roleId);
-                        if (role == null) return r.displayName;
+            // Send first page with image attachment
+            EmbedBuilder firstEmbed = new EmbedBuilder()
+                .setColor(Color.MAGENTA)
+                .setTitle("🎨 Available Gacha Colors")
+                .setDescription(imagePages.size() > 1 ? 
+                    String.format("Showing all %d gacha roles across %d pages", gachaRoles.size(), imagePages.size()) :
+                    String.format("Showing all %d gacha roles", gachaRoles.size()))
+                .setImage("attachment://colors_page1.png")
+                .setFooter(imagePages.size() > 1 ? "Page 1/" + imagePages.size() : null);
+
+            event.replyEmbeds(firstEmbed.build())
+                .addFiles(FileUpload.fromData(imagePages.get(0), "colors_page1.png"))
+                .setEphemeral(true)
+                .queue(hook -> {
+                    // Send remaining pages as follow-ups
+                    for (int i = 1; i < imagePages.size(); i++) {
+                        int pageNum = i + 1;
+                        EmbedBuilder pageEmbed = new EmbedBuilder()
+                            .setColor(Color.MAGENTA)
+                            .setTitle("🎨 Available Gacha Colors (Page " + pageNum + ")")
+                            .setImage("attachment://colors_page" + pageNum + ".png")
+                            .setFooter("Page " + pageNum + "/" + imagePages.size());
                         
-                        // Get role color preview
-                        String colorPreview = getColorPreview(role, r.displayName);
-                        return colorPreview + " " + r.displayName;
-                    })
-                    .toList();
+                        hook.sendMessageEmbeds(pageEmbed.build())
+                            .addFiles(FileUpload.fromData(imagePages.get(i), "colors_page" + pageNum + ".png"))
+                            .setEphemeral(true)
+                            .queue();
+                    }
+                });
+        } catch (Exception e) {
+            logger.error("Failed to render color preview", e);
+            event.reply("❌ Failed to generate color preview. Please try again.")
+                .setEphemeral(true).queue();
+        }
+    }
 
-                String rarityEmoji = getRarityEmoji(rarity);
-                embed.addField(
-                    String.format("%s %s (%.1f%%)", rarityEmoji, rarity.name(), getRarityWeight(rarity) * 100),
-                    String.join("\n", roleDisplays),
-                    false
-                );
+    /**
+     * Render color swatch pages with rarity headings and role icons.
+     * Each page shows up to maxPerPage roles with actual color previews.
+     */
+    private List<byte[]> renderColorSwatchPages(List<RoleInfo> roles, Map<String, Role> roleMap,
+                                                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors,
+                                                int maxPerPage) throws IOException {
+        // Group by rarity
+        Map<Rarity, List<RoleInfo>> byRarity = roles.stream()
+            .collect(Collectors.groupingBy(r -> r.rarity != null ? r.rarity : Rarity.COMMON));
+        List<Rarity> order = Arrays.asList(Rarity.LEGENDARY, Rarity.EPIC, Rarity.RARE, Rarity.UNCOMMON, Rarity.COMMON);
+
+        List<byte[]> pages = new ArrayList<>();
+        List<RoleInfo> currentPage = new ArrayList<>();
+        
+        // Build pages respecting rarity order
+        for (Rarity rarity : order) {
+            List<RoleInfo> list = byRarity.get(rarity);
+            if (list == null || list.isEmpty()) continue;
+            
+            for (RoleInfo ri : list) {
+                currentPage.add(ri);
+                if (currentPage.size() >= maxPerPage) {
+                    pages.add(renderColorSwatchImage(currentPage, roleMap, apiColors));
+                    currentPage = new ArrayList<>();
+                }
             }
         }
-
-        embed.setFooter("Use /roll to get a random color!");
-        embed.setTimestamp(Instant.now());
-
-        event.replyEmbeds(embed.build()).setEphemeral(true).queue();
+        
+        // Render final page if any roles remain
+        if (!currentPage.isEmpty()) {
+            pages.add(renderColorSwatchImage(currentPage, roleMap, apiColors));
+        }
+        
+        return pages;
     }
 
     /**
-     * Generate a color preview for a role. Handles solid colors, gradients, and holographic effects.
+     * Render a single page of color swatches with rarity headings and role icons.
      */
-    private String getColorPreview(Role role, String displayName) {
-        String lowerName = displayName.toLowerCase();
+    private byte[] renderColorSwatchImage(List<RoleInfo> roles, Map<String, Role> roleMap,
+                                          Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors) throws IOException {
+        int swatchSize = 50;
+        int iconSize = 24;
+        int spacing = 8;
+        int margin = 15;
+        int headerHeight = 30;
+        int bottomPadding = 20; // Extra padding at bottom
         
-        // Check for gradient/holographic in name
-        if (lowerName.contains("gradient") || lowerName.contains("→") || lowerName.contains("->")) {
-            return "🌈"; // Gradient indicator
-        }
-        if (lowerName.contains("holo") || lowerName.contains("holographic")) {
-            return "✨"; // Holographic indicator
+        // Calculate dimensions
+        int maxWidth = 600;
+        int currentY = margin;
+        
+        // Group by rarity for headings
+        Map<Rarity, List<RoleInfo>> byRarity = roles.stream()
+            .collect(Collectors.groupingBy(r -> r.rarity != null ? r.rarity : Rarity.COMMON));
+        List<Rarity> order = Arrays.asList(Rarity.LEGENDARY, Rarity.EPIC, Rarity.RARE, Rarity.UNCOMMON, Rarity.COMMON);
+        
+        // Estimate height with extra padding
+        int estimatedHeight = margin * 2 + bottomPadding;
+        for (Rarity rarity : order) {
+            List<RoleInfo> list = byRarity.get(rarity);
+            if (list == null || list.isEmpty()) continue;
+            estimatedHeight += headerHeight + (swatchSize + spacing) * ((list.size() + 1) / 2);
         }
         
-        // Get solid color and show a color block indicator
-        Color roleColor = role.getColor();
-        if (roleColor == null) {
-            return "⬜"; // No color set
+        BufferedImage image = new BufferedImage(maxWidth, Math.max(estimatedHeight, 100), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        
+        // Anti-aliasing
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        
+        // Background
+        g.setColor(new Color(47, 49, 54)); // Discord dark background
+        g.fillRect(0, 0, maxWidth, estimatedHeight);
+        
+        // Draw each rarity section
+        for (Rarity rarity : order) {
+            List<RoleInfo> list = byRarity.get(rarity);
+            if (list == null || list.isEmpty()) continue;
+            
+            // Draw rarity heading (text only - emojis don't render well in AWT)
+            g.setFont(new Font("Arial", Font.BOLD, 16));
+            g.setColor(Color.WHITE);
+            String heading = String.format("%s (%.1f%%)", rarity.name(), getRarityWeight(rarity) * 100);
+            g.drawString(heading, margin, currentY + 20);
+            currentY += headerHeight;
+            
+            // Draw roles in 2-column grid
+            int col = 0;
+            int rowY = currentY;
+            
+            for (RoleInfo ri : list) {
+                int x = margin + (col * (maxWidth / 2));
+                
+                Role discordRole = roleMap.get(ri.roleId);
+                Color roleColor = (discordRole != null && discordRole.getColor() != null)
+                    ? discordRole.getColor()
+                    : Color.WHITE;
+                
+                // Check if this is a gradient role
+                // Prefer API-based role colors object
+                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(ri.roleId);
+                boolean apiGradient = colorsObj != null && (colorsObj.isGradient() || colorsObj.isHolographic());
+                boolean isGradient = apiGradient;
+                
+                // Draw color swatch (gradient or solid)
+                if (isGradient) {
+                    if (apiGradient && colorsObj != null) {
+                        // Build gradient from API primary/secondary/tertiary colors
+                        List<Color> apiStops = new ArrayList<>();
+                        if (colorsObj.primaryColor != null && colorsObj.primaryColor != 0) {
+                            apiStops.add(new Color(colorsObj.primaryColor));
+                        }
+                        if (colorsObj.secondaryColor != null) {
+                            apiStops.add(new Color(colorsObj.secondaryColor));
+                        }
+                        if (colorsObj.tertiaryColor != null) {
+                            apiStops.add(new Color(colorsObj.tertiaryColor));
+                        }
+
+                        if (apiStops.size() >= 2) {
+                            int n = apiStops.size();
+                            float[] fractions = new float[n];
+                            Color[] colors = new Color[n];
+                            for (int i = 0; i < n; i++) {
+                                fractions[i] = (float) i / (n - 1);
+                                colors[i] = apiStops.get(i);
+                            }
+                            LinearGradientPaint paint = new LinearGradientPaint(
+                                x, rowY,
+                                x + swatchSize, rowY + swatchSize,
+                                fractions,
+                                colors
+                            );
+                            g.setPaint(paint);
+                        } else if (apiStops.size() == 1) {
+                            g.setColor(apiStops.getFirst());
+                        } else {
+                            // Fallback to roleColor if API had no usable stops
+                            g.setColor(roleColor);
+                        }
+                    }
+                } else {
+                    g.setColor(roleColor);
+                }
+                g.fillRoundRect(x, rowY, swatchSize, swatchSize, 8, 8);
+                g.setPaint(null); // Reset paint
+                g.setColor(Color.DARK_GRAY);
+                g.drawRoundRect(x, rowY, swatchSize, swatchSize, 8, 8);
+                
+                // Try to overlay role icon if present
+                try {
+                    if (discordRole != null) {
+                        RoleIcon icon = discordRole.getIcon();
+                        if (icon != null) {
+                            String iconUrl = icon.getIconUrl();
+                            if (iconUrl != null && !iconUrl.isEmpty()) {
+                                try {
+                                    BufferedImage iconImg = fetchAndCacheImage(iconUrl, iconSize, iconSize);
+                                    if (iconImg != null) {
+                                        int iconX = x + (swatchSize - iconSize) / 2;
+                                        int iconY = rowY + (swatchSize - iconSize) / 2;
+                                        g.drawImage(iconImg, iconX, iconY, iconSize, iconSize, null);
+                                    }
+                                } catch (Exception ignore) {}
+                            }
+                        }
+                    }
+                } catch (Exception ignore) {}
+                
+                // Draw role name with gradient/holo badge
+                g.setFont(new Font("Arial", Font.PLAIN, 12));
+                g.setColor(Color.WHITE);
+                String name = ri.displayName;
+                // Label using API indicator only
+                if (apiGradient) {
+                    name += " [Gradient]";
+                } else if (colorsObj != null && colorsObj.isHolographic()) {
+                    name += " [Holo]";
+                }
+                g.drawString(name, x + swatchSize + spacing, rowY + swatchSize / 2 + 5);
+                
+                col++;
+                if (col >= 2) {
+                    col = 0;
+                    rowY += swatchSize + spacing;
+                }
+            }
+            
+            if (col > 0) { // If we ended on an incomplete row
+                rowY += swatchSize + spacing;
+            }
+            currentY = rowY + spacing;
         }
         
-        // Pick the closest color emoji based on the role's RGB values
-        return getColorEmoji(roleColor);
+        g.dispose();
+        
+        // Crop to actual content
+        int actualHeight = currentY + margin;
+        if (actualHeight < estimatedHeight) {
+            image = image.getSubimage(0, 0, maxWidth, actualHeight);
+        }
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "png", baos);
+        return baos.toByteArray();
     }
 
     /**
-     * Map RGB color to closest color emoji for preview
+     * Fetch and cache images for role icons
      */
-    private String getColorEmoji(Color color) {
-        int r = color.getRed();
-        int g = color.getGreen();
-        int b = color.getBlue();
-        
-        // Calculate luminance
-        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-        
-        // Very dark/black
-        if (luminance < 0.15) return "⬛";
-        
-        // Very light/white
-        if (luminance > 0.85) return "⬜";
-        
-        // Determine dominant color
-        int max = Math.max(r, Math.max(g, b));
-        int min = Math.min(r, Math.min(g, b));
-        double saturation = max == 0 ? 0 : (double)(max - min) / max;
-        
-        // Gray (low saturation)
-        if (saturation < 0.15) {
-            return luminance < 0.5 ? "⬛" : "⬜";
-        }
-        
-        // Determine hue
-        if (r >= g && r >= b) {
-            // Red-ish
-            if (g > b * 1.5) return "🟧"; // Orange
-            if (b > g * 1.2) return "🟪"; // Purple/Magenta
-            return "🟥"; // Red
-        } else if (g >= r && g >= b) {
-            // Green-ish
-            if (r > b * 1.3 && g > r * 1.1) return "🟨"; // Yellow
-            if (b > r * 1.2) return "🟦"; // Cyan/Teal
-            return "🟩"; // Green
-        } else {
-            // Blue-ish
-            if (r > g * 1.3) return "🟪"; // Purple
-            if (g > r * 1.2) return "🟦"; // Cyan
-            return "🟦"; // Blue
+    private BufferedImage fetchAndCacheImage(String url, int width, int height) throws IOException {
+        try {
+            URL imageUrl = URI.create(url).toURL();
+            BufferedImage original = javax.imageio.ImageIO.read(imageUrl);
+            if (original == null) return null;
+            
+            BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = scaled.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(original, 0, 0, width, height, null);
+            g.dispose();
+            return scaled;
+        } catch (Exception e) {
+            return null;
         }
     }
+
+    private String getRarityEmoji(Rarity rarity) {
+        return switch (rarity) {
+            case LEGENDARY -> "🟣";
+            case EPIC -> "🟪";
+            case RARE -> "🔵";
+                case UNCOMMON -> "🟢";
+            case COMMON -> "⚪";
+        };
+    }
+
+    private double getRarityWeight(Rarity rarity) {
+        return switch (rarity) {
+            case LEGENDARY -> 0.01;
+            case EPIC -> 0.05;
+            case RARE -> 0.15;
+            case UNCOMMON -> 0.30;
+            case COMMON -> 0.49;
+        };
+    }
+
+
 
     private void handleHelp(SlashCommandInteractionEvent event) {
         Member member = event.getMember();
@@ -748,28 +953,6 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         // Fallback (shouldn't happen)
         return roles.get(random.nextInt(roles.size()));
-    }
-
-    private double getRarityWeight(Rarity rarity) {
-        if (rarity == null) return 0.40; // Common default
-        return switch (rarity) {
-            case LEGENDARY -> 0.01;  // 1%
-            case EPIC -> 0.05;       // 5%
-            case RARE -> 0.10;       // 10%
-            case UNCOMMON -> 0.24;   // 24%
-            case COMMON -> 0.40;     // 40%
-        };
-    }
-
-    private String getRarityEmoji(Rarity rarity) {
-        if (rarity == null) return "⚪";
-        return switch (rarity) {
-            case LEGENDARY -> "🟡";
-            case EPIC -> "🟣";
-            case RARE -> "🔵";
-            case UNCOMMON -> "🟢";
-            case COMMON -> "⚪";
-        };
     }
 
     /**
