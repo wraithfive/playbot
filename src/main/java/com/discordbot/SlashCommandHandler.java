@@ -342,42 +342,65 @@ public class SlashCommandHandler extends ListenerAdapter {
             }
             logger.debug("Updated cooldown for user {} in guild {}{}", userId, guildId, isTest ? " [TEST]" : "");
 
-            // Create response embed
+            // Create response embed (+ color preview thumbnail)
             EmbedBuilder embed = new EmbedBuilder();
             embed.setTitle("🎲 Gacha Roll Result");
             embed.setColor(discordRole.getColor() != null ? discordRole.getColor() : Color.MAGENTA);
 
-            String rarityEmoji = getRarityEmoji(rolledRole.rarity);
-            String description = String.format("You rolled: **%s** %s\n\nRarity: **%s**",
-                rolledRole.displayName,
-                rarityEmoji,
-                rolledRole.rarity != null ? rolledRole.rarity.name() : "Unknown");
-
-            if (hasEpicPlusBuff) {
-                description += "\n\n✨ **Lucky Streak used!** You were guaranteed Epic or higher!";
-            }
+            // Remove rarity emoji next to the name to reduce confusion; show name cleanly
+            String description = String.format("You rolled: **%s**", rolledRole.displayName);
             embed.setDescription(description);
 
+            // Add explicit rarity as its own field (can keep emoji here for clarity)
             if (rolledRole.rarity != null) {
+                String rarityLabel = String.format("%s %s", getRarityEmoji(rolledRole.rarity), rolledRole.rarity.name());
+                embed.addField("Rarity", rarityLabel, true);
                 embed.addField("Drop Rate", String.format("%.1f%%", getRarityWeight(rolledRole.rarity) * 100), true);
             }
 
+            if (hasEpicPlusBuff) {
+                embed.addField("✨ Bonus", "Lucky Streak used! Guaranteed Epic or higher.", false);
+            }
+
+            // Generate a small color preview for this role (supports gradients/holo via REST)
+            try {
+                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
+                    discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
+                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(rolledRole.roleId);
+
+                byte[] swatch = renderSingleColorSwatch(discordRole, colorsObj);
+                if (swatch != null && swatch.length > 0) {
+                    embed.setThumbnail("attachment://roll_color.png");
+                    event.replyFiles(FileUpload.fromData(swatch, "roll_color.png"))
+                        .addEmbeds(embed.build())
+                        .setEphemeral(isTest)
+                        .queue();
+                } else {
+                    // Fallback: no image
+                    if (!isTest) {
+                        embed.setFooter("Come back tomorrow for another roll!");
+                    } else {
+                        embed.setFooter("Test roll - no cooldown applied");
+                    }
+                    embed.setTimestamp(Instant.now());
+                    event.replyEmbeds(embed.build()).setEphemeral(isTest).queue();
+                }
+            } catch (Exception imgEx) {
+                logger.error("Failed to generate color preview for roll: {}", imgEx.getMessage());
+                if (!isTest) {
+                    embed.setFooter("Come back tomorrow for another roll!");
+                } else {
+                    embed.setFooter("Test roll - no cooldown applied");
+                }
+                embed.setTimestamp(Instant.now());
+                event.replyEmbeds(embed.build()).setEphemeral(isTest).queue();
+            }
             // Add d20 hint if conditions are met (3+ Epic roles and not test)
             if (!isTest && countEpicPlusRoles(gachaRoles) >= 3) {
                 embed.addField("🎲 Feeling Lucky?",
                     "Use `/d20` within 60 minutes to roll for a bonus or penalty!",
                     false);
             }
-
-            if (!isTest) {
-                embed.setFooter("Come back tomorrow for another roll!");
-            } else {
-                embed.setFooter("Test roll - no cooldown applied");
-            }
-            embed.setTimestamp(Instant.now());
-
-            // Regular rolls are public (for fun/hype), test rolls are private
-            event.replyEmbeds(embed.build()).setEphemeral(isTest).queue();
 
             logger.info("User {} rolled {} (rarity: {}) in guild {}{}",
                 event.getUser().getName(),
@@ -868,6 +891,87 @@ public class SlashCommandHandler extends ListenerAdapter {
             case UNCOMMON -> 0.30;
             case COMMON -> 0.49;
         };
+    }
+
+    /**
+     * Render a small swatch image (PNG) for a single role, supporting solid, gradient, and holographic.
+     * Returns null if rendering fails.
+     */
+    private byte[] renderSingleColorSwatch(Role role, com.discordbot.discord.DiscordApiClient.RoleColors colorsObj) {
+        try {
+            int width = 300;
+            int height = 60;
+
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = image.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // Background
+            g.setColor(new Color(47, 49, 54));
+            g.fillRect(0, 0, width, height);
+
+            int margin = 12;
+            int swatchWidth = width - margin * 2;
+            int swatchHeight = height - margin * 2;
+            int x = margin;
+            int y = margin;
+
+            // Determine paint for swatch
+            if (colorsObj != null && (colorsObj.isGradient() || colorsObj.isHolographic())) {
+                // Build gradient paint using available stops
+                java.util.List<Color> stops = new ArrayList<>();
+                int primary = colorsObj.getPrimaryColor();
+                int secondary = colorsObj.getSecondaryColor();
+                int tertiary = colorsObj.getTertiaryColor();
+
+                if (primary != com.discordbot.discord.DiscordApiClient.RoleColors.DEFAULT_COLOR_RAW) {
+                    stops.add(new Color(primary));
+                }
+                if (secondary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
+                    stops.add(new Color(secondary));
+                }
+                if (tertiary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
+                    stops.add(new Color(tertiary));
+                }
+
+                if (stops.size() >= 2) {
+                    int n = stops.size();
+                    float[] fractions = new float[n];
+                    Color[] colors = new Color[n];
+                    for (int i = 0; i < n; i++) {
+                        fractions[i] = (float) i / (n - 1);
+                        colors[i] = stops.get(i);
+                    }
+                    LinearGradientPaint paint = new LinearGradientPaint(
+                        x, y, x + swatchWidth, y,
+                        fractions,
+                        colors
+                    );
+                    g.setPaint(paint);
+                } else if (stops.size() == 1) {
+                    g.setColor(stops.getFirst());
+                } else {
+                    // Fallback to role color
+                    g.setColor(role.getColor() != null ? role.getColor() : Color.WHITE);
+                }
+            } else {
+                // Solid color
+                g.setColor(role.getColor() != null ? role.getColor() : Color.WHITE);
+            }
+
+            // Draw swatch with rounded corners and border
+            g.fillRoundRect(x, y, swatchWidth, swatchHeight, 10, 10);
+            g.setPaint(null);
+            g.setColor(new Color(32, 34, 37));
+            g.drawRoundRect(x, y, swatchWidth, swatchHeight, 10, 10);
+
+            g.dispose();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(image, "png", baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 
