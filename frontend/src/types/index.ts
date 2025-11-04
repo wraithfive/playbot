@@ -4,6 +4,7 @@ export interface GuildInfo {
   iconUrl: string | null;
   userIsAdmin: boolean;
   botIsPresent: boolean;  // Backend uses 'botIsPresent' with capital I
+  supportsEnhancedRoleColors?: boolean; // Optional for backward compatibility
 }
 
 export interface GachaRoleInfo {

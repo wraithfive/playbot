@@ -459,16 +459,30 @@ export default function RoleManager() {
         </div>
       )}
 
-      {/* Discord API Limitations Notice */}
+      {/* Enhanced Role Colors Capability Notice */}
       <div className="info-notice">
-        <h3>ℹ️ Discord API Limitations</h3>
-        <p>
-          The bot can create standard colored roles, but <strong>cannot create blended gradient or holographic roles</strong> due to Discord API restrictions.
-          These special roles must be created manually in Discord Server Settings.
-        </p>
-        <p>
-          However, the bot <strong>can see and assign</strong> manually-created blended/holographic roles if they follow the naming format: <code>gacha:rarity:Name</code>
-        </p>
+        <h3>ℹ️ Role Colors Capability</h3>
+        {server?.supportsEnhancedRoleColors ? (
+          <>
+            <p>
+              This server <strong>supports enhanced role colors</strong> (gradients and holographic).
+              You can request enhanced colors by providing <code>secondaryColorHex</code> and optional <code>tertiaryColorHex</code> in the CSV upload.
+            </p>
+            <p>
+              If you create roles one-by-one here, the quick form uses solid colors only. Use CSV to define gradients/holographic roles.
+            </p>
+          </>
+        ) : (
+          <>
+            <p>
+              This server <strong>does not support enhanced role colors</strong> (gradients/holographic).
+              Any enhanced color requests will gracefully fall back to a <strong>solid</strong> color.
+            </p>
+            <p>
+              You can still manage and assign roles as usual. For blended effects, consider configuring them directly in Discord if/when the feature becomes available.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Role Hierarchy Warning */}

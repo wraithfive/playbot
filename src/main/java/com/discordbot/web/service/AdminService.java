@@ -1,5 +1,6 @@
 package com.discordbot.web.service;
 
+import com.discordbot.discord.DiscordApiClient;
 import com.discordbot.web.dto.BulkRoleCreationResult;
 import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.CreateRoleRequest;
@@ -41,14 +42,17 @@ public class AdminService {
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final DiscordApiClient discordApiClient;
 
     public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, 
-                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService) {
+                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService,
+                       DiscordApiClient discordApiClient) {
         this.jda = jda;
         this.restTemplate = new RestTemplate();
         this.authorizedClientService = authorizedClientService;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
+        this.discordApiClient = discordApiClient;
     }
 
     /**
@@ -148,7 +152,14 @@ public class AdminService {
             String iconUrl = icon != null ?
                 "https://cdn.discordapp.com/icons/" + guildId + "/" + icon + ".png" : null;
 
-            manageableGuilds.add(new GuildInfo(guildId, guildName, iconUrl, true, botPresent));
+            boolean supportsEnhanced = false;
+            try {
+                // Only check capability if the bot is present in the guild (API requires membership)
+                if (botPresent) {
+                    supportsEnhanced = discordApiClient.guildSupportsEnhancedRoleColors(guildId);
+                }
+            } catch (Exception ignore) {}
+            manageableGuilds.add(new GuildInfo(guildId, guildName, iconUrl, true, botPresent, supportsEnhanced));
         }
 
         logger.info("User {} can manage {} guilds", userId, manageableGuilds.size());
@@ -290,18 +301,67 @@ public class AdminService {
         // Build full role name: gatcha:rarity:displayName
         String fullName = GATCHA_PREFIX + request.rarity() + ":" + request.name();
 
-        // Parse hex color (e.g., "#FF5733" -> Color)
-        java.awt.Color color = parseHexColor(request.colorHex());
+        // Parse hex colors
+        java.awt.Color primaryColor = parseHexColor(request.colorHex());
+        Integer secondaryColorInt = request.secondaryColorHex() != null ? parseHexColor(request.secondaryColorHex()).getRGB() : null;
+        Integer tertiaryColorInt = request.tertiaryColorHex() != null ? parseHexColor(request.tertiaryColorHex()).getRGB() : null;
 
         try {
-            Role createdRole = guild.createRole()
-                .setName(fullName)
-                .setColor(color)
-                .setMentionable(false)
-                .setHoisted(false)
-                .complete();
+            Role createdRole;
+            
+            // Use Discord API directly if gradient or holographic (JDA doesn't support Role Colors Object yet)
+            if (secondaryColorInt != null || tertiaryColorInt != null) {
+                // Capability gate: only attempt enhanced creation if the guild supports it
+                boolean supportsEnhanced = discordApiClient.guildSupportsEnhancedRoleColors(guildId);
+                if (!supportsEnhanced) {
+                    logger.info("Guild {} does not support enhanced role colors; creating solid color role instead for {}", guild.getName(), fullName);
+                    createdRole = guild.createRole()
+                        .setName(fullName)
+                        .setColor(primaryColor)
+                        .setMentionable(false)
+                        .setHoisted(false)
+                        .complete();
+                } else {
+                    String roleId = discordApiClient.createRoleWithColors(
+                        guildId,
+                        fullName,
+                        primaryColor.getRGB(),
+                        secondaryColorInt,
+                        tertiaryColorInt,
+                        false, // mentionable
+                        false  // hoist
+                    );
 
-            logger.info("Created role {} in guild {}", fullName, guild.getName());
+                    if (roleId == null) {
+                        // Graceful fallback: API call failed despite capability; fall back to solid color
+                        logger.warn("Enhanced role colors API call failed; falling back to solid color for role {} in guild {}", fullName, guild.getName());
+                        createdRole = guild.createRole()
+                            .setName(fullName)
+                            .setColor(primaryColor)
+                            .setMentionable(false)
+                            .setHoisted(false)
+                            .complete();
+                    } else {
+                        // Fetch the created role via JDA
+                        createdRole = guild.getRoleById(roleId);
+                        if (createdRole == null) {
+                            throw new RuntimeException("Created role not found in guild cache");
+                        }
+                        logger.info("Created gradient/holographic role {} in guild {} via Discord API", fullName, guild.getName());
+                    }
+                }
+            } else {
+                // Use JDA for solid color roles
+                createdRole = guild.createRole()
+                    .setName(fullName)
+                    .setColor(primaryColor)
+                    .setMentionable(false)
+                    .setHoisted(false)
+                    .complete();
+
+                logger.info("Created role {} in guild {}", fullName, guild.getName());
+            }
+            
             // Notify connected clients so UIs refresh role list in real-time
             try {
                 webSocketNotificationService.notifyRolesChanged(guildId, "created");
@@ -381,24 +441,24 @@ public class AdminService {
     public BulkRoleCreationResult initializeDefaultRoles(String guildId) {
         List<CreateRoleRequest> defaultRoles = List.of(
             // Legendary (2 roles)
-            new CreateRoleRequest("Sunset Glow", "legendary", "#FF6B35"),
-            new CreateRoleRequest("Midnight Purple", "legendary", "#7209B7"),
+            new CreateRoleRequest("Sunset Glow", "legendary", "#FF6B35", null, null),
+            new CreateRoleRequest("Midnight Purple", "legendary", "#7209B7", null, null),
 
             // Epic (2 roles)
-            new CreateRoleRequest("Ocean Dream", "epic", "#3A86FF"),
-            new CreateRoleRequest("Forest Emerald", "epic", "#06A77D"),
+            new CreateRoleRequest("Ocean Dream", "epic", "#3A86FF", null, null),
+            new CreateRoleRequest("Forest Emerald", "epic", "#06A77D", null, null),
 
             // Rare (2 roles)
-            new CreateRoleRequest("Cherry Blossom", "rare", "#FF006E"),
-            new CreateRoleRequest("Sky Blue", "rare", "#00B4D8"),
+            new CreateRoleRequest("Cherry Blossom", "rare", "#FF006E", null, null),
+            new CreateRoleRequest("Sky Blue", "rare", "#00B4D8", null, null),
 
             // Uncommon (2 roles)
-            new CreateRoleRequest("Lavender Mist", "uncommon", "#B5A2C8"),
-            new CreateRoleRequest("Peach Sorbet", "uncommon", "#FFB5A7"),
+            new CreateRoleRequest("Lavender Mist", "uncommon", "#B5A2C8", null, null),
+            new CreateRoleRequest("Peach Sorbet", "uncommon", "#FFB5A7", null, null),
 
             // Common (2 roles)
-            new CreateRoleRequest("Mint Green", "common", "#98D8C8"),
-            new CreateRoleRequest("Soft Pink", "common", "#FFB3D9")
+            new CreateRoleRequest("Mint Green", "common", "#98D8C8", null, null),
+            new CreateRoleRequest("Soft Pink", "common", "#FFB3D9", null, null)
         );
 
         logger.info("Initializing {} default roles in guild {}", defaultRoles.size(), guildId);
@@ -456,6 +516,10 @@ public class AdminService {
     public void evictGuildsCache(Authentication authentication) {
         String accessToken = getAccessToken(authentication);
         guildsCache.evictForToken(accessToken);
+        try {
+            // Also clear guild capability cache to ensure capability changes are reflected promptly
+            discordApiClient.clearCapabilityCache();
+        } catch (Exception ignore) {}
     }
 
     /**

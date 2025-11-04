@@ -27,6 +27,7 @@ package com.discordbot.web.dto;
  * @param iconUrl The URL to the guild's icon image, or null if no icon is set
  * @param userIsAdmin Whether the authenticated user has admin/manage server permissions in this guild
  * @param botIsPresent Whether the Color Gacha Bot is currently a member of this guild
+ * @param supportsEnhancedRoleColors Whether this guild supports Discord's enhanced role colors (gradient/holographic)
  *
  * @since 1.0.0
  * @see <a href="https://discord.com/developers/docs/resources/guild">Discord Guild Resource</a>
@@ -36,5 +37,6 @@ public record GuildInfo(
     String name,
     String iconUrl,
     boolean userIsAdmin,
-    boolean botIsPresent
+    boolean botIsPresent,
+    boolean supportsEnhancedRoleColors
 ) {}

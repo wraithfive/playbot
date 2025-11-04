@@ -39,7 +39,7 @@ class ServerControllerTest {
     @Test
     @DisplayName("getManageableServers returns list when authenticated")
     void getServers_ok() {
-        List<GuildInfo> guilds = Arrays.asList(new GuildInfo("g1", "Guild One", null, true, true));
+    List<GuildInfo> guilds = Arrays.asList(new GuildInfo("g1", "Guild One", null, true, true, false));
         when(adminService.getManageableGuilds(auth)).thenReturn(guilds);
 
         ResponseEntity<List<GuildInfo>> res = controller.getManageableServers(auth);
@@ -59,7 +59,7 @@ class ServerControllerTest {
     @DisplayName("getServerInfo returns 200 with guild match or 404 when absent")
     void getServerInfo_okOrNotFound() {
         when(adminService.canManageGuild(auth, "g1")).thenReturn(true);
-        List<GuildInfo> guilds = Arrays.asList(new GuildInfo("g1", "Guild One", null, true, true));
+    List<GuildInfo> guilds = Arrays.asList(new GuildInfo("g1", "Guild One", null, true, true, false));
         when(adminService.getManageableGuilds(auth)).thenReturn(guilds);
         assertEquals(200, controller.getServerInfo("g1", auth).getStatusCode().value());
 
