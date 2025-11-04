@@ -50,7 +50,8 @@ List all servers where:
     "name": "My Discord Server",
     "iconUrl": "https://cdn.discordapp.com/icons/123456789/abc123.png",
     "userIsAdmin": true,
-    "botIsPresent": true
+    "botIsPresent": true,
+    "supportsEnhancedRoleColors": false
   }
 ]
 ```
@@ -69,7 +70,8 @@ Get details about a specific server
   "name": "My Discord Server",
   "iconUrl": "https://cdn.discordapp.com/icons/123456789/abc123.png",
   "userIsAdmin": true,
-  "botIsPresent": true
+  "botIsPresent": true,
+  "supportsEnhancedRoleColors": true
 }
 ```
 
@@ -110,6 +112,57 @@ List all gacha roles for a server
 **Error Responses:**
 - `401 Unauthorized` - Not logged in
 - `403 Forbidden` - User is not an admin in this server OR bot is not present
+
+---
+
+### Bulk role upload (CSV)
+
+#### POST /api/servers/{guildId}/roles/upload-csv
+Bulk create roles from a CSV file (multipart/form-data, field name `file`). Max size: 1MB.
+
+Authentication: Required
+
+Response:
+```json
+{
+  "successCount": 10,
+  "skippedCount": 1,
+  "failureCount": 2,
+  "createdRoles": [ /* GachaRoleInfo[] */ ],
+  "skippedRoles": ["Sunset Glow"],
+  "errors": ["Failed to create 'Prism Shift': Guild lacks enhanced role colors"]
+}
+```
+
+CSV format:
+- Header (recommended): `name,rarity,colorHex,secondaryColorHex,tertiaryColorHex`
+- Required columns: `name`, `rarity`, `colorHex`
+- Optional columns: `secondaryColorHex`, `tertiaryColorHex`
+- Color values: hex in the form `#RRGGBB` (case-insensitive)
+- Blank optional fields are allowed. Empty `colorHex` will default to a solid white fallback.
+
+Behavior:
+- If `secondaryColorHex` is provided (and `tertiaryColorHex` is empty), a gradient role is requested.
+- If both `secondaryColorHex` and `tertiaryColorHex` are provided, a holographic role is requested.
+- Enhanced colors (gradient/holographic) are created via the Discord HTTP API only when the guild supports the feature. If unsupported or the API call fails, the bot gracefully falls back to creating a solid-color role using `colorHex`.
+- Duplicate role names (same full name `gatcha:{rarity}:{name}`) in the guild are skipped and reported under `skippedRoles`.
+
+Example CSV:
+```csv
+name,rarity,colorHex,secondaryColorHex,tertiaryColorHex
+# Solid color roles (secondary/tertiary left blank)
+Sunset Glow,legendary,#FF6B35,,
+Midnight Purple,legendary,#7209B7,,
+
+# Gradient role example (primary + secondary)
+Aurora Wave,epic,#7F00FF,#E100FF,
+
+# Holographic role example (primary + secondary + tertiary)
+Prism Shift,legendary,#00C6FF,#0072FF,#FF00FF
+```
+
+Related:
+- GET `/api/servers/{guildId}/roles/download-example` — Download a ready-made example CSV from the server.
 
 ---
 

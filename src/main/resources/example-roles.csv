@@ -1,11 +1,19 @@
-name,rarity,colorHex
-Sunset Glow,legendary,#FF6B35
-Midnight Purple,legendary,#7209B7
-Ocean Dream,epic,#3A86FF
-Forest Emerald,epic,#06A77D
-Cherry Blossom,rare,#FF006E
-Sky Blue,rare,#00B4D8
-Lavender Mist,uncommon,#B5A2C8
-Peach Sorbet,uncommon,#FFB5A7
-Mint Green,common,#98D8C8
-Soft Pink,common,#FFB3D9
+name,rarity,colorHex,secondaryColorHex,tertiaryColorHex
+# Solid color roles (secondary/tertiary left blank)
+Sunset Glow,legendary,#FF6B35,,
+Midnight Purple,legendary,#7209B7,,
+Ocean Dream,epic,#3A86FF,,
+Forest Emerald,epic,#06A77D,,
+Cherry Blossom,rare,#FF006E,,
+Sky Blue,rare,#00B4D8,,
+Lavender Mist,uncommon,#B5A2C8,,
+Peach Sorbet,uncommon,#FFB5A7,,
+Mint Green,common,#98D8C8,,
+Soft Pink,common,#FFB3D9,,
+
+# Gradient role examples (primary + secondary)
+Aurora Wave,epic,#7F00FF,#E100FF,
+Solar Flare,legendary,#F7971E,#FFD200,
+
+# Holographic role example (primary + secondary + tertiary)
+Prism Shift,legendary,#00C6FF,#0072FF,#FF00FF

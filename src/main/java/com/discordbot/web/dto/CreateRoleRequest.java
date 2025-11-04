@@ -9,7 +9,9 @@ import jakarta.validation.constraints.Size;
  *
  * @param name The display name of the role (without "gatcha:" prefix)
  * @param rarity The rarity tier (legendary, epic, rare, uncommon, common)
- * @param colorHex The hex color code (e.g., "#FF5733")
+ * @param colorHex The primary hex color code (e.g., "#FF5733")
+ * @param secondaryColorHex Optional secondary color for gradient (e.g., "#00FF00")
+ * @param tertiaryColorHex Optional tertiary color for holographic effect (forces holographic when provided)
  */
 public record CreateRoleRequest(
     @NotBlank(message = "Role name is required")
@@ -24,5 +26,13 @@ public record CreateRoleRequest(
     @NotBlank(message = "Color hex code is required")
     @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", 
              message = "Color must be a valid hex code (e.g., #FF5733)")
-    String colorHex
+    String colorHex,
+    
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", 
+             message = "Secondary color must be a valid hex code (e.g., #00FF00)")
+    String secondaryColorHex,
+    
+    @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", 
+             message = "Tertiary color must be a valid hex code (e.g., #0000FF)")
+    String tertiaryColorHex
 ) {}
