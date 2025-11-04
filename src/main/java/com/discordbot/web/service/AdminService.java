@@ -28,6 +28,8 @@ import org.springframework.http.ResponseEntity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET;
  
 
 @Service
@@ -301,66 +303,13 @@ public class AdminService {
         // Build full role name: gatcha:rarity:displayName
         String fullName = GATCHA_PREFIX + request.rarity() + ":" + request.name();
 
-        // Parse hex colors
+        // Parse hex colors (COLOR_NOT_SET for not set)
         java.awt.Color primaryColor = parseHexColor(request.colorHex());
-        Integer secondaryColorInt = request.secondaryColorHex() != null ? parseHexColor(request.secondaryColorHex()).getRGB() : null;
-        Integer tertiaryColorInt = request.tertiaryColorHex() != null ? parseHexColor(request.tertiaryColorHex()).getRGB() : null;
+        int secondaryColorInt = request.secondaryColorHex() != null ? parseHexColor(request.secondaryColorHex()).getRGB() : COLOR_NOT_SET;
+        int tertiaryColorInt = request.tertiaryColorHex() != null ? parseHexColor(request.tertiaryColorHex()).getRGB() : COLOR_NOT_SET;
 
         try {
-            Role createdRole;
-            
-            // Use Discord API directly if gradient or holographic (JDA doesn't support Role Colors Object yet)
-            if (secondaryColorInt != null || tertiaryColorInt != null) {
-                // Capability gate: only attempt enhanced creation if the guild supports it
-                boolean supportsEnhanced = discordApiClient.guildSupportsEnhancedRoleColors(guildId);
-                if (!supportsEnhanced) {
-                    logger.info("Guild {} does not support enhanced role colors; creating solid color role instead for {}", guild.getName(), fullName);
-                    createdRole = guild.createRole()
-                        .setName(fullName)
-                        .setColor(primaryColor)
-                        .setMentionable(false)
-                        .setHoisted(false)
-                        .complete();
-                } else {
-                    String roleId = discordApiClient.createRoleWithColors(
-                        guildId,
-                        fullName,
-                        primaryColor.getRGB(),
-                        secondaryColorInt,
-                        tertiaryColorInt,
-                        false, // mentionable
-                        false  // hoist
-                    );
-
-                    if (roleId == null) {
-                        // Graceful fallback: API call failed despite capability; fall back to solid color
-                        logger.warn("Enhanced role colors API call failed; falling back to solid color for role {} in guild {}", fullName, guild.getName());
-                        createdRole = guild.createRole()
-                            .setName(fullName)
-                            .setColor(primaryColor)
-                            .setMentionable(false)
-                            .setHoisted(false)
-                            .complete();
-                    } else {
-                        // Fetch the created role via JDA
-                        createdRole = guild.getRoleById(roleId);
-                        if (createdRole == null) {
-                            throw new RuntimeException("Created role not found in guild cache");
-                        }
-                        logger.info("Created gradient/holographic role {} in guild {} via Discord API", fullName, guild.getName());
-                    }
-                }
-            } else {
-                // Use JDA for solid color roles
-                createdRole = guild.createRole()
-                    .setName(fullName)
-                    .setColor(primaryColor)
-                    .setMentionable(false)
-                    .setHoisted(false)
-                    .complete();
-
-                logger.info("Created role {} in guild {}", fullName, guild.getName());
-            }
+            Role createdRole = createRoleWithAppropriateMethod(guild, guildId, fullName, primaryColor, secondaryColorInt, tertiaryColorInt);
             
             // Notify connected clients so UIs refresh role list in real-time
             try {
@@ -702,5 +651,75 @@ public class AdminService {
             logger.warn("Invalid hex color '{}', using white", hexColor);
             return java.awt.Color.WHITE;
         }
+    }
+
+    /**
+     * Create a role using the most appropriate method based on color requirements and guild capabilities.
+     * 
+     * <p>Strategy:
+     * - Solid color request → Use JDA directly
+     * - Enhanced colors but guild lacks capability → Fallback to JDA solid color
+     * - Enhanced colors with guild support → Use REST API with fallback on failure
+     */
+    private Role createRoleWithAppropriateMethod(Guild guild, String guildId, String fullName, 
+                                                 java.awt.Color primaryColor, int secondaryColorInt, int tertiaryColorInt) {
+        // Solid color request: use JDA directly
+        if (secondaryColorInt == COLOR_NOT_SET && tertiaryColorInt == COLOR_NOT_SET) {
+            return createSolidColorRole(guild, fullName, primaryColor);
+        }
+
+        // Enhanced color request but guild doesn't support it: degrade to solid color
+        if (!discordApiClient.guildSupportsEnhancedRoleColors(guildId)) {
+            logger.info("Guild {} does not support enhanced role colors; creating solid color role instead for {}", 
+                       guild.getName(), fullName);
+            return createSolidColorRole(guild, fullName, primaryColor);
+        }
+
+        // Enhanced color request with guild support: try REST API with fallback
+        return createEnhancedColorRoleWithFallback(guild, guildId, fullName, primaryColor, secondaryColorInt, tertiaryColorInt);
+    }
+
+    /**
+     * Create a solid color role using JDA.
+     */
+    private Role createSolidColorRole(Guild guild, String fullName, java.awt.Color primaryColor) {
+        Role role = guild.createRole()
+            .setName(fullName)
+            .setColor(primaryColor)
+            .setMentionable(false)
+            .setHoisted(false)
+            .complete();
+        logger.info("Created role {} in guild {}", fullName, guild.getName());
+        return role;
+    }
+
+    /**
+     * Create an enhanced color role via REST API with fallback to solid color on failure.
+     */
+    private Role createEnhancedColorRoleWithFallback(Guild guild, String guildId, String fullName,
+                                                     java.awt.Color primaryColor, int secondaryColorInt, int tertiaryColorInt) {
+        String roleId = discordApiClient.createRoleWithColors(
+            guildId,
+            fullName,
+            primaryColor.getRGB(),
+            secondaryColorInt,
+            tertiaryColorInt,
+            false, // mentionable
+            false  // hoist
+        );
+
+        if (roleId == null) {
+            logger.warn("Enhanced role colors API call failed; falling back to solid color for role {} in guild {}", 
+                       fullName, guild.getName());
+            return createSolidColorRole(guild, fullName, primaryColor);
+        }
+
+        Role createdRole = guild.getRoleById(roleId);
+        if (createdRole == null) {
+            throw new RuntimeException("Created role not found in guild cache");
+        }
+        
+        logger.info("Created gradient/holographic role {} in guild {} via Discord API", fullName, guild.getName());
+        return createdRole;
     }
 }

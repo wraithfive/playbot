@@ -58,7 +58,7 @@ class AdminServiceRoleColorsGatingTest {
         GachaRoleInfo dto = service.createGatchaRole("g1", req);
         assertEquals("r-solid", dto.id());
         verify(g, times(1)).createRole();
-        verify(discordApiClient, never()).createRoleWithColors(anyString(), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean());
+        verify(discordApiClient, never()).createRoleWithColors(anyString(), anyString(), anyInt(), anyInt(), anyInt(), anyBoolean(), anyBoolean());
     }
 
     @Test
@@ -76,7 +76,7 @@ class AdminServiceRoleColorsGatingTest {
 
         // REST path: return role id, and ensure guild can resolve it
         when(discordApiClient.guildSupportsEnhancedRoleColors("g1")).thenReturn(true);
-        when(discordApiClient.createRoleWithColors(anyString(), anyString(), anyInt(), any(), any(), anyBoolean(), anyBoolean()))
+        when(discordApiClient.createRoleWithColors(anyString(), anyString(), anyInt(), anyInt(), anyInt(), anyBoolean(), anyBoolean()))
                 .thenReturn("rid");
         when(g.getRoleById("rid")).thenReturn(created);
 
