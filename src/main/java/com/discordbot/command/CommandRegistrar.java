@@ -62,6 +62,17 @@ public class CommandRegistrar extends ListenerAdapter {
             // Battle commands (feature-flagged)
             if (battleProperties != null && battleProperties.isEnabled()) {
                 commands.add(Commands.slash("battle-help", "Show information about the battle system"));
+                commands.add(
+                    Commands.slash("create-character", "Create a new battle character with D&D 5e stats")
+                        .addOption(OptionType.STRING, "class", "Character class", true, true)
+                        .addOption(OptionType.STRING, "race", "Character race", true, true)
+                        .addOption(OptionType.INTEGER, "strength", "STR (8-15)", true)
+                        .addOption(OptionType.INTEGER, "dexterity", "DEX (8-15)", true)
+                        .addOption(OptionType.INTEGER, "constitution", "CON (8-15)", true)
+                        .addOption(OptionType.INTEGER, "intelligence", "INT (8-15)", true)
+                        .addOption(OptionType.INTEGER, "wisdom", "WIS (8-15)", true)
+                        .addOption(OptionType.INTEGER, "charisma", "CHA (8-15)", true)
+                );
             }
 
             // One atomic registration per guild

@@ -63,6 +63,7 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final WebSocketNotificationService webSocketNotificationService;
     private final QotdSubmissionService qotdSubmissionService;
     private final DiscordApiClient discordApiClient;
+    private final com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler;
     private final Random random = new Random();
 
     // (Removed image icon cache - using emoji-only inline in text rendering)
@@ -74,13 +75,15 @@ public class SlashCommandHandler extends ListenerAdapter {
             GuildsCache guildsCache,
             WebSocketNotificationService webSocketNotificationService,
             QotdSubmissionService qotdSubmissionService,
-            DiscordApiClient discordApiClient) {
+            DiscordApiClient discordApiClient,
+            com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler) {
         this.cooldownRepository = cooldownRepository;
         this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
         this.qotdSubmissionService = qotdSubmissionService;
         this.discordApiClient = discordApiClient;
+        this.characterAutocompleteHandler = characterAutocompleteHandler;
         logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
@@ -144,9 +147,8 @@ public class SlashCommandHandler extends ListenerAdapter {
             case "help" -> handleHelp(event);
             case "qotd-submit" -> handleQotdSubmit(event);
             default -> {
-                // CommandRouter should prevent unknown commands from reaching here.
-                // If we do get here, log and do not reply (to avoid double-acknowledgement).
-                logger.debug("Legacy SlashCommandHandler received unhandled command: {}", commandName);
+                // Don't reply - let other handlers (e.g., BattleCommandHandler) handle it
+                // If no handler processes it, Discord will show "This interaction failed"
             }
         }
     }
@@ -163,6 +165,8 @@ public class SlashCommandHandler extends ListenerAdapter {
                 .toList();
 
             event.replyChoices(choices).queue();
+        } else if (event.getName().equals("create-character")) {
+            characterAutocompleteHandler.handleCreateCharacterAutocomplete(event);
         }
     }
 

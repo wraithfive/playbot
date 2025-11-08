@@ -19,7 +19,8 @@ class SlashCommandHandlerLeaveTest {
         WebSocketNotificationService wsService = mock(WebSocketNotificationService.class);
         QotdSubmissionService qotdSubmissionService = mock(QotdSubmissionService.class);
     var apiClient = new com.discordbot.discord.DiscordApiClient();
-    SlashCommandHandler handler = new SlashCommandHandler(repo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
+    var characterAutocompleteHandler = mock(com.discordbot.battle.controller.CharacterAutocompleteHandler.class);
+    SlashCommandHandler handler = new SlashCommandHandler(repo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler);
 
         Guild guild = mock(Guild.class);
         when(guild.getId()).thenReturn("123");
