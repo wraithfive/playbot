@@ -17,6 +17,16 @@ echo -e "${BLUE}║        Playbot Startup Script        ║${NC}"
 echo -e "${BLUE}╚═══════════════════════════════════════╝${NC}"
 echo ""
 
+# Parse arguments
+RESTART=false
+for arg in "$@"; do
+    case "$arg" in
+        --restart|-r)
+            RESTART=true
+            ;;
+    esac
+done
+
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     echo -e "${RED}Error: .env file not found!${NC}"
@@ -54,6 +64,38 @@ fi
 
 echo -e "${GREEN}✓ Environment checks passed${NC}"
 echo ""
+
+# Optional restart: stop production (systemd or /opt) and any dev instances from this workspace
+if [ "$RESTART" = true ]; then
+    echo -e "${YELLOW}Restart requested: stopping existing instances...${NC}"
+    # Try production stop first (no-op for dev)
+    if [ -x "./stop.sh" ]; then
+        ./stop.sh || true
+    fi
+    # Stop dev processes belonging to this workspace
+    WORKSPACE_DIR="$(pwd)"
+    # Kill dev backend from this repo
+    BK_PIDS=$(ps ax -o pid= -o command= | grep -E "java .*${WORKSPACE_DIR}/target/playbot-.*\\.jar" | awk '{print $1}' || true)
+    if [ -n "$BK_PIDS" ]; then
+        echo "$BK_PIDS" | xargs -r kill || true
+        sleep 1
+        echo "$BK_PIDS" | xargs -r kill -9 || true
+    fi
+    # Kill vite dev server started from this repo
+    FE_PIDS=$(ps ax -o pid= -o command= | grep -E "(vite|node .*vite)" | grep -F "${WORKSPACE_DIR}/frontend" | awk '{print $1}' || true)
+    if [ -n "$FE_PIDS" ]; then
+        echo "$FE_PIDS" | xargs -r kill || true
+        sleep 1
+        echo "$FE_PIDS" | xargs -r kill -9 || true
+    fi
+    # Kill any tail -f on our logs
+    TAIL_PIDS=$(ps ax -o pid= -o command= | grep -E "tail " | grep -F "${WORKSPACE_DIR}/logs/" | awk '{print $1}' || true)
+    if [ -n "$TAIL_PIDS" ]; then
+        echo "$TAIL_PIDS" | xargs -r kill || true
+    fi
+    echo -e "${GREEN}✓ Existing instances stopped${NC}"
+    echo ""
+fi
 
 # Get version from pom.xml
 VERSION=$(grep -A 1 '<artifactId>playbot</artifactId>' pom.xml | grep '<version>' | sed 's/.*<version>\(.*\)<\/version>.*/\1/')

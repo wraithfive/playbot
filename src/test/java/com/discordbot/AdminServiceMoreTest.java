@@ -42,7 +42,8 @@ class AdminServiceMoreTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        service = new AdminService(jda, authorizedClientService, guildsCache, ws);
+        com.discordbot.discord.DiscordApiClient discordApiClient = mock(com.discordbot.discord.DiscordApiClient.class);
+        service = new AdminService(jda, authorizedClientService, guildsCache, ws, discordApiClient);
     }
 
     @Test
@@ -122,7 +123,7 @@ class AdminServiceMoreTest {
 
         doThrow(new RuntimeException("ws boom")).when(ws).notifyRolesChanged("g1", "created");
 
-        var dto = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("Blue","epic","#0000FF"));
+        var dto = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("Blue","epic","#0000FF", null, null));
         assertEquals("rid", dto.id());
         assertEquals("Blue", dto.displayName());
     }
@@ -296,8 +297,8 @@ class AdminServiceMoreTest {
                 .when(spy).createGatchaRole(eq("g1"), any());
 
         var reqs = List.of(
-                new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF"),
-                new com.discordbot.web.dto.CreateRoleRequest("B", "epic", "#000000")
+                    new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF", null, null),
+                    new com.discordbot.web.dto.CreateRoleRequest("B", "epic", "#000000", null, null)
         );
 
         BulkRoleCreationResult res = spy.createBulkGatchaRoles("g1", reqs);
@@ -333,8 +334,8 @@ class AdminServiceMoreTest {
         doThrow(new RuntimeException("boom")).when(spy).createGatchaRole(eq("g1"), any());
 
         var reqs = List.of(
-            new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF"),
-            new com.discordbot.web.dto.CreateRoleRequest("B", "epic", "#000000")
+              new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF", null, null),
+              new com.discordbot.web.dto.CreateRoleRequest("B", "epic", "#000000", null, null)
         );
 
         var result = spy.createBulkGatchaRoles("g1", reqs);
@@ -481,7 +482,7 @@ class AdminServiceMoreTest {
     void createGatchaRole_guildMissing() {
         when(jda.getGuildById("none")).thenReturn(null);
         assertThrows(IllegalArgumentException.class, () ->
-            service.createGatchaRole("none", new com.discordbot.web.dto.CreateRoleRequest("C","rare","#ffffff"))
+            service.createGatchaRole("none", new com.discordbot.web.dto.CreateRoleRequest("C","rare","#ffffff", null, null))
         );
     }
 
@@ -496,7 +497,7 @@ class AdminServiceMoreTest {
         when(action.complete()).thenThrow(new RuntimeException("Unexpected error"));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-            service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("X","rare","#ffffff"))
+            service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("X","rare","#ffffff", null, null))
         );
         assertTrue(ex.getMessage().contains("Failed to create role"));
     }
@@ -513,7 +514,7 @@ class AdminServiceMoreTest {
                 .when(spy).createGatchaRole(eq("g1"), any());
 
         var reqs = List.of(
-                new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF")
+                    new com.discordbot.web.dto.CreateRoleRequest("A", "rare", "#FFFFFF", null, null)
         );
 
         spy.createBulkGatchaRoles("g1", reqs);
@@ -536,12 +537,12 @@ class AdminServiceMoreTest {
         when(created.getPosition()).thenReturn(1);
 
         // null color
-        var dto1 = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare",null));
+        var dto1 = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare",null, null, null));
         assertEquals("rid", dto1.id());
         verify(action, atLeastOnce()).setColor(eq(java.awt.Color.WHITE));
 
         // empty color
-        var dto2 = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare",""));
+        var dto2 = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare","", null, null));
         assertEquals("rid", dto2.id());
         verify(action, atLeastOnce()).setColor(eq(java.awt.Color.WHITE));
     }

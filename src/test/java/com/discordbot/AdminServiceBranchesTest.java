@@ -1,5 +1,6 @@
 package com.discordbot;
 
+import com.discordbot.discord.DiscordApiClient;
 import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
@@ -44,7 +45,8 @@ class AdminServiceBranchesTest {
         clients = mock(OAuth2AuthorizedClientService.class);
         cache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        service = new AdminService(jda, clients, cache, ws);
+        DiscordApiClient discordApiClient = mock(DiscordApiClient.class);
+        service = new AdminService(jda, clients, cache, ws, discordApiClient);
     }
 
     @Test
@@ -174,7 +176,7 @@ class AdminServiceBranchesTest {
         when(created.getColor()).thenReturn(Color.WHITE);
         when(created.getPosition()).thenReturn(1);
 
-        var dto = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare","not-a-hex"));
+        var dto = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare","not-a-hex", null, null));
         assertEquals("rid", dto.id());
         verify(action, atLeastOnce()).setColor(eq(Color.WHITE));
         verify(ws, times(1)).notifyRolesChanged("g1", "created");

@@ -46,7 +46,8 @@ class D20MechanicTest {
         guildsCache = mock(GuildsCache.class);
         wsService = mock(WebSocketNotificationService.class);
         qotdSubmissionService = mock(QotdSubmissionService.class);
-        handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService);
+    var apiClient = new com.discordbot.discord.DiscordApiClient();
+    handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
     }
 
     @Test

@@ -45,7 +45,7 @@ class RoleControllerTest {
     @Test
     @DisplayName("createRole should return 401 when authentication is null")
     void testCreateRole_NoAuth() {
-        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733");
+        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733", null, null);
 
         ResponseEntity<GachaRoleInfo> response = roleController.createRole("guild123", request, null);
 
@@ -56,7 +56,7 @@ class RoleControllerTest {
     @Test
     @DisplayName("createRole should return 403 when user cannot manage guild")
     void testCreateRole_NoPermission() {
-        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733");
+        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733", null, null);
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(false);
 
         ResponseEntity<GachaRoleInfo> response = roleController.createRole("guild123", request, mockAuth);
@@ -68,7 +68,7 @@ class RoleControllerTest {
     @Test
     @DisplayName("createRole should create role successfully")
     void testCreateRole_Success() {
-        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733");
+        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733", null, null);
         GachaRoleInfo expectedRole = new GachaRoleInfo("role123", "gacha:Test Role (COMMON)", "Test Role", "COMMON", "#FF5733", 1);
 
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
@@ -84,7 +84,7 @@ class RoleControllerTest {
     @Test
     @DisplayName("createRole should return 400 on IllegalArgumentException")
     void testCreateRole_InvalidRequest() {
-        CreateRoleRequest request = new CreateRoleRequest("", "INVALID_RARITY", "not-a-color");
+        CreateRoleRequest request = new CreateRoleRequest("", "INVALID_RARITY", "not-a-color", null, null);
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(adminService.createGatchaRole("guild123", request)).thenThrow(new IllegalArgumentException("Invalid rarity"));
 
@@ -96,7 +96,7 @@ class RoleControllerTest {
     @Test
     @DisplayName("createRole should return 500 on unexpected exception")
     void testCreateRole_ServerError() {
-        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733");
+        CreateRoleRequest request = new CreateRoleRequest("Test Role", "COMMON", "#FF5733", null, null);
         when(adminService.canManageGuild(mockAuth, "guild123")).thenReturn(true);
         when(adminService.createGatchaRole("guild123", request)).thenThrow(new RuntimeException("Unexpected error"));
 
