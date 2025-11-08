@@ -255,7 +255,23 @@ public class RoleController {
                     String rarity = parts[1].trim();
                     String colorHex = parts[2].trim();
 
-                    requests.add(new CreateRoleRequest(name, rarity, colorHex));
+                    String secondary = null;
+                    String tertiary = null;
+                    if (parts.length >= 4) {
+                        secondary = parts[3].trim();
+                        if (secondary.isEmpty()) secondary = null;
+                    }
+                    if (parts.length >= 5) {
+                        tertiary = parts[4].trim();
+                        if (tertiary.isEmpty()) tertiary = null;
+                    }
+
+                    // Normalize empty primary color to null (AdminService defaults to white)
+                    if (colorHex.isEmpty()) {
+                        colorHex = null;
+                    }
+
+                    requests.add(new CreateRoleRequest(name, rarity, colorHex, secondary, tertiary));
                 }
             }
         }
