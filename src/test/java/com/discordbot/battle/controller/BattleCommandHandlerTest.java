@@ -41,23 +41,17 @@ class BattleCommandHandlerTest {
         when(battleProperties.isEnabled()).thenReturn(false);
         when(event.getName()).thenReturn("battle-help");
 
-        handler.onSlashCommandInteraction(event);
-
-        // Should not reply when disabled
-        verify(event, never()).reply(anyString());
-        verify(event, never()).replyEmbeds(any());
+        // Handler should not be able to handle when disabled
+        assertFalse(handler.canHandle("battle-help"), 
+            "Handler should not handle battle-help when disabled");
     }
 
     @Test
     void testNonBattleCommandIgnored() {
         when(battleProperties.isEnabled()).thenReturn(true);
-        when(event.getName()).thenReturn("some-other-command");
 
-        handler.onSlashCommandInteraction(event);
-
-        // Should not reply to other commands
-        verify(event, never()).reply(anyString());
-        verify(event, never()).replyEmbeds(any());
+        assertFalse(handler.canHandle("some-other-command"),
+            "Handler should not handle non-battle commands");
     }
 
     @Test
@@ -79,7 +73,7 @@ class BattleCommandHandlerTest {
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
         when(embedReplyAction.setEphemeral(anyBoolean())).thenReturn(embedReplyAction);
 
-        handler.onSlashCommandInteraction(event);
+        handler.handle(event);
 
         // Capture the embed that was sent
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
@@ -112,7 +106,7 @@ class BattleCommandHandlerTest {
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
         when(embedReplyAction.setEphemeral(anyBoolean())).thenReturn(embedReplyAction);
 
-        handler.onSlashCommandInteraction(event);
+        handler.handle(event);
 
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         verify(event).replyEmbeds(embedCaptor.capture());
@@ -148,7 +142,7 @@ class BattleCommandHandlerTest {
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
         when(embedReplyAction.setEphemeral(anyBoolean())).thenReturn(embedReplyAction);
 
-        handler.onSlashCommandInteraction(event);
+        handler.handle(event);
 
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         verify(event).replyEmbeds(embedCaptor.capture());
@@ -185,7 +179,7 @@ class BattleCommandHandlerTest {
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
         when(embedReplyAction.setEphemeral(anyBoolean())).thenReturn(embedReplyAction);
 
-        handler.onSlashCommandInteraction(event);
+        handler.handle(event);
 
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         verify(event).replyEmbeds(embedCaptor.capture());
@@ -221,7 +215,7 @@ class BattleCommandHandlerTest {
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
         when(embedReplyAction.setEphemeral(anyBoolean())).thenReturn(embedReplyAction);
 
-        handler.onSlashCommandInteraction(event);
+        handler.handle(event);
 
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         verify(event).replyEmbeds(embedCaptor.capture());
@@ -246,10 +240,12 @@ class BattleCommandHandlerTest {
         // Cause an exception by returning null for character config
         when(battleProperties.getCharacter()).thenThrow(new RuntimeException("Test exception"));
 
-        handler.onSlashCommandInteraction(event);
-
-        verify(event).reply("❌ An error occurred while processing your command.");
-        verify(replyAction).setEphemeral(true);
-        verify(replyAction).queue();
+        // The CommandRouter will catch exceptions, but we can test the handler directly
+        // In this case, the exception will propagate up to be caught by the router
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            handler.handle(event);
+        });
+        
+        assertEquals("Test exception", exception.getMessage());
     }
 }

@@ -143,7 +143,11 @@ public class SlashCommandHandler extends ListenerAdapter {
             case "colors" -> handleColors(event);
             case "help" -> handleHelp(event);
             case "qotd-submit" -> handleQotdSubmit(event);
-            default -> event.reply("Unknown command!").setEphemeral(true).queue();
+            default -> {
+                // CommandRouter should prevent unknown commands from reaching here.
+                // If we do get here, log and do not reply (to avoid double-acknowledgement).
+                logger.debug("Legacy SlashCommandHandler received unhandled command: {}", commandName);
+            }
         }
     }
 
