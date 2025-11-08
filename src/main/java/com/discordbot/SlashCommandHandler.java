@@ -778,13 +778,13 @@ public class SlashCommandHandler extends ListenerAdapter {
                         
                         if (primary != com.discordbot.discord.DiscordApiClient.RoleColors.DEFAULT_COLOR_RAW) {
                             apiStops.add(new Color(primary));
-                    }
-                    if (secondary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                        apiStops.add(new Color(secondary));
-                    }
-                    if (tertiary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                        apiStops.add(new Color(tertiary));
-                    }
+                        }
+                        if (secondary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
+                            apiStops.add(new Color(secondary));
+                        }
+                        if (tertiary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
+                            apiStops.add(new Color(tertiary));
+                        }
                         if (apiStops.size() >= 2) {
                             int n = apiStops.size();
                             float[] fractions = new float[n];
@@ -836,17 +836,18 @@ public class SlashCommandHandler extends ListenerAdapter {
                 } catch (Exception ignore) {}
                 
                 // Draw role name with gradient/holo badge
-            g.setFont(new Font("Arial", Font.PLAIN, 12));
-            g.setColor(Color.WHITE);
-            String name = ri.displayName;
-            // Label using API indicator only
-            if (colorsObj != null && colorsObj.isHolographic()) {
-                name += " [Holo]";
-            } else if (apiGradient) {
-                name += " [Gradient]";
-            }
-            g.drawString(name, x + swatchSize + spacing, rowY + swatchSize / 2 + 5);
-                            col++;
+                g.setFont(new Font("Arial", Font.PLAIN, 12));
+                g.setColor(Color.WHITE);
+                String name = ri.displayName;
+                // Label using API indicator only
+                if (colorsObj != null && colorsObj.isHolographic()) {
+                    name += " [Holo]";
+                } else if (apiGradient) {
+                    name += " [Gradient]";
+                }
+                g.drawString(name, x + swatchSize + spacing, rowY + swatchSize / 2 + 5);
+
+                col++;
                 if (col >= 2) {
                     col = 0;
                     rowY += swatchSize + spacing;
