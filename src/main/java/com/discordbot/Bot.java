@@ -1,5 +1,6 @@
 package com.discordbot;
 
+import com.discordbot.battle.controller.BattleCommandHandler;
 import io.github.cdimascio.dotenv.Dotenv;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
@@ -46,7 +47,7 @@ public class Bot {
     }
 
     @Bean
-    public JDA jda(SlashCommandHandler slashCommandHandler) throws InterruptedException {
+    public JDA jda(SlashCommandHandler slashCommandHandler, BattleCommandHandler battleCommandHandler) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -73,12 +74,13 @@ public class Bot {
 
             // Set bot status and activity
             builder.setStatus(OnlineStatus.ONLINE);
-            builder.setActivity(Activity.playing("/roll for colors | /help"));
-            logger.info("Bot status set to ONLINE with activity: /roll for colors | /help");
+            builder.setActivity(Activity.playing("/roll for colors | /battle-help"));
+            logger.info("Bot status set to ONLINE with activity: /roll for colors | /battle-help");
 
             // Register event listeners (injected from Spring)
             builder.addEventListeners(slashCommandHandler);
-            logger.info("Event listener registered: SlashCommandHandler (with database persistence)");
+            builder.addEventListeners(battleCommandHandler);
+            logger.info("Event listeners registered: SlashCommandHandler, BattleCommandHandler");
 
             // Build and start the bot
             JDA jda = builder.build();
