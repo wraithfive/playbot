@@ -1,9 +1,9 @@
 package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
+import com.discordbot.command.CommandHandler;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -11,11 +11,11 @@ import org.springframework.stereotype.Component;
 import java.awt.Color;
 
 /**
- * Handles battle-related slash command interactions (logic only).
- * Registration is now centralized in CommandRegistrar to avoid overwrites.
+ * Handles battle-related slash command interactions.
+ * Implements CommandHandler interface for routing through CommandRouter.
  */
 @Component
-public class BattleCommandHandler extends ListenerAdapter {
+public class BattleCommandHandler implements CommandHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(BattleCommandHandler.class);
 
@@ -26,22 +26,21 @@ public class BattleCommandHandler extends ListenerAdapter {
     }
 
     @Override
-    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+    public boolean canHandle(String commandName) {
+        // Only handle if battle system is enabled
         if (!battleProperties.isEnabled()) {
-            return; // Silently ignore if disabled
+            return false;
         }
+        
+        return "battle-help".equals(commandName);
+    }
 
-        if (!"battle-help".equals(event.getName())) {
-            return; // Not our command
-        }
-
-        try {
+    @Override
+    public void handle(SlashCommandInteractionEvent event) {
+        String commandName = event.getName();
+        
+        if ("battle-help".equals(commandName)) {
             handleBattleHelp(event);
-        } catch (Exception e) {
-            logger.error("Error handling battle-help command", e);
-            event.reply("❌ An error occurred while processing your command.")
-                .setEphemeral(true)
-                .queue();
         }
     }
 
