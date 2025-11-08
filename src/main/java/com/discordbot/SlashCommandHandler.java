@@ -317,11 +317,15 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         try {
             // Remove old roles
+            // Note: We intentionally block here with complete() to ensure deterministic sequencing:
+            // - Remove previous gacha roles before adding the new one
+            // - Avoid race conditions with concurrent reactions or command handlers
             for (Role oldRole : currentGachaRoles) {
                 event.getGuild().removeRoleFromMember(member, oldRole).complete();
             }
 
             // Add new role
+            // See note above on complete(): this guarantees the add happens after removals
             event.getGuild().addRoleToMember(member, discordRole).complete();
 
             // Update cooldown in database (always save, even for test rolls, so d20 can be tested)
@@ -829,11 +833,15 @@ public class SlashCommandHandler extends ListenerAdapter {
                                         int iconY = rowY + (swatchSize - iconSize) / 2;
                                         g.drawImage(iconImg, iconX, iconY, iconSize, iconSize, null);
                                     }
-                                } catch (Exception ignore) {}
+                                } catch (Exception e) {
+                                    logger.debug("Failed to fetch/scale role icon image from {}: {}", iconUrl, e.toString());
+                                }
                             }
                         }
                     }
-                } catch (Exception ignore) {}
+                } catch (Exception e) {
+                    logger.debug("Failed to overlay role icon for role {}: {}", discordRole != null ? discordRole.getId() : "unknown", e.toString());
+                }
                 
                 // Draw role name with gradient/holo badge
                 g.setFont(new Font("Arial", Font.PLAIN, 12));

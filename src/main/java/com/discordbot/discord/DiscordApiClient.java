@@ -408,6 +408,24 @@ public class DiscordApiClient {
             ensureInitialized();
             return tertiaryColor != COLOR_NOT_SET;
         }
+
+        /**
+         * Test-only helper for constructing a RoleColors instance without JSON deserialization.
+         * Allows unit tests to create solid, gradient, or holographic configurations directly.
+         *
+         * @param primary Primary color (required)
+         * @param secondary Secondary color or COLOR_NOT_SET
+         * @param tertiary Tertiary color or COLOR_NOT_SET
+         * @return initialized RoleColors instance
+         */
+        public static RoleColors testInstance(int primary, int secondary, int tertiary) {
+            RoleColors rc = new RoleColors();
+            rc.primaryColor = primary;
+            rc.secondaryColorObj = (secondary == COLOR_NOT_SET ? null : secondary);
+            rc.tertiaryColorObj = (tertiary == COLOR_NOT_SET ? null : tertiary);
+            rc.ensureInitialized();
+            return rc;
+        }
     }
 
     // Internal cache entry for boolean values with expiration
