@@ -2,8 +2,6 @@ package com.discordbot;
 
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
-import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
-import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.*;
 import com.discordbot.web.service.GuildsCache;
@@ -12,25 +10,26 @@ import com.discordbot.web.service.WebSocketNotificationService;
 
 class SlashCommandHandlerTest {
     @Test
-    void testOnGuildJoinRegistersCommands() {
-    var cooldownRepo = mock(com.discordbot.repository.UserCooldownRepository.class);
-    var streamRepo = mock(com.discordbot.repository.QotdStreamRepository.class);
-    var guildsCache = mock(GuildsCache.class);
-    var wsService = mock(WebSocketNotificationService.class);
-    var qotdSubmissionService = mock(QotdSubmissionService.class);
-    var apiClient = new com.discordbot.discord.DiscordApiClient();
-    var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
+    void testOnGuildJoinEvictsCache() {
+        var cooldownRepo = mock(com.discordbot.repository.UserCooldownRepository.class);
+        var streamRepo = mock(com.discordbot.repository.QotdStreamRepository.class);
+        var guildsCache = mock(GuildsCache.class);
+        var wsService = mock(WebSocketNotificationService.class);
+        var qotdSubmissionService = mock(QotdSubmissionService.class);
+        var apiClient = new com.discordbot.discord.DiscordApiClient();
+        var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
+        
         var guild = mock(Guild.class);
-        var updateAction = mock(CommandListUpdateAction.class);
+        when(guild.getId()).thenReturn("123");
+        when(guild.getName()).thenReturn("Test Guild");
         var event = new GuildJoinEvent(null, 0, guild);
-        when(guild.updateCommands()).thenReturn(updateAction);
-        when(updateAction.addCommands(any(CommandData[].class))).thenReturn(updateAction);
-        doNothing().when(updateAction).queue(any(), any());
 
         handler.onGuildJoin(event);
 
-        verify(guild, times(1)).updateCommands();
-        verify(updateAction, times(1)).addCommands(any(CommandData[].class));
-        verify(updateAction, times(1)).queue(any(), any());
+        // Verify cache was evicted
+        verify(guildsCache, times(1)).evictAll();
+        
+        // Verify WebSocket notification was sent
+        verify(wsService, times(1)).notifyGuildJoined("123", "Test Guild");
     }
 }
