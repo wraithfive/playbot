@@ -160,7 +160,9 @@ public class AdminService {
                 if (botPresent) {
                     supportsEnhanced = discordApiClient.guildSupportsEnhancedRoleColors(guildId);
                 }
-            } catch (Exception ignore) {}
+            } catch (Exception e) {
+                logger.debug("Failed to check enhanced role color capability for guild {}: {}", guildId, e.toString());
+            }
             manageableGuilds.add(new GuildInfo(guildId, guildName, iconUrl, true, botPresent, supportsEnhanced));
         }
 
@@ -468,7 +470,9 @@ public class AdminService {
         try {
             // Also clear guild capability cache to ensure capability changes are reflected promptly
             discordApiClient.clearCapabilityCache();
-        } catch (Exception ignore) {}
+        } catch (Exception e) {
+            logger.debug("Failed to clear capability cache", e);
+        }
     }
 
     /**
