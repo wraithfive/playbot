@@ -57,12 +57,12 @@ fi
 if [ "$KILLED" = false ]; then
     WORKSPACE_DIR="$(pwd)"
     # Find candidate PIDs and commands, exclude this workspace path to protect dev
-    MATCHES=$(ps ax -o pid= -o command= | grep -E "java .*playbot-.*\.jar" | grep -v "$WORKSPACE_DIR" || true)
+    MATCHES=$(ps ax -o pid= -o command= | grep -E "java .*playbot-.*\.jar" | grep -F -v "$WORKSPACE_DIR" || true)
     if [ -n "$MATCHES" ]; then
         echo "$MATCHES" | awk '{print $1}' | xargs -r kill || true
         sleep 2
         # Force kill remaining
-        REMAIN=$(ps ax -o pid= -o command= | grep -E "java .*playbot-.*\.jar" | grep -v "$WORKSPACE_DIR" | awk '{print $1}' || true)
+        REMAIN=$(ps ax -o pid= -o command= | grep -E "java .*playbot-.*\.jar" | grep -F -v "$WORKSPACE_DIR" | awk '{print $1}' || true)
         if [ -n "$REMAIN" ]; then
             echo "$REMAIN" | xargs -r kill -9 || true
         fi
