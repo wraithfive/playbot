@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="011-create-player-character-table" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="player_character"/>
+            </not>
+        </preConditions>
+        
+        <comment>Create player_character table for battle system - stores D and D 5e inspired characters</comment>
+        
+        <createTable tableName="player_character">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            
+            <!-- Discord identity -->
+            <column name="user_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            
+            <!-- Character attributes -->
+            <column name="character_class" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="race" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            
+            <!-- D&D 5e ability scores -->
+            <column name="strength" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dexterity" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="constitution" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="intelligence" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wisdom" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="charisma" type="int">
+                <constraints nullable="false"/>
+            </column>
+            
+            <!-- Metadata -->
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <!-- Unique constraint: one character per user per guild -->
+        <addUniqueConstraint 
+            tableName="player_character" 
+            columnNames="user_id,guild_id" 
+            constraintName="uk_player_character_user_guild"/>
+        
+        <!-- Index for fast lookups by guild -->
+        <createIndex indexName="idx_player_character_guild" tableName="player_character">
+            <column name="guild_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

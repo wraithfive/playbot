@@ -27,4 +27,7 @@
     <!-- D20 roll mechanic (issue #5) -->
     <include file="db/changelog/changes/010-add-d20-mechanic-columns.xml"/>
 
+    <!-- Battle System - Character Persistence -->
+    <include file="db/changelog/changes/011-add-player-character-table.xml"/>
+
 </databaseChangeLog>
