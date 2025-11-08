@@ -47,7 +47,7 @@ public class Bot {
     }
 
     @Bean
-    public JDA jda(SlashCommandHandler slashCommandHandler, BattleCommandHandler battleCommandHandler) throws InterruptedException {
+    public JDA jda(SlashCommandHandler slashCommandHandler, BattleCommandHandler battleCommandHandler, com.discordbot.command.CommandRegistrar commandRegistrar) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -80,7 +80,8 @@ public class Bot {
             // Register event listeners (injected from Spring)
             builder.addEventListeners(slashCommandHandler);
             builder.addEventListeners(battleCommandHandler);
-            logger.info("Event listeners registered: SlashCommandHandler, BattleCommandHandler");
+            builder.addEventListeners(commandRegistrar);
+            logger.info("Event listeners registered: SlashCommandHandler, BattleCommandHandler, CommandRegistrar");
 
             // Build and start the bot
             JDA jda = builder.build();
