@@ -802,7 +802,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                             );
                             g.setPaint(paint);
                         } else if (apiStops.size() == 1) {
-                            g.setColor(apiStops.getFirst());
+                            g.setColor(apiStops.get(0));
                         } else {
                             // Fallback to roleColor if API had no usable stops
                             g.setColor(roleColor);
@@ -899,7 +899,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             case LEGENDARY -> "🟣";
             case EPIC -> "🟪";
             case RARE -> "🔵";
-                case UNCOMMON -> "🟢";
+            case UNCOMMON -> "🟢";
             case COMMON -> "⚪";
         };
     }
@@ -970,7 +970,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                     );
                     g.setPaint(paint);
                 } else if (stops.size() == 1) {
-                    g.setColor(stops.getFirst());
+                    g.setColor(stops.get(0));
                 } else {
                     // Fallback to role color
                     g.setColor(role.getColor() != null ? role.getColor() : Color.WHITE);

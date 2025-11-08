@@ -82,14 +82,14 @@ if [ "$RESTART" = true ]; then
         echo "$BK_PIDS" | xargs -r kill -9 || true
     fi
     # Kill vite dev server started from this repo
-    FE_PIDS=$(ps ax -o pid= -o command= | grep -E "(vite|node .*vite)" | grep "${WORKSPACE_DIR}/frontend" | awk '{print $1}' || true)
+    FE_PIDS=$(ps ax -o pid= -o command= | grep -E "(vite|node .*vite)" | grep -F "${WORKSPACE_DIR}/frontend" | awk '{print $1}' || true)
     if [ -n "$FE_PIDS" ]; then
         echo "$FE_PIDS" | xargs -r kill || true
         sleep 1
         echo "$FE_PIDS" | xargs -r kill -9 || true
     fi
     # Kill any tail -f on our logs
-    TAIL_PIDS=$(ps ax -o pid= -o command= | grep -E "tail .*${WORKSPACE_DIR}/logs/" | awk '{print $1}' || true)
+    TAIL_PIDS=$(ps ax -o pid= -o command= | grep -E "tail " | grep -F "${WORKSPACE_DIR}/logs/" | awk '{print $1}' || true)
     if [ -n "$TAIL_PIDS" ]; then
         echo "$TAIL_PIDS" | xargs -r kill || true
     fi

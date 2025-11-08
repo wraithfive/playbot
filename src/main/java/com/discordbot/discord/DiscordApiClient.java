@@ -409,13 +409,14 @@ public class DiscordApiClient {
             return tertiaryColor != COLOR_NOT_SET;
         }
     }
-}
 
-class CacheEntry {
-    final boolean value;
-    final long expiresAt;
-    CacheEntry(boolean value, long expiresAt) {
-        this.value = value;
-        this.expiresAt = expiresAt;
+    // Internal cache entry for boolean values with expiration
+    private static class CacheEntry {
+        final boolean value;
+        final long expiresAt;
+        CacheEntry(boolean value, long expiresAt) {
+            this.value = value;
+            this.expiresAt = expiresAt;
+        }
     }
 }
