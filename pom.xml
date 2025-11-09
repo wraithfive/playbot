@@ -24,7 +24,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jda.version>6.1.0</jda.version>
+        <jda.version>6.1.1</jda.version>
     </properties>
 
     <dependencies>

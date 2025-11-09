@@ -102,7 +102,7 @@ public class BattleCommandHandler implements CommandHandler {
 
         embed.addField(
             "📜 Available Commands (Coming Soon)",
-            "`/create-character` - Create your battle character\n" +
+            "`/create-character` - Create your battle character (interactive form)\n" +
                 "`/character` - View your character sheet\n" +
                 "`/duel @user` - Challenge someone to a duel\n" +
                 "`/battle-stats` - View your battle statistics\n" +

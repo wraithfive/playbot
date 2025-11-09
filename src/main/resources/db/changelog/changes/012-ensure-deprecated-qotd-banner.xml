@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Ensure legacy table 'qotd_banner_deprecated' exists for backward-compat entity mapping.
+      This handles both cases:
+        1) If old table 'qotd_banner' still exists, rename it to '*_deprecated'
+        2) If neither exists (fresh install with partial history), create the deprecated table
+    -->
+    <!-- Step 1: If the old table exists (and the deprecated one does not), rename it -->
+    <changeSet id="012a-rename-qotd-banner-to-deprecated" author="copilot">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <and>
+                <tableExists tableName="qotd_banner"/>
+                <not>
+                    <tableExists tableName="qotd_banner_deprecated"/>
+                </not>
+            </and>
+        </preConditions>
+        <renameTable oldTableName="qotd_banner" newTableName="qotd_banner_deprecated"/>
+    </changeSet>
+
+    <!-- Step 2: If the deprecated table still doesn't exist, create it -->
+    <changeSet id="012b-create-qotd-banner-deprecated" author="copilot">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <not>
+                <tableExists tableName="qotd_banner_deprecated"/>
+            </not>
+        </preConditions>
+        <createTable tableName="qotd_banner_deprecated">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="channel_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="banner_text" type="VARCHAR(160)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="embed_color" type="INTEGER"/>
+            <column name="mention_target" type="VARCHAR(64)"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

@@ -7,9 +7,9 @@ import com.discordbot.battle.test.TestJpaConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,13 +20,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * TDD tests for PlayerCharacterRepository.
  * Tests repository persistence layer for character CRUD operations.
  */
-@SpringBootTest(classes = TestJpaConfig.class)
+@DataJpaTest(excludeAutoConfiguration = {})
+@Import(TestJpaConfig.class)
 @TestPropertySource(properties = {
-    "spring.jpa.hibernate.ddl-auto=create-drop",  // Let Hibernate create tables from entities
-    "spring.liquibase.enabled=false",  // Disable Liquibase for unit tests
-    "spring.jpa.show-sql=false"
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.liquibase.enabled=false",
+    "spring.jpa.show-sql=false",
+    "spring.main.web-application-type=none"
 })
-@Transactional
 @org.springframework.test.context.ActiveProfiles("repository-test")
 class PlayerCharacterRepositoryTest {
 
