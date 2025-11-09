@@ -52,7 +52,7 @@ public class Bot {
     @Bean
     public JDA jda(com.discordbot.command.CommandRouter commandRouter, 
                    com.discordbot.command.CommandRegistrar commandRegistrar,
-                   com.discordbot.battle.controller.CharacterCreationModalHandler characterCreationModalHandler) throws InterruptedException {
+                   com.discordbot.battle.controller.CharacterCreationInteractionHandler characterCreationInteractionHandler) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -85,11 +85,11 @@ public class Bot {
             // Register event listeners
             // CommandRouter handles all slash command interactions
             // CommandRegistrar handles command registration on guild events
-            // CharacterCreationModalHandler handles character creation modal submissions
+            // CharacterCreationInteractionHandler handles character creation button/select menu interactions
             builder.addEventListeners(commandRouter);
             builder.addEventListeners(commandRegistrar);
-            builder.addEventListeners(characterCreationModalHandler);
-            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationModalHandler");
+            builder.addEventListeners(characterCreationInteractionHandler);
+            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler");
 
             // Build and start the bot
             JDA jda = builder.build();

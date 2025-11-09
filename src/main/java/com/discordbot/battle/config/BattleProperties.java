@@ -96,6 +96,7 @@ public class BattleProperties {
             private int totalPoints = 27;
             private int minScore = 8;
             private int maxScore = 15;
+            private int defaultScore = 10;
             // Point costs indexed by (score - minScore): 8=0pts, 9=1pt, 10=2pts, 11=3pts, 12=4pts, 13=5pts, 14=7pts, 15=9pts
             private List<Integer> costs = List.of(0, 1, 2, 3, 4, 5, 7, 9);
 
@@ -121,6 +122,14 @@ public class BattleProperties {
 
             public void setMaxScore(int maxScore) {
                 this.maxScore = maxScore;
+            }
+
+            public int getDefaultScore() {
+                return defaultScore;
+            }
+
+            public void setDefaultScore(int defaultScore) {
+                this.defaultScore = defaultScore;
             }
 
             public List<Integer> getCosts() {
