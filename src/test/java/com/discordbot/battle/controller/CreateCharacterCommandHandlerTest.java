@@ -3,11 +3,13 @@ package com.discordbot.battle.controller;
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
+import com.discordbot.battle.util.CharacterCreationUIBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +30,7 @@ class CreateCharacterCommandHandlerTest {
     private CreateCharacterCommandHandler handler;
     private PlayerCharacterRepository repository;
     private BattleProperties battleProperties;
+    private CharacterCreationUIBuilder uiBuilder;
     private SlashCommandInteractionEvent event;
     private ReplyCallbackAction replyAction;
 
@@ -37,7 +40,8 @@ class CreateCharacterCommandHandlerTest {
         battleProperties.setEnabled(true);
 
         repository = mock(PlayerCharacterRepository.class);
-        handler = new CreateCharacterCommandHandler(battleProperties, repository);
+    uiBuilder = new CharacterCreationUIBuilder(battleProperties);
+    handler = new CreateCharacterCommandHandler(battleProperties, repository, uiBuilder);
 
         event = mock(SlashCommandInteractionEvent.class);
         replyAction = mock(ReplyCallbackAction.class);
@@ -53,7 +57,7 @@ class CreateCharacterCommandHandlerTest {
         // Mock repository to return empty (no existing character) by default
         when(repository.findByUserIdAndGuildId(anyString(), anyString())).thenReturn(Optional.empty());
 
-        when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
+        when(event.reply(any(MessageCreateData.class))).thenReturn(replyAction);
         when(event.reply(anyString())).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
         doNothing().when(replyAction).queue();
@@ -81,15 +85,24 @@ class CreateCharacterCommandHandlerTest {
         // Act
         handler.handle(event);
 
-        // Assert - verify interactive embed is displayed with components
-        ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
-        verify(event).replyEmbeds(embedCaptor.capture());
+        // Assert - verify reply with MessageCreateData (contains embed + action rows)
+        ArgumentCaptor<MessageCreateData> dataCaptor = ArgumentCaptor.forClass(MessageCreateData.class);
+        verify(event).reply(dataCaptor.capture());
 
-        MessageEmbed embed = embedCaptor.getValue();
-        assertNotNull(embed);
+        MessageCreateData data = dataCaptor.getValue();
+        assertNotNull(data);
+        
+        // Verify embed content
+        var embeds = data.getEmbeds();
+        assertFalse(embeds.isEmpty(), "Should have at least one embed");
+        MessageEmbed embed = embeds.get(0);
         assertEquals("⚔️ Create Your Character", embed.getTitle());
         assertNotNull(embed.getDescription());
         assertTrue(embed.getDescription().contains("point-buy system"));
+
+        // Verify action rows are present (menus + buttons)
+        var components = data.getComponents();
+        assertFalse(components.isEmpty(), "Should have action rows with components");
 
         // Verify the reply was configured properly
         verify(replyAction).setEphemeral(true);
@@ -107,10 +120,10 @@ class CreateCharacterCommandHandlerTest {
         // Act
         handler.handle(event);
 
-        // Assert - verify error message, no embed
+        // Assert - verify error message, no embed with components
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
         verify(event).reply(messageCaptor.capture());
-        verify(event, never()).replyEmbeds(any(MessageEmbed.class));
+        verify(event, never()).reply(any(MessageCreateData.class));
 
         String message = messageCaptor.getValue();
         assertTrue(message.contains("already have a character"));
@@ -128,7 +141,7 @@ class CreateCharacterCommandHandlerTest {
         // Assert - verify error reply
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
         verify(event).reply(messageCaptor.capture());
-        verify(event, never()).replyEmbeds(any(MessageEmbed.class));
+        verify(event, never()).reply(any(MessageCreateData.class));
 
         String message = messageCaptor.getValue();
         assertTrue(message.contains("error"));

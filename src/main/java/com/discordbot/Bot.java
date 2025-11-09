@@ -20,7 +20,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableJpaRepositories(basePackages = {"com.discordbot.repository", "com.discordbot.battle.repository"})
 @EntityScan(basePackages = {"com.discordbot.entity", "com.discordbot.battle.entity"})
-@Profile("!repository-test")
+/**
+ * Main Spring Boot application entry point.
+ *
+ * Profile behavior:
+ * - We intentionally avoid a class-level @Profile("!repository-test").
+ *   Only the Discord JDA bean is gated with @Profile("!repository-test").
+ *   This lets repository/JPA slice tests that use the "repository-test" profile
+ *   bootstrap entities, repositories, and Liquibase without attempting to start JDA.
+ */
 public class Bot {
 
     private static final Logger logger = LoggerFactory.getLogger(Bot.class);
@@ -50,9 +58,12 @@ public class Bot {
     }
 
     @Bean
+    @Profile("!repository-test")
     public JDA jda(com.discordbot.command.CommandRouter commandRouter, 
                    com.discordbot.command.CommandRegistrar commandRegistrar,
-                   com.discordbot.battle.controller.CharacterCreationInteractionHandler characterCreationInteractionHandler) throws InterruptedException {
+                   com.discordbot.battle.controller.CharacterCreationInteractionHandler characterCreationInteractionHandler,
+                   com.discordbot.battle.controller.BattleInteractionHandler battleInteractionHandler,
+                   com.discordbot.battle.controller.AbilityInteractionHandler abilityInteractionHandler) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -89,7 +100,9 @@ public class Bot {
             builder.addEventListeners(commandRouter);
             builder.addEventListeners(commandRegistrar);
             builder.addEventListeners(characterCreationInteractionHandler);
-            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler");
+            builder.addEventListeners(battleInteractionHandler);
+            builder.addEventListeners(abilityInteractionHandler);
+            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler, BattleInteractionHandler, AbilityInteractionHandler");
 
             // Build and start the bot
             JDA jda = builder.build();

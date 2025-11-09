@@ -39,4 +39,8 @@
     <!-- Legacy QoTD compatibility (ensure deprecated configs table exists for validation) -->
     <include file="db/changelog/changes/014-ensure-deprecated-qotd-configs.xml"/>
 
+    <!-- Battle System - Abilities (talents/skills/spells) -->
+    <include file="db/changelog/changes/015-add-ability-tables.xml"/>
+    <include file="db/changelog/changes/016-seed-abilities.xml"/>
+
 </databaseChangeLog>

@@ -209,6 +209,51 @@ The web admin panel provides a visual interface for managing gacha roles.
 - **Server List** - View all servers where you have admin permissions
 - **Role Browser** - Browse all gacha roles organized by rarity
 - **Color Preview** - Visual preview of each role's color
+## Battle System
+
+The battle system is an MVP that lets users create characters and duel in Discord.
+
+### Commands
+
+- `/create-character` – Starts an interactive flow with select menus and buttons to pick Class/Race and allocate ability scores using a point-buy system.
+- `/duel @opponent` – Issues a challenge to another user. The bot posts an embed with Accept / Decline buttons. Once accepted, an Attack button appears for the current turn. If the challenged user doesn't have a character yet, they can be challenged but must first create a character to accept.
+- `/battle-help` – Shows an overview of mechanics and commands.
+
+### Mechanics
+
+- HP at start = Class base HP + CON modifier, minimum 1.
+- Attack roll = d20 + STR modifier; hit on total >= AC.
+- Armor Class (AC) = 10 + defender’s DEX modifier.
+- Damage = 1d6 + STR modifier (floored at 0).
+- Critical hits occur when d20 >= configured threshold (default 20) and multiply damage by the configured multiplier (default 2.0).
+- Turn order: challenger begins; turns alternate.
+
+### Concurrency & Expiration
+
+- A user can only have one pending or active battle at a time (either as challenger or opponent).
+- A challenge between the same two users cannot be duplicated (order doesn’t matter).
+- Server-wide concurrency limit is enforced via `battle.combat.maxConcurrentPerGuild` (default 50).
+- Pending challenges expire after `battle.challenge.expireSeconds` (default 120s). Expired challenges cannot be accepted.
+   - Set to `0` to expire immediately (useful for tests); such challenges cannot be accepted because they expire right away.
+ - Challenging a user without a character is allowed; acceptance is gated until they create a character (use `/create-character`).
+
+### Configuration
+
+All settings are under `battle.*` in `application.properties` and bound by `BattleProperties`.
+
+- `battle.enabled` – Enable/disable battle features.
+- `battle.character.pointBuy.*` – Point-buy rules: total points, min/max score, defaultScore, and per-score costs.
+- `battle.classConfig.*.baseHp` – Per-class base HP (warrior/rogue/mage/cleric).
+- `battle.combat.crit.threshold` – d20 value at or above which attacks crit.
+- `battle.combat.crit.multiplier` – Damage multiplier on crit.
+- `battle.challenge.expireSeconds` – Pending challenge expiry in seconds; `0` means immediate expiry.
+- `battle.combat.maxConcurrentPerGuild` – Cap concurrent battles per guild.
+
+### Notes
+
+- Battles are in-memory and transient for now; persistence will come later once mechanics stabilize.
+- Character creation messages use Discord embeds and components, and comply with the 5-row UI limit.
+
 - **Bot Status** - Check which servers have the bot installed
 - **Live Updates** - Admin UI can subscribe to `/topic/guild-updates` via STOMP for join/leave/role/QOTD changes
 
