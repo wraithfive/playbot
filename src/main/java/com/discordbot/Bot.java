@@ -12,6 +12,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -19,6 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableJpaRepositories(basePackages = {"com.discordbot.repository", "com.discordbot.battle.repository"})
 @EntityScan(basePackages = {"com.discordbot.entity", "com.discordbot.battle.entity"})
+@Profile("!repository-test")
 public class Bot {
 
     private static final Logger logger = LoggerFactory.getLogger(Bot.class);
@@ -49,7 +51,8 @@ public class Bot {
 
     @Bean
     public JDA jda(com.discordbot.command.CommandRouter commandRouter, 
-                   com.discordbot.command.CommandRegistrar commandRegistrar) throws InterruptedException {
+                   com.discordbot.command.CommandRegistrar commandRegistrar,
+                   com.discordbot.battle.controller.CharacterCreationModalHandler characterCreationModalHandler) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -82,9 +85,11 @@ public class Bot {
             // Register event listeners
             // CommandRouter handles all slash command interactions
             // CommandRegistrar handles command registration on guild events
+            // CharacterCreationModalHandler handles character creation modal submissions
             builder.addEventListeners(commandRouter);
             builder.addEventListeners(commandRegistrar);
-            logger.info("Event listeners registered: CommandRouter, CommandRegistrar");
+            builder.addEventListeners(characterCreationModalHandler);
+            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationModalHandler");
 
             // Build and start the bot
             JDA jda = builder.build();

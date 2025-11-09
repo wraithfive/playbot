@@ -30,4 +30,13 @@
     <!-- Battle System - Character Persistence -->
     <include file="db/changelog/changes/011-add-player-character-table.xml"/>
 
+    <!-- Legacy QoTD compatibility (ensure deprecated banner table exists for validation) -->
+    <include file="db/changelog/changes/012-ensure-deprecated-qotd-banner.xml"/>
+
+    <!-- Safety: ensure player_character table exists on older file DBs that drifted -->
+    <include file="db/changelog/changes/013-ensure-player-character-table.xml"/>
+
+    <!-- Legacy QoTD compatibility (ensure deprecated configs table exists for validation) -->
+    <include file="db/changelog/changes/014-ensure-deprecated-qotd-configs.xml"/>
+
 </databaseChangeLog>
