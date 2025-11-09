@@ -63,6 +63,16 @@ public class CommandRegistrar extends ListenerAdapter {
             if (battleProperties != null && battleProperties.isEnabled()) {
                 commands.add(Commands.slash("battle-help", "Show information about the battle system"));
                 commands.add(Commands.slash("create-character", "Create a new battle character with D&D 5e stats"));
+                commands.add(
+                    Commands.slash("duel", "Challenge another player to a duel")
+                        .addOption(OptionType.USER, "opponent", "The user you want to challenge", true)
+                );
+                // Abilities management
+                commands.add(
+                    Commands.slash("abilities", "View and learn abilities interactively")
+                        .addOption(OptionType.STRING, "filter", "Filter: available | learned (optional)", false)
+                        .addOption(OptionType.STRING, "type", "Ability type: TALENT | SKILL | SPELL (optional)", false)
+                );
             }
 
             // One atomic registration per guild
