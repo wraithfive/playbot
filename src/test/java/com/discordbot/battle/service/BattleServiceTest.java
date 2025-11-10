@@ -3,20 +3,24 @@ package com.discordbot.battle.service;
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.IntSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class BattleServiceTest {
 
     private PlayerCharacterRepository repo;
+    private CharacterAbilityRepository abilityRepo;
     private BattleProperties props;
     private BattleService service;
 
@@ -27,18 +31,22 @@ class BattleServiceTest {
     @BeforeEach
     void setup() {
         repo = mock(PlayerCharacterRepository.class);
+        abilityRepo = mock(CharacterAbilityRepository.class);
         props = new BattleProperties();
         props.setEnabled(true);
         // Crits: nat 20, x2 damage
         props.getCombat().getCrit().setThreshold(20);
         props.getCombat().getCrit().setMultiplier(2.0);
-        // Base HP
-        props.getClassConfig().getWarrior().setBaseHp(12);
+        // Base HP (D&D 5e hit die maximums)
+        props.getClassConfig().getWarrior().setBaseHp(10);
         props.getClassConfig().getRogue().setBaseHp(8);
         props.getClassConfig().getMage().setBaseHp(6);
         props.getClassConfig().getCleric().setBaseHp(8);
 
-        service = new BattleService(repo, props);
+        // Mock: No abilities learned by default
+        when(abilityRepo.findByCharacter(any())).thenReturn(List.of());
+
+        service = new BattleService(repo, abilityRepo, props);
     }
 
     private void mockChars(String aClass, int aStr, int aDex, int aCon,
@@ -337,5 +345,79 @@ class BattleServiceTest {
         assertTrue(locks.containsKey(A), "Lock for user A should remain (active in battle2)");
         assertTrue(locks.containsKey("userC"), "Lock for user C should remain (active in battle2)");
         assertFalse(locks.containsKey(B), "Lock for user B should be cleaned up (no active battles)");
+    }
+
+    @Test
+    void attack_with_learned_abilities_applies_bonuses() {
+        // Test that learned abilities with effect bonuses correctly influence combat
+        // Attacker (Warrior): STR 12 (+1), learns ability with "DAMAGE+3,AC+2,CRIT_DAMAGE+10"
+        // Defender (Mage): DEX 10 (+0), no abilities
+        mockChars("Warrior", 12, 10, 10, "Mage", 10, 10, 10);
+        
+        // Mock learned abilities for attacker (user A)
+        PlayerCharacter attackerChar = repo.findByUserIdAndGuildId(A, GUILD).get();
+        var mockAbility = mock(com.discordbot.battle.entity.CharacterAbility.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
+        when(mockAbility.getAbility().getEffect()).thenReturn("DAMAGE+3,AC+2,CRIT_DAMAGE+10");
+        when(abilityRepo.findByCharacter(attackerChar)).thenReturn(List.of(mockAbility));
+        
+        // Defender has no learned abilities (already mocked to return empty list)
+        
+        ActiveBattle battle = startBattle(() -> 15, () -> 4); // non-crit hit
+        
+        var result = service.performAttack(battle.getId(), A);
+        
+        assertTrue(result.hit());
+        assertFalse(result.crit());
+        
+        // Expected damage: d6(4) + STR mod(+1) + DAMAGE bonus(+3) = 8
+        // Defender (Mage) starts with baseHp=6 + CON mod(0) = 6 HP
+        // After 8 damage: HP would be -2, but clamped to minimum 0
+        assertEquals(8, result.damage());
+        assertEquals(0, result.battle().getOpponentHp()); // HP cannot go below 0
+    }
+    
+    @Test
+    void attack_with_crit_damage_bonus_applies_increased_multiplier() {
+        // Test that CRIT_DAMAGE bonuses increase crit multiplier
+        // Attacker with CRIT_DAMAGE+20 (base 2.0x + 0.2 = 2.2x)
+        mockChars("Rogue", 14, 10, 10, "Warrior", 10, 10, 10);
+        
+        PlayerCharacter attackerChar = repo.findByUserIdAndGuildId(A, GUILD).get();
+        var mockAbility = mock(com.discordbot.battle.entity.CharacterAbility.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
+        when(mockAbility.getAbility().getEffect()).thenReturn("CRIT_DAMAGE+20");
+        when(abilityRepo.findByCharacter(attackerChar)).thenReturn(List.of(mockAbility));
+        
+        ActiveBattle battle = startBattle(() -> 20, () -> 5); // nat 20 crit, d6=5
+        
+        var result = service.performAttack(battle.getId(), A);
+        
+        assertTrue(result.hit());
+        assertTrue(result.crit());
+        
+        // Base damage: 5 + STR mod(+2) = 7
+        // Crit multiplier: 2.0 + (20/100) = 2.2
+        // Expected: 7 * 2.2 = 15.4 → 15 (rounded)
+        assertEquals(15, result.damage());
+    }
+    
+    @Test
+    void defender_with_ac_bonus_harder_to_hit() {
+        // Test that AC bonuses from abilities make defender harder to hit
+        // Attacker: STR 10 (+0)
+        // Defender: DEX 10 (+0), AC+3 bonus → AC = 10 + 0 + 3 = 13
+        mockChars("Warrior", 10, 10, 10, "Cleric", 10, 10, 10);
+        
+        PlayerCharacter defenderChar = repo.findByUserIdAndGuildId(B, GUILD).get();
+        var mockAbility = mock(com.discordbot.battle.entity.CharacterAbility.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
+        when(mockAbility.getAbility().getEffect()).thenReturn("AC+3");
+        when(abilityRepo.findByCharacter(defenderChar)).thenReturn(List.of(mockAbility));
+        
+        ActiveBattle battle = startBattle(() -> 12, () -> 4); // roll 12
+        
+        // Attack roll: 12 + STR mod(+0) = 12 < AC 13
+        var result = service.performAttack(battle.getId(), A);
+        
+        assertFalse(result.hit());
+        assertEquals(0, result.damage());
     }
 }

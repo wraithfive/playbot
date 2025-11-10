@@ -37,6 +37,12 @@ class PlayerCharacterRepositoryTest {
     @BeforeEach
     void setUp() {
         properties = new BattleProperties();
+        // Set required class configs
+        properties.getClassConfig().getWarrior().setBaseHp(10);
+        properties.getClassConfig().getRogue().setBaseHp(8);
+        properties.getClassConfig().getMage().setBaseHp(6);
+        properties.getClassConfig().getCleric().setBaseHp(8);
+        
         validator = new CharacterValidationService(properties);
         // Clear any existing data
         repository.deleteAll();

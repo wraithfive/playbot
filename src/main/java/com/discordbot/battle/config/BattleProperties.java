@@ -1,5 +1,6 @@
 package com.discordbot.battle.config;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -79,6 +80,32 @@ public class BattleProperties {
         this.progression = progression;
     }
 
+    /**
+     * Validates that all required configuration properties are set.
+     * Ensures all character classes have valid baseHp values configured.
+     */
+    @PostConstruct
+    public void validate() {
+        validateClassStats("warrior", classConfig.getWarrior());
+        validateClassStats("rogue", classConfig.getRogue());
+        validateClassStats("mage", classConfig.getMage());
+        validateClassStats("cleric", classConfig.getCleric());
+    }
+
+    private void validateClassStats(String className, ClassStats stats) {
+        if (stats == null) {
+            throw new IllegalStateException(
+                "Battle configuration error: battle.classConfig.%s is not configured. ".formatted(className) +
+                "Please set battle.classConfig.%s.baseHp in application.properties".formatted(className)
+            );
+        }
+        if (stats.getBaseHp() <= 0) {
+            throw new IllegalStateException(
+                "Battle configuration error: battle.classConfig.%s.baseHp must be > 0, got %d".formatted(className, stats.getBaseHp())
+            );
+        }
+    }
+
     // Nested Configuration Classes
     public static class CharacterConfig {
         private PointBuyConfig pointBuy = new PointBuyConfig();
@@ -150,11 +177,14 @@ public class BattleProperties {
     }
 
     public static class ClassConfig {
-    // Default values - overridden by battle.classConfig.*.baseHp properties from application.properties
-    private ClassStats warrior = new ClassStats(12);
-    private ClassStats rogue = new ClassStats(8);
-    private ClassStats mage = new ClassStats(6);
-    private ClassStats cleric = new ClassStats(8);
+        // No defaults - all values must be explicitly configured in application.properties
+        // Required properties: battle.classConfig.warrior.baseHp, rogue.baseHp, mage.baseHp, cleric.baseHp
+        // D&D 5e hit die maximums: Fighter (d10)=10, Rogue (d8)=8, Wizard (d6)=6, Cleric (d8)=8
+        // Initialize empty objects so Spring can populate them via setters
+        private ClassStats warrior = new ClassStats();
+        private ClassStats rogue = new ClassStats();
+        private ClassStats mage = new ClassStats();
+        private ClassStats cleric = new ClassStats();
 
         public ClassStats getWarrior() {
             return warrior;
@@ -186,24 +216,6 @@ public class BattleProperties {
 
         public void setCleric(ClassStats cleric) {
             this.cleric = cleric;
-        }
-
-        public static class ClassStats {
-            private int baseHp;
-
-            public ClassStats() {}
-
-            public ClassStats(int baseHp) {
-                this.baseHp = baseHp;
-            }
-
-            public int getBaseHp() {
-                return baseHp;
-            }
-
-            public void setBaseHp(int baseHp) {
-                this.baseHp = baseHp;
-            }
         }
     }
 

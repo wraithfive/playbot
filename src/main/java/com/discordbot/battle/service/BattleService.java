@@ -1,9 +1,13 @@
 package com.discordbot.battle.service;
 
 import com.discordbot.battle.config.BattleProperties;
+import com.discordbot.battle.effect.CharacterStatsCalculator;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
+import com.discordbot.battle.util.CharacterDerivedStats;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
@@ -13,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,13 +34,11 @@ public class BattleService {
     private static final Logger logger = LoggerFactory.getLogger(BattleService.class);
     
     // Constants for combat calculations
-    private static final int FALLBACK_BASE_HP = 8;
-    private static final int MINIMUM_HP = 1;
-    private static final int BASE_ARMOR_CLASS = 10;
     private static final int ABILITY_SCORE_BASE = 10;
     private static final int ABILITY_MODIFIER_DIVISOR = 2;
 
     private final PlayerCharacterRepository characterRepository;
+    private final CharacterAbilityRepository characterAbilityRepository;
     private final BattleProperties battleProperties;
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
@@ -69,8 +72,11 @@ public class BattleService {
     // Per-user lightweight monitor objects to prevent race conditions when issuing challenges.
     private final ConcurrentHashMap<String, Object> userLocks = new ConcurrentHashMap<>();
 
-    public BattleService(PlayerCharacterRepository characterRepository, BattleProperties battleProperties) {
+    public BattleService(PlayerCharacterRepository characterRepository,
+                         CharacterAbilityRepository characterAbilityRepository,
+                         BattleProperties battleProperties) {
         this.characterRepository = characterRepository;
+        this.characterAbilityRepository = characterAbilityRepository;
         this.battleProperties = battleProperties;
     }
 
@@ -169,11 +175,24 @@ public class BattleService {
         PlayerCharacter attackerChar = getCharacter(battle.getGuildId(), attackerUserId);
         PlayerCharacter defenderChar = getCharacter(battle.getGuildId(), defenderUserId);
 
+        // Get learned abilities for both characters
+        List<CharacterAbility> attackerAbilities = characterAbilityRepository.findByCharacter(attackerChar);
+        List<CharacterAbility> defenderAbilities = characterAbilityRepository.findByCharacter(defenderChar);
+
+        // Calculate base HP for stats calculation
+        int attackerBaseHp = getBaseHpForClass(attackerChar.getCharacterClass());
+        int defenderBaseHp = getBaseHpForClass(defenderChar.getCharacterClass());
+
+        // Calculate combat stats with ability bonuses
+        CharacterStatsCalculator.CombatStats attackerStats =
+            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp);
+        CharacterStatsCalculator.CombatStats defenderStats =
+            CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp);
+
         int attackRoll = battle.rollD20();
-        int strMod = abilityMod(attackerChar.getStrength());
-        int dexDefMod = abilityMod(defenderChar.getDexterity());
-        int totalAttack = attackRoll + strMod;
-        int armorClass = BASE_ARMOR_CLASS + dexDefMod; // MVP AC formula
+        int strToHitMod = abilityMod(attackerChar.getStrength());
+        int totalAttack = attackRoll + strToHitMod;
+        int armorClass = defenderStats.armorClass(); // Use calculated AC with bonuses
 
         boolean crit = attackRoll >= battleProperties.getCombat().getCrit().getThreshold();
         boolean hit = crit || totalAttack >= armorClass;
@@ -181,9 +200,15 @@ public class BattleService {
         int damage = 0;
         if (hit) {
             int baseWeapon = battle.rollD6();
-            damage = baseWeapon + strMod;
+            // attackDamageBonus already includes STR mod, so just add it once
+            damage = baseWeapon + attackerStats.attackDamageBonus();
             if (crit) {
-                damage = (int) Math.round(damage * battleProperties.getCombat().getCrit().getMultiplier());
+                double critMultiplier = battleProperties.getCombat().getCrit().getMultiplier();
+                // Apply crit damage bonus (percentage increase)
+                if (attackerStats.critDamageBonus() > 0) {
+                    critMultiplier += (attackerStats.critDamageBonus() / 100.0);
+                }
+                damage = (int) Math.round(damage * critMultiplier);
             }
             damage = Math.max(0, damage); // Prevent negative damage if STR mod < 0
             if (attackerIsChallenger) {
@@ -195,7 +220,7 @@ public class BattleService {
 
         StringBuilder logLine = new StringBuilder()
             .append("{USER:").append(attackerUserId).append("}").append(" attacks (roll=").append(attackRoll)
-            .append(", strMod=").append(strMod)
+            .append(", strToHitMod=").append(strToHitMod)
             .append(", total=").append(totalAttack)
             .append(", AC=").append(armorClass)
             .append(") ");
@@ -232,23 +257,21 @@ public class BattleService {
                                boolean crit,
                                String winnerUserId) {}
 
-    /** Compute HP: base class HP + CON modifier (level 1). */
+    /** 
+     * Compute starting HP using centralized D&D 5e formula from CharacterDerivedStats.
+     * Level 1: hitDieMax + CON modifier
+     */
     private int computeStartingHp(String guildId, String userId) {
         PlayerCharacter pc = getCharacter(guildId, userId);
-        int baseHp = switch (pc.getCharacterClass().toLowerCase()) {
-            case "warrior" -> battleProperties.getClassConfig().getWarrior().getBaseHp();
-            case "rogue" -> battleProperties.getClassConfig().getRogue().getBaseHp();
-            case "mage" -> battleProperties.getClassConfig().getMage().getBaseHp();
-            case "cleric" -> battleProperties.getClassConfig().getCleric().getBaseHp();
-            default -> FALLBACK_BASE_HP; // fallback for unknown classes
-        };
-        if (baseHp < MINIMUM_HP) {
-            logger.error("Configured base HP {} is invalid (<{}) for class {}; defaulting to {}", 
-                baseHp, MINIMUM_HP, pc.getCharacterClass(), MINIMUM_HP);
-            baseHp = MINIMUM_HP;
-        }
-        int conMod = abilityMod(pc.getConstitution());
-        return Math.max(MINIMUM_HP, baseHp + conMod); // minimum 1 HP safeguard
+        return CharacterDerivedStats.computeHp(pc, battleProperties);
+    }
+
+    /** 
+     * Get base HP for a character class (D&D 5e hit die maximum).
+     * Used for stats calculator; delegates to CharacterDerivedStats for consistency.
+     */
+    private int getBaseHpForClass(String characterClass) {
+        return CharacterDerivedStats.getBaseHpForClass(characterClass, battleProperties);
     }
 
     private int abilityMod(int score) { 
