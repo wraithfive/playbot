@@ -74,11 +74,19 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - Bot restarted successfully; Liquibase applied all 5 new changesets without error.
   - Interactive class & race selection flow is live in `/create-character`.
 
+- Phase 2a — Spells & resources: CORE IMPLEMENTED (resource costs pending)
+  - Delivered: Effect parser (`EffectParser`, `AbilityEffect`), character stats calculator with ability bonuses integrated into combat resolution.
+  - `/abilities` command for viewing and learning abilities interactively (filters by type, class-appropriate abilities).
+  - Combat system now applies ability modifiers (DAMAGE, AC, CRIT_DAMAGE, MAX_HP, etc.) from learned talents/skills/spells.
+  - Comprehensive test coverage for effect parsing and combat integration.
+  - Pending: Resource costs (spell slots, charges), casting pipeline for active spell use, cooldowns.
+
 ### 4.3 Next up
-- Phase 2a (Spells & resources refinement)
-  - Implement casting pipeline in `BattleService` (attack/save resolution, DCs, resistances).
-  - Enforce resource costs (spell slots or per-spell charges) and per-spell cooldowns.
-  - Surface `/spells` and preparation flow (read-only first), then integrate spell selection into duel UI.
+- Phase 2b (Resource costs & spell casting)
+  - Add spell slot tracking (per-character state for Mage/Cleric spell slots).
+  - Implement spell casting action in combat (alongside Attack action).
+  - Add per-spell cooldowns and charge systems.
+  - Surface spell preparation/selection UI.
 - Phase 3 (Duel combat MVP)
   - Wire `/duel`, `/accept`, `/forfeit` with a minimal battle session lifecycle.
   - Add turn resolver for Attack/Defend/Spell with logging to `battle_turn_log`.

@@ -13,6 +13,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(classes = BattleProperties.class)
 @EnableConfigurationProperties(BattleProperties.class)
+@org.springframework.test.context.TestPropertySource(properties = {
+    // Ensure required class base HP values are present for validation during context load
+    "battle.classConfig.warrior.baseHp=10",
+    "battle.classConfig.rogue.baseHp=8",
+    "battle.classConfig.mage.baseHp=6",
+    "battle.classConfig.cleric.baseHp=8"
+})
 class BattlePropertiesBindingTest {
 
     @Autowired

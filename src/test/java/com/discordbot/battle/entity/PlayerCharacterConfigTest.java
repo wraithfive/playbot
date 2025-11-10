@@ -21,6 +21,12 @@ class PlayerCharacterConfigTest {
     void customConfig_30Points_validatesCorrectly() {
         // Custom config: 30 points, 6-16 range
         BattleProperties properties = new BattleProperties();
+        // Set required class configs
+        properties.getClassConfig().getWarrior().setBaseHp(10);
+        properties.getClassConfig().getRogue().setBaseHp(8);
+        properties.getClassConfig().getMage().setBaseHp(6);
+        properties.getClassConfig().getCleric().setBaseHp(8);
+        
         var pointBuy = properties.getCharacter().getPointBuy();
         pointBuy.setTotalPoints(30);
         pointBuy.setMinScore(6);
@@ -53,6 +59,12 @@ class PlayerCharacterConfigTest {
     void customConfig_20Points_validatesCorrectly() {
         // Lower-powered config: 20 points, 7-14 range
         BattleProperties properties = new BattleProperties();
+        // Set required class configs
+        properties.getClassConfig().getWarrior().setBaseHp(10);
+        properties.getClassConfig().getRogue().setBaseHp(8);
+        properties.getClassConfig().getMage().setBaseHp(6);
+        properties.getClassConfig().getCleric().setBaseHp(8);
+        
         var pointBuy = properties.getCharacter().getPointBuy();
         pointBuy.setTotalPoints(20);
         pointBuy.setMinScore(7);
@@ -83,6 +95,12 @@ class PlayerCharacterConfigTest {
     void customConfig_exceedsBudget_fails() {
         // 20-point budget config
         BattleProperties properties = new BattleProperties();
+        // Set required class configs
+        properties.getClassConfig().getWarrior().setBaseHp(10);
+        properties.getClassConfig().getRogue().setBaseHp(8);
+        properties.getClassConfig().getMage().setBaseHp(6);
+        properties.getClassConfig().getCleric().setBaseHp(8);
+        
         var pointBuy = properties.getCharacter().getPointBuy();
         pointBuy.setTotalPoints(20);
         pointBuy.setMinScore(7);

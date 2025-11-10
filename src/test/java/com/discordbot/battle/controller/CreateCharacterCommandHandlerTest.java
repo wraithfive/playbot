@@ -38,6 +38,11 @@ class CreateCharacterCommandHandlerTest {
     void setUp() {
         battleProperties = new BattleProperties();
         battleProperties.setEnabled(true);
+        // Set required class configs
+        battleProperties.getClassConfig().getWarrior().setBaseHp(10);
+        battleProperties.getClassConfig().getRogue().setBaseHp(8);
+        battleProperties.getClassConfig().getMage().setBaseHp(6);
+        battleProperties.getClassConfig().getCleric().setBaseHp(8);
 
         repository = mock(PlayerCharacterRepository.class);
     uiBuilder = new CharacterCreationUIBuilder(battleProperties);

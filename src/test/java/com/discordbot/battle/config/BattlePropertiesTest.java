@@ -20,6 +20,10 @@ import static org.junit.jupiter.api.Assertions.*;
     "battle.character.pointBuy.minScore=6",
     "battle.character.pointBuy.maxScore=16",
     "battle.classConfig.warrior.baseHp=15",
+    // Added required explicit class base HP configs due to validation
+    "battle.classConfig.rogue.baseHp=8",
+    "battle.classConfig.mage.baseHp=6",
+    "battle.classConfig.cleric.baseHp=8",
     "battle.combat.turn.timeoutSeconds=60",
     "battle.combat.crit.multiplier=2.5",
     "battle.challenge.expireSeconds=180",

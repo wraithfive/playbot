@@ -27,6 +27,12 @@ class PlayerCharacterTest {
     void setUp() {
         // Load config from application.properties
         properties = new BattleProperties();
+        // Set required class configs (D&D 5e hit die maximums)
+        properties.getClassConfig().getWarrior().setBaseHp(10);
+        properties.getClassConfig().getRogue().setBaseHp(8);
+        properties.getClassConfig().getMage().setBaseHp(6);
+        properties.getClassConfig().getCleric().setBaseHp(8);
+        
         validator = new CharacterValidationService(properties);
         
         // Extract config values for dynamic testing
