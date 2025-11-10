@@ -77,14 +77,20 @@ public class CharacterCommandHandler implements CommandHandler {
             EmbedBuilder embed = new EmbedBuilder();
             embed.setColor(Color.ORANGE);
 
-            // Safely resolve display name (avoid NPE from repeated getUserById calls)
+            // Safely resolve display name (try Member first for server nickname, then fetch User from API)
             Member member = guild.getMemberById(pc.getUserId());
             String displayName;
             if (member != null) {
                 displayName = member.getEffectiveName();
             } else {
-                User user = event.getJDA().getUserById(pc.getUserId());
-                displayName = user != null ? user.getName() : "Unknown User";
+                // User not in cache, fetch from Discord API
+                try {
+                    User user = event.getJDA().retrieveUserById(pc.getUserId()).complete();
+                    displayName = user != null ? user.getName() : "Unknown User";
+                } catch (Exception e) {
+                    logger.warn("Failed to fetch user {} for character sheet: {}", pc.getUserId(), e.getMessage());
+                    displayName = "Unknown User";
+                }
             }
             embed.setTitle("🧙 Character Sheet — " + displayName);
 
