@@ -42,5 +42,6 @@
     <!-- Battle System - Abilities (talents/skills/spells) -->
     <include file="db/changelog/changes/015-add-ability-tables.xml"/>
     <include file="db/changelog/changes/016-seed-abilities.xml"/>
+    <include file="db/changelog/changes/017-expand-class-abilities.xml"/>
 
 </databaseChangeLog>

@@ -1,7 +1,7 @@
 # Battle System Design Document
 
 Status: Draft
-Last Updated: 2025-11-08
+Last Updated: 2025-11-09
 Owner: (wraithfive)
 Feature Flag: `battle.enabled`
 
@@ -38,6 +38,52 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
 14. Test Suite Build-Out (Phase 13)
 15. Deployment & Rollout (Phase 14)
 
+### 4.1 Phase status (as of 2025-11-09)
+- Phase 0 — Foundation & feature flag: DONE
+  - `battle.enabled` flag wired in `application.properties` with sane defaults.
+- Phases 1 / 1a / 1b — Character creation & persistence: CORE IMPLEMENTED (1a/1b enhancements pending)
+  - Delivered: `player_character` table (Liquibase 011 + 013), JPA entity, repository, `/create-character` command + interactive flow, basic validation, help text, tests.
+  - Pending (1a/1b): extended stat/respec flow, additional edge-case tests.
+  - Optional later: cosmetic fields (nickname/avatar/bio) for additional color.
+
+  | Phase 1 scope | Delivered | Notes |
+  | --- | --- | --- |
+  | Class selection | Yes | Slash + interactive menus |
+  | Race selection | Yes | Validation via `CharacterValidationService` |
+  | Point-buy stats | Yes | 27-point validation enforced |
+  | Persistence | Yes | `player_character` table + JPA repository |
+  | Basic `/character` view | Yes | Implemented (stats, modifiers, HP, AC; assumes level 1) |
+  | Respec flow | Deferred | Track under 1a |
+  | Cosmetics (nickname/avatar/bio) | Optional later | Not planned for core |
+- Phases 2 / 2a — Spells & resources: IN PROGRESS
+  - Static ability/spell definitions seeded for all classes (Warrior, Rogue, Mage, Cleric) plus universal feats.
+  - Resource/casting pipeline, slot checks, and UI exposure tracked for 2a.
+- Phase 3 — Duel combat MVP: PLANNED
+  - Command surface drafted (`/duel`, `/accept`, `/forfeit`). Implementation pending Phase 2a.
+
+### 4.2 Recent progress (2025-11-09)
+- Database migrations:
+  - Added `017-expand-class-abilities.xml` covering Cleric (complete), and expanded Warrior/Rogue/Mage/Universal abilities.
+  - Fixed Liquibase preconditions to be idempotent and reliable; escaped XML entities.
+  - Update summary on startup: Run: 5, Previously run: 32, Total change sets: 37; Rows affected: 49.
+- Content seeded:
+  - Cleric: 10 abilities (Life Domain talents and core spell kit).
+  - Warrior: +7; Rogue: +8; Mage: +11; Universal feats: +8.
+  - **Note:** All abilities currently set to `required_level=1` for MVP simplicity. Some spells (e.g., Time Stop, Disintegrate) would require level 9 in full D&D 5e but are accessible now for testing/balancing. Level gating will be refined in Phase 6 (Progression).
+- Verification:
+  - Bot restarted successfully; Liquibase applied all 5 new changesets without error.
+  - Interactive class & race selection flow is live in `/create-character`.
+
+### 4.3 Next up
+- Phase 2a (Spells & resources refinement)
+  - Implement casting pipeline in `BattleService` (attack/save resolution, DCs, resistances).
+  - Enforce resource costs (spell slots or per-spell charges) and per-spell cooldowns.
+  - Surface `/spells` and preparation flow (read-only first), then integrate spell selection into duel UI.
+- Phase 3 (Duel combat MVP)
+  - Wire `/duel`, `/accept`, `/forfeit` with a minimal battle session lifecycle.
+  - Add turn resolver for Attack/Defend/Spell with logging to `battle_turn_log`.
+  - Anti-abuse basics (timeouts, per-user duel cooldown) using existing config knobs.
+
 ## 5. Domain Glossary
 - Character: Player-created persistent entity with D&D 5e ability scores (STR, DEX, CON, INT, WIS, CHA) & class.
 - Class: Archetype defining stat priorities, spell slots, possible spells (e.g., Warrior, Rogue, Mage, Cleric).
@@ -72,7 +118,7 @@ Flow:
 - `guild_id` (STRING)
 - `user_id` (STRING)
 - `class` (ENUM or VARCHAR: Warrior, Rogue, Mage, Cleric)
-- `race` (VARCHAR: Human, Elf, Dwarf, Halfling, etc.) [Phase 1b]
+- `race` (VARCHAR: Human, Elf, Dwarf, Halfling, etc.)
 - `level` (INT, default 1)
 - `xp` (BIGINT, default 0)
 - **D&D 5e Ability Scores** (INT, 8-15 base range via point-buy):
@@ -160,9 +206,10 @@ Reload command later: `/battle-config-reload` (Phase 12).
 
 ## 9. Command Surface (Incremental)
 Phase 1:
-- `/create-character class:<Warrior|Rogue|Mage|Cleric> str:<8-15> dex:<8-15> con:<8-15> int:<8-15> wis:<8-15> cha:<8-15>` (point-buy validated: 27 points total)
-- `/character [user]` (view stats, modifiers, HP, AC)
-- `/character-edit nickname:<str> avatar_url:<url> bio:<text>` (Phase 1b)
+- `/create-character` (interactive UI with menus; point-buy validated: 27 points total)
+- `/character [user]` (view stats, modifiers, HP, AC; level assumed 1 until leveling added)
+- `/abilities` (view learned & available, learn interactively)
+- `/character-edit nickname:<str> avatar_url:<url> bio:<text>` (Optional, later)
 
 Phase 3:
 - `/duel target:@user`

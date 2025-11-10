@@ -101,10 +101,16 @@ public class BattleCommandHandler implements CommandHandler {
         );
 
         embed.addField(
-            "📜 Available Commands (Coming Soon)",
+            "📜 Available Commands",
             "`/create-character` - Create your battle character (interactive form)\n" +
-                "`/character` - View your character sheet\n" +
-                "`/duel @user` - Challenge someone to a duel\n" +
+                "`/character [user]` - View your character sheet (or another user's)\n" +
+                "`/abilities` - View and learn abilities",
+            false
+        );
+
+        embed.addField(
+            "🛠️ Coming Soon",
+            "`/duel @user` - Challenge someone to a duel\n" +
                 "`/battle-stats` - View your battle statistics\n" +
                 "`/battle-leaderboard` - See top fighters",
             false

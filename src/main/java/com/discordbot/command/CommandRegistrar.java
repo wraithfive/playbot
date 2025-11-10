@@ -63,6 +63,11 @@ public class CommandRegistrar extends ListenerAdapter {
             if (battleProperties != null && battleProperties.isEnabled()) {
                 commands.add(Commands.slash("battle-help", "Show information about the battle system"));
                 commands.add(Commands.slash("create-character", "Create a new battle character with D&D 5e stats"));
+                // Character sheet view (optional user argument to view someone else's character)
+                commands.add(
+                    Commands.slash("character", "View a player's battle character sheet")
+                        .addOption(OptionType.USER, "user", "User whose character to view (defaults to you)", false)
+                );
                 commands.add(
                     Commands.slash("duel", "Challenge another player to a duel")
                         .addOption(OptionType.USER, "opponent", "The user you want to challenge", true)
