@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="019-create-character-spell-slots-table" author="copilot">
+        <comment>Create character_spell_slots table for tracking per-character spell slot availability</comment>
+
+        <createTable tableName="character_spell_slots">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_character_spell_slots"/>
+            </column>
+            <column name="character_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_character_spell_slots_character"
+                             references="player_character(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="slot_level" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_slots" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_slots" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_rest" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="character_spell_slots" 
+                             columnNames="character_id,slot_level" 
+                             constraintName="uk_character_spell_slot"/>
+
+        <createIndex tableName="character_spell_slots" 
+                     indexName="idx_character_spell_slots_character">
+            <column name="character_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

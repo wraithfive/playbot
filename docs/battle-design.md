@@ -55,24 +55,52 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   | Basic `/character` view | Yes | Implemented (stats, modifiers, HP, AC; assumes level 1) |
   | Respec flow | Deferred | Track under 1a |
   | Cosmetics (nickname/avatar/bio) | Optional later | Not planned for core |
-- Phases 2 / 2a — Spells & resources: IN PROGRESS
+- Phases 2 / 2a — Spells & resources: CORE IMPLEMENTED
   - Static ability/spell definitions seeded for all classes (Warrior, Rogue, Mage, Cleric) plus universal feats.
-  - Resource/casting pipeline, slot checks, and UI exposure tracked for 2a.
+  - Effect parser (`EffectParser`, `AbilityEffect`), character stats calculator with ability bonuses integrated.
+  - `/abilities` command for viewing and learning abilities interactively.
+  - Combat system applies ability modifiers (DAMAGE, AC, CRIT_DAMAGE, MAX_HP, etc.).
+- Phase 2b — Resource costs & spell casting: COMPLETED
+  - Database schema: 3 new migrations (018, 019, 020) for spell slots, cooldowns, charges.
+  - Entities: `RestType` enum, extended `Ability` with resource costs, `CharacterSpellSlot`, `CharacterAbilityCooldown`.
+  - Repositories: `CharacterSpellSlotRepository`, `CharacterAbilityCooldownRepository` with @Transactional.
+  - Validation: Triple-layer (setter checks + Jakarta annotations + database CHECK constraints).
+  - Comprehensive unit tests: 38 new tests (CharacterSpellSlotTest, CharacterAbilityCooldownTest, AbilityTest).
+  - All 460 tests passing. Ready for service layer implementation (SpellResourceService).
 - Phase 3 — Duel combat MVP: PLANNED
-  - Command surface drafted (`/duel`, `/accept`, `/forfeit`). Implementation pending Phase 2a.
+  - Command surface drafted (`/duel`, `/accept`, `/forfeit`). Implementation pending.
 
-### 4.2 Recent progress (2025-11-09)
-- Database migrations:
-  - Added `017-expand-class-abilities.xml` covering Cleric (complete), and expanded Warrior/Rogue/Mage/Universal abilities.
-  - Fixed Liquibase preconditions to be idempotent and reliable; escaped XML entities.
+### 4.2 Recent progress (2025-11-10)
+- **Phase 2b — Resource costs & spell casting: COMPLETED**
+  - Database migrations:
+    - `018-add-ability-resource-costs.xml`: Extended ability table with spell_slot_level (0-9), cooldown_seconds, charges_max, rest_type with CHECK constraints.
+    - `019-create-character-spell-slots-table.xml`: Per-character spell slot tracking with max_slots, current_slots, last_rest timestamp.
+    - `020-create-character-ability-cooldown-table.xml`: Per-character, per-ability cooldown tracking with last_used, available_at timestamps.
+  - Entities:
+    - `RestType` enum: NONE, SHORT_REST, LONG_REST (D&D 5e mechanics).
+    - `Ability`: Extended with spellSlotLevel, cooldownSeconds, chargesMax, restType fields with validation.
+    - `CharacterSpellSlot`: Spell slot management with consumeSlot(), restoreSlots(), validation in setters.
+    - `CharacterAbilityCooldown`: Cooldown tracking with isAvailable(), resetCooldown() methods.
+  - Repositories:
+    - `CharacterSpellSlotRepository`: CRUD + findByCharacterAndSlotLevel, @Transactional deletes.
+    - `CharacterAbilityCooldownRepository`: CRUD + findByAvailableAtBefore for cleanup, @Transactional deletes.
+  - Validation: Triple-layer approach (explicit setter validation + Jakarta annotations + database CHECK constraints).
+  - Tests: 38 new unit tests covering all entity business logic, validation, edge cases. All 460 tests passing.
+  - Status: Schema and entities complete. Ready for SpellResourceService implementation.
+
+- Previous progress (2025-11-09):
+  - **Phase 2a — Spells & resources: CORE IMPLEMENTED**
+  - Database migrations:
+    - Added `017-expand-class-abilities.xml` covering Cleric (complete), and expanded Warrior/Rogue/Mage/Universal abilities.
+    - Fixed Liquibase preconditions to be idempotent and reliable; escaped XML entities.
   - Update summary on startup: Run: 5, Previously run: 32, Total change sets: 37; Rows affected: 49.
-- Content seeded:
-  - Cleric: 10 abilities (Life Domain talents and core spell kit).
-  - Warrior: +7; Rogue: +8; Mage: +11; Universal feats: +8.
-  - **Note:** All abilities currently set to `required_level=1` for MVP simplicity. Some spells (e.g., Time Stop, Disintegrate) would require level 9 in full D&D 5e but are accessible now for testing/balancing. Level gating will be refined in Phase 6 (Progression).
-- Verification:
-  - Bot restarted successfully; Liquibase applied all 5 new changesets without error.
-  - Interactive class & race selection flow is live in `/create-character`.
+  - Content seeded:
+    - Cleric: 10 abilities (Life Domain talents and core spell kit).
+    - Warrior: +7; Rogue: +8; Mage: +11; Universal feats: +8.
+    - **Note:** All abilities currently set to `required_level=1` for MVP simplicity. Some spells (e.g., Time Stop, Disintegrate) would require level 9 in full D&D 5e but are accessible now for testing/balancing. Level gating will be refined in Phase 6 (Progression).
+  - Verification:
+    - Bot restarted successfully; Liquibase applied all 5 new changesets without error.
+    - Interactive class & race selection flow is live in `/create-character`.
 
 - Phase 2a — Spells & resources: CORE IMPLEMENTED (resource costs pending)
   - Delivered: Effect parser (`EffectParser`, `AbilityEffect`), character stats calculator with ability bonuses integrated into combat resolution.
@@ -82,11 +110,10 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - Pending: Resource costs (spell slots, charges), casting pipeline for active spell use, cooldowns.
 
 ### 4.3 Next up
-- Phase 2b (Resource costs & spell casting)
-  - Add spell slot tracking (per-character state for Mage/Cleric spell slots).
-  - Implement spell casting action in combat (alongside Attack action).
-  - Add per-spell cooldowns and charge systems.
-  - Surface spell preparation/selection UI.
+- Phase 2c (Resource management service layer)
+  - Create SpellResourceService for managing spell slots, cooldowns, charges.
+  - Methods: initializeSpellSlots, consumeSpellSlot, restoreSpellSlots, checkAbilityCooldown, startAbilityCooldown.
+  - Integration tests for resource management service.
 - Phase 3 (Duel combat MVP)
   - Wire `/duel`, `/accept`, `/forfeit` with a minimal battle session lifecycle.
   - Add turn resolver for Attack/Defend/Spell with logging to `battle_turn_log`.

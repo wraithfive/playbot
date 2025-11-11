@@ -1,6 +1,8 @@
 package com.discordbot.battle.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.time.LocalDateTime;
 
 /**
@@ -62,6 +64,39 @@ public class Ability {
     @Column(name = "description", length = 512, nullable = false)
     private String description;
 
+    // --- Resource Costs (Phase 2b) ---
+
+    /**
+     * Spell slot level (1-9 for D&D 5e spells, 0 for cantrips).
+     * NULL for talents/skills that don't use spell slots.
+     */
+    @Column(name = "spell_slot_level")
+    @Min(0)
+    @Max(9)
+    private Integer spellSlotLevel;
+
+    /**
+     * Cooldown in seconds between uses. NULL means no cooldown.
+     */
+    @Column(name = "cooldown_seconds")
+    @Min(0)
+    private Integer cooldownSeconds;
+
+    /**
+     * Maximum charges per rest. NULL means no charge system (unlimited uses if no spell slot cost).
+     */
+    @Column(name = "charges_max")
+    @Min(1)
+    private Integer chargesMax;
+
+    /**
+     * Rest type required to restore charges/slots.
+     * NULL means not applicable (e.g., passive talents).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rest_type", length = 16)
+    private RestType restType;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -105,6 +140,10 @@ public class Ability {
     public String getPrerequisites() { return prerequisites; }
     public String getEffect() { return effect; }
     public String getDescription() { return description; }
+    public Integer getSpellSlotLevel() { return spellSlotLevel; }
+    public Integer getCooldownSeconds() { return cooldownSeconds; }
+    public Integer getChargesMax() { return chargesMax; }
+    public RestType getRestType() { return restType; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
@@ -112,4 +151,27 @@ public class Ability {
     public void setDescription(String description) { this.description = description; }
     public void setEffect(String effect) { this.effect = effect; }
     public void setRequiredLevel(int requiredLevel) { this.requiredLevel = requiredLevel; }
+    
+    public void setSpellSlotLevel(Integer spellSlotLevel) {
+        if (spellSlotLevel != null && (spellSlotLevel < 0 || spellSlotLevel > 9)) {
+            throw new IllegalArgumentException("Spell slot level must be between 0 and 9, got: " + spellSlotLevel);
+        }
+        this.spellSlotLevel = spellSlotLevel;
+    }
+    
+    public void setCooldownSeconds(Integer cooldownSeconds) {
+        if (cooldownSeconds != null && cooldownSeconds < 0) {
+            throw new IllegalArgumentException("Cooldown seconds cannot be negative, got: " + cooldownSeconds);
+        }
+        this.cooldownSeconds = cooldownSeconds;
+    }
+    
+    public void setChargesMax(Integer chargesMax) {
+        if (chargesMax != null && chargesMax < 1) {
+            throw new IllegalArgumentException("Charges max must be at least 1, got: " + chargesMax);
+        }
+        this.chargesMax = chargesMax;
+    }
+    
+    public void setRestType(RestType restType) { this.restType = restType; }
 }
