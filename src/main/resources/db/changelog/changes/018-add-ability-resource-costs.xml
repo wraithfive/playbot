@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="018-add-ability-resource-costs" author="copilot">
+        <comment>Add resource cost columns to ability table for spell slots, charges, and cooldowns</comment>
+
+        <addColumn tableName="ability">
+            <!-- Spell slot level (1-9 for D&D 5e spells, 0 for cantrips, NULL for non-spells) -->
+            <column name="spell_slot_level" type="INT">
+                <constraints nullable="true" checkConstraint="CHECK (spell_slot_level IS NULL OR (spell_slot_level &gt;= 0 AND spell_slot_level &lt;= 9))"/>
+            </column>
+
+            <!-- Cooldown in seconds (NULL means no cooldown, must be non-negative) -->
+            <column name="cooldown_seconds" type="INT">
+                <constraints nullable="true" checkConstraint="CHECK (cooldown_seconds IS NULL OR cooldown_seconds &gt;= 0)"/>
+            </column>
+
+            <!-- Maximum charges per rest (NULL means no charge system, must be positive if set) -->
+            <column name="charges_max" type="INT">
+                <constraints nullable="true" checkConstraint="CHECK (charges_max IS NULL OR charges_max &gt; 0)"/>
+            </column>
+
+            <!-- Rest type required to restore charges/slots: SHORT_REST, LONG_REST, NONE (NULL means N/A) -->
+            <column name="rest_type" type="VARCHAR(16)">
+                <constraints nullable="true" checkConstraint="CHECK (rest_type IS NULL OR rest_type IN ('NONE', 'SHORT_REST', 'LONG_REST'))"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

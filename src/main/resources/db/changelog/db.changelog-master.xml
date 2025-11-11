@@ -43,5 +43,8 @@
     <include file="db/changelog/changes/015-add-ability-tables.xml"/>
     <include file="db/changelog/changes/016-seed-abilities.xml"/>
     <include file="db/changelog/changes/017-expand-class-abilities.xml"/>
+    <include file="db/changelog/changes/018-add-ability-resource-costs.xml"/>
+    <include file="db/changelog/changes/019-create-character-spell-slots-table.xml"/>
+    <include file="db/changelog/changes/020-create-character-ability-cooldown-table.xml"/>
 
 </databaseChangeLog>
