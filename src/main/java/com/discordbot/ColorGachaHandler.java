@@ -17,6 +17,23 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 
+/**
+ * Legacy handler for text-based gacha commands (!roll, !mycolor, etc.).
+ * 
+ * @deprecated This class is no longer active. It is not registered as an event listener
+ * and exists only for historical reference and test coverage. Gacha functionality has been 
+ * moved to {@link SlashCommandHandler} which handles slash commands (/roll, /mycolor, etc.).
+ * 
+ * <p>Known issues in this deprecated class:
+ * <ul>
+ *   <li>Uses calendar day checking (LocalDate) instead of 24-hour periods for cooldowns</li>
+ *   <li>Cooldowns stored in-memory instead of database, lost on restart</li>
+ * </ul>
+ * 
+ * @see SlashCommandHandler
+ * @since 1.0.0
+ */
+@Deprecated(since = "1.3.0", forRemoval = true)
 public class ColorGachaHandler extends ListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(ColorGachaHandler.class);
