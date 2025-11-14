@@ -369,8 +369,9 @@ public class BattleProperties {
 
         public static class XpConfig {
             // Default values - overridden by battle.progression.xp.levelCurve property from application.properties
-            // XP thresholds for levels 1-10 (D&D 5e standard progression)
-            private List<Integer> levelCurve = List.of(0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000);
+            // XP thresholds for levels 1-20 (D&D 5e standard progression)
+            private List<Integer> levelCurve = List.of(0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000,
+                                                       85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000);
             // Battle XP rewards (reduced to be a bonus, not primary source)
             private long baseXp = 20;      // Base XP for participating in battle
             private long winBonus = 30;    // Bonus XP for winning
