@@ -51,6 +51,7 @@ public class BattleService {
     private final AbilityRepository abilityRepository;
     private final StatusEffectService statusEffectService;
     private final BattleSessionRepository sessionRepository; // Phase 7: Persistent battle sessions
+    private final BattleMetricsService metricsService; // Phase 8: Monitoring & Logging
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
     // Active / pending battles: up to 60 minutes since last access.
@@ -97,7 +98,8 @@ public class BattleService {
                          SpellResourceService spellResourceService,
                          AbilityRepository abilityRepository,
                          StatusEffectService statusEffectService,
-                         BattleSessionRepository sessionRepository) {
+                         BattleSessionRepository sessionRepository,
+                         BattleMetricsService metricsService) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
@@ -106,6 +108,7 @@ public class BattleService {
         this.abilityRepository = abilityRepository;
         this.statusEffectService = statusEffectService;
         this.sessionRepository = sessionRepository;
+        this.metricsService = metricsService;
     }
 
     /**
