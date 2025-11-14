@@ -85,11 +85,20 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Audit trail enrichment (status effects in turn logs)
     - Defend AC lifecycle clarity (comment fixes)
   - **Status:** Production-ready, all high/medium priority issues resolved
-- Phase 3b — Anti-abuse enhancements: IN PROGRESS
+- Phase 3b — Anti-abuse enhancements: COMPLETED
   - **Scheduled timeout checker:** `BattleTimeoutScheduler` with automatic stale battle detection
   - **Configuration:** Properties for timeout check intervals and feature toggle
   - **Test coverage:** Comprehensive unit tests for scheduler behavior
-  - **Pending:** Battle history analytics (optional), IP-based rate limiting (optional)
+  - **Status:** Core scheduler complete, optional analytics/IP limiting deferred
+- Phase 4 — Expanded Actions & Status Effects: IN PROGRESS (Part 1/2 complete)
+  - **Base infrastructure (completed):**
+    - Database migration 022: battle_status_effect table with indexes
+    - StatusEffectType enum: 12 effect types (STUN, BURN, POISON, REGEN, SHIELD, HASTE, SLOW, BLEED, WEAKNESS, STRENGTH, PROTECTION, VULNERABILITY)
+    - BattleStatusEffect entity with business logic (stacking, duration, display)
+    - BattleStatusEffectRepository with comprehensive query methods
+    - StatusEffectService: Complete effect management (apply, tick, modifiers, shield absorption)
+    - ActiveBattle extended with maxHP tracking
+  - **Pending:** Combat integration, UI indicators, spell extensions, tests
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
