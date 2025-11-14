@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-import java.awt.Color;
 import java.util.List;
 
 /**
