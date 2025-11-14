@@ -127,8 +127,8 @@ public class ActiveBattle {
     /** Advance turn to the other player. */
     public void advanceTurn() {
         if (status != BattleStatus.ACTIVE) return;
-        // Clear temp AC bonus if the person who had it is ending their turn
-        // (defend bonus applies until the start of the defender's next turn)
+        // Clear temp AC bonus when advancing back to the defender's turn
+        // (defend bonus applies during the opponent's next attack, then clears when advancing back to defender's turn)
         if (tempAcBonusUserId != null && !tempAcBonusUserId.equals(currentTurnUserId)) {
             tempAcBonus = 0;
             tempAcBonusUserId = null;
