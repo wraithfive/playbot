@@ -225,6 +225,7 @@ public class BattleProperties {
     // Default values - overridden by battle.combat.* properties from application.properties
     private int cooldownSeconds = 60;
     private int maxConcurrentPerGuild = 50;
+    private int defendAcBonus = 2;  // AC bonus when using defend action (Phase 9: extracted from hard-coded constant)
 
         public CritConfig getCrit() {
             return crit;
@@ -256,6 +257,14 @@ public class BattleProperties {
 
         public void setMaxConcurrentPerGuild(int maxConcurrentPerGuild) {
             this.maxConcurrentPerGuild = maxConcurrentPerGuild;
+        }
+
+        public int getDefendAcBonus() {
+            return defendAcBonus;
+        }
+
+        public void setDefendAcBonus(int defendAcBonus) {
+            this.defendAcBonus = defendAcBonus;
         }
 
         public static class CritConfig {

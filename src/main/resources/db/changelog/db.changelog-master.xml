@@ -65,5 +65,6 @@
 
     <!-- Battle System - Performance & Optimization (Phase 9) -->
     <include file="db/changelog/changes/027-add-performance-indexes.xml"/>
+    <include file="db/changelog/changes/028-add-status-effect-unique-constraint.xml"/>
 
 </databaseChangeLog>
