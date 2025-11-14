@@ -805,4 +805,14 @@ public class BattleService {
         long elapsed = System.currentTimeMillis() - battle.getLastActionAt();
         return elapsed >= timeoutMs;
     }
+
+    /**
+     * Get all active battles (for timeout checking and monitoring).
+     * Returns a snapshot collection of battles in ACTIVE status.
+     */
+    public Collection<ActiveBattle> getAllActiveBattles() {
+        return battles.asMap().values().stream()
+            .filter(ActiveBattle::isActive)
+            .collect(java.util.stream.Collectors.toList());
+    }
 }

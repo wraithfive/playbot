@@ -85,6 +85,11 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Audit trail enrichment (status effects in turn logs)
     - Defend AC lifecycle clarity (comment fixes)
   - **Status:** Production-ready, all high/medium priority issues resolved
+- Phase 3b — Anti-abuse enhancements: IN PROGRESS
+  - **Scheduled timeout checker:** `BattleTimeoutScheduler` with automatic stale battle detection
+  - **Configuration:** Properties for timeout check intervals and feature toggle
+  - **Test coverage:** Comprehensive unit tests for scheduler behavior
+  - **Pending:** Battle history analytics (optional), IP-based rate limiting (optional)
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
@@ -112,6 +117,26 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
 
   - **Architecture:** BattleService now depends on SpellResourceService and AbilityRepository
   - **Status:** Production-ready, all code review issues resolved
+
+- **Phase 3b — Anti-abuse enhancements: IN PROGRESS**
+  - **Scheduled timeout checker (implemented):**
+    - `BattleTimeoutScheduler.java`: Spring @Scheduled component for periodic battle monitoring
+    - `checkAndTimeoutStaleBattles()`: Runs every 30 seconds (configurable), checks all active battles for turn timeouts
+    - `cleanupExpiredChallenges()`: Runs every 2 minutes (configurable), removes expired pending challenges
+    - Feature toggle: `@ConditionalOnProperty` respects `battle.scheduler.timeout.enabled`
+    - Error handling: Individual battle timeout failures don't block processing of remaining battles
+    - Extended `BattleService` with `getAllActiveBattles()` method for scheduler access
+  - **Configuration properties (completed):**
+    - `battle.scheduler.timeout.enabled=true`: Enable/disable automatic timeout checking
+    - `battle.scheduler.timeout.checkIntervalMs=30000`: Timeout check interval (30 seconds default)
+    - `battle.scheduler.cleanup.checkIntervalMs=120000`: Challenge cleanup interval (2 minutes default)
+  - **Test coverage (completed):**
+    - `BattleTimeoutSchedulerTest.java`: 11 unit tests covering all scheduler behavior
+    - Tests: Feature flag disabled, empty battles, single/multiple timeouts, error handling, cleanup
+    - All tests use Mockito for dependency mocking and verify correct service method invocations
+  - **Pending (optional):**
+    - Battle history analytics dashboard (optional enhancement)
+    - IP-based rate limiting for challenge creation (optional anti-abuse measure)
 
 ### 4.2 Recent progress (2025-11-10)
 - **Phase 2b — Resource costs & spell casting: COMPLETED**
@@ -153,10 +178,10 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - Pending: Resource costs (spell slots, charges), casting pipeline for active spell use, cooldowns.
 
 ### 4.3 Next up
-- Phase 3b (Anti-abuse enhancements - Optional)
-  - Scheduled timeout checker job to automatically end stale battles
-  - IP-based rate limiting for challenge creation (prevent multi-account abuse)
-  - Battle history analytics dashboard
+- Phase 3b (Anti-abuse enhancements - IN PROGRESS)
+  - ✅ Scheduled timeout checker job to automatically end stale battles
+  - ⏳ IP-based rate limiting for challenge creation (prevent multi-account abuse) - Optional
+  - ⏳ Battle history analytics dashboard - Optional
 - Phase 4 (Expanded Actions & Status Effects)
   - Implement status effect system (stun, burn, shield, haste, slow, poison)
   - Status effect entity and tracking (duration, stacks, application/expiry)
