@@ -122,6 +122,24 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - StatusEffectServiceTest: 24 unit tests with full coverage
     - Tests cover: effect application (new/stacking/refresh), turn processing (DoT/HoT/stun), ticking/expiration, modifiers (AC/attack/damage), shield absorption, cleanup operations, display formatting
   - **Status:** Fully implemented and production-ready
+- Phase 6 — Progression & Leaderboards: CORE COMPLETE (2/3 done)
+  - **Progression infrastructure (completed - Part 1):**
+    - Database migration 024: level, XP, ELO, wins, losses, draws fields
+    - Indexes for leaderboard queries (ELO DESC, level DESC)
+    - PlayerCharacter entity: addXp(), updateElo(), increment W/L/D methods
+    - CharacterStatsCalculator: proficiencyBonus calculation from level
+    - CombatStats record extended with proficiencyBonus field
+    - BattleService: proficiency bonus integrated into attack/spell rolls (d20 + proficiency + ability + status)
+    - Reward methods: awardProgressionRewards(), awardXpAndElo() with ELO formula
+  - **Reward integration (completed - Part 2):**
+    - BattleInteractionHandler: calls awardProgressionRewards() on battle end
+    - Integrated in attack, defend, and forfeit handlers
+    - XP awarded with base + win/draw bonus
+    - ELO calculated using standard formula (K=32, expected = 1/(1+10^((Ropp-Rme)/400)))
+    - Automatic level-up detection with logging
+    - Win/loss/draw stats incremented and persisted
+  - **Pending (optional):** /leaderboard command, level-based spell slot progression, comprehensive tests
+  - **Status:** Functional progression system, rewards awarded on all battle conclusions
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
