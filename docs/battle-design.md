@@ -1,7 +1,7 @@
 # Battle System Design Document
 
 Status: Draft
-Last Updated: 2025-11-09
+Last Updated: 2025-11-14
 Owner: (wraithfive)
 Feature Flag: `battle.enabled`
 
@@ -170,6 +170,70 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     3. Stale battles marked as ABORTED with logging
     4. Bot continues with clean state
   - **Status:** Battles survive bot restarts, stale battles cleaned up gracefully
+- Phase 8 — Monitoring & Logging: COMPLETED
+  - **Metrics infrastructure (completed - Part 1):**
+    - BattleMetricsService: Micrometer integration for Prometheus/Grafana compatibility
+    - Counters: challenges (created/accepted/declined), battles (completed/forfeit/timeout/aborted), combat actions (attacks/defends/spells/crits)
+    - Gauges: activeBattles, pendingChallenges (real-time system state)
+    - Timers: turnDuration, battleDuration (performance tracking)
+    - BattleStats record: Unified metrics accessor for admin visibility
+  - **Structured logging (completed - Part 1):**
+    - BattleEvent classes: ChallengeCreated, ChallengeAccepted, TurnResolved, BattleTimeout, BattleCompleted, BattleAborted
+    - Key-value format for log parsing (e.g., "battleId=xyz guildId=abc damage=15")
+    - Standardized event types across all battle lifecycle points
+  - **Metrics integration (completed - Part 2):**
+    - BattleService: Metrics recording at all lifecycle points
+    - Challenge flow: created/accepted/declined events
+    - Combat actions: attack/defend/spell with crit tracking
+    - Battle endings: completed/forfeit/timeout with duration tracking
+    - Event logging: Structured events at all major state transitions
+  - **Admin visibility (completed - Part 2):**
+    - /battle-stats command: Real-time metrics display
+    - Challenge stats, battle outcomes, current activity
+    - Combat action counts, performance metrics (avg turn/battle duration)
+    - CommandRegistrar: Registered /battle-stats slash command
+  - **Status:** Full observability stack complete - metrics, structured logs, admin visibility
+- Chat-based XP & Progression: IMPLEMENTED (New feature post-design)
+  - **Primary progression system:**
+    - Chat participation is now the main XP source (battles are bonus rewards)
+    - 10-15 XP per message (10 base + 0-5 random bonus)
+    - 60-second cooldown per user (anti-spam protection)
+    - Auto-create character on first message (seamless onboarding)
+    - Level-up notifications: ⭐ emoji reaction on level-up
+  - **Database (migration 026):**
+    - Added last_chat_xp_at timestamp to player_character table
+    - Indexed for efficient cooldown queries
+  - **Services:**
+    - ChatXpService: XP awards, cooldown checking, auto-character creation
+    - XpAwardResult record: Award status (AWARDED/DISABLED/NO_CHARACTER/ON_COOLDOWN)
+    - Transactional consistency for XP updates
+  - **Listeners:**
+    - ChatXpListener: MessageReceivedEvent handler
+    - Filters out bot messages and DMs
+    - Exception handling to prevent message processing failures
+  - **Battle XP rebalanced:**
+    - Base XP: 20 (participation reward)
+    - Win bonus: +30 (total 50 XP)
+    - Draw bonus: +10 (total 30 XP)
+    - Loss: 20 XP (participation only)
+  - **Configuration:**
+    - battle.progression.chatXp.enabled=true
+    - battle.progression.chatXp.baseXp=10
+    - battle.progression.chatXp.bonusXpMax=5
+    - battle.progression.chatXp.cooldownSeconds=60
+    - battle.progression.chatXp.levelUpNotification=true
+    - battle.progression.chatXp.autoCreateCharacter=true
+  - **Progression balance:**
+    - Level 2 (300 XP): ~20-30 chat messages OR 6 battle wins
+    - Level 10 (64,000 XP): ~5,120 messages OR 1,280 battles
+    - Active user (15 msgs/hr): ~340 hours to level 10 (2-3 months)
+  - **Level cap extended to 20:**
+    - Max XP requirement: 355,000 XP (was 64,000 at level 10)
+    - D&D 5e standard XP curve for levels 11-20
+    - Proficiency bonus scales to +6 at level 20
+    - Active user: ~1,900 hours to max level (6-8 months daily play)
+    - Long-term engagement: 1-2+ years for casual players
+  - **Status:** Fully integrated, rewards server participation over grinding
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
