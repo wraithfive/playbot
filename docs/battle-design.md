@@ -140,6 +140,29 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Win/loss/draw stats incremented and persisted
   - **Pending (optional):** /leaderboard command, level-based spell slot progression, comprehensive tests
   - **Status:** Functional progression system, rewards awarded on all battle conclusions
+- Phase 7 — Edge Cases & Recovery: COMPLETED
+  - **Persistent battle sessions (completed):**
+    - Database migration 025: battle_session table with battle state persistence
+    - BattleSession entity: PENDING/ACTIVE/COMPLETED/ABORTED status tracking
+    - Indexes for recovery queries (status, guild_id, last_action_at)
+    - BattleSessionRepository: Query methods for active battles, stale battles, cleanup
+    - fromActiveBattle() factory method for snapshotting in-memory battles
+  - **Recovery service (completed):**
+    - BattleRecoveryService: Automatic startup recovery via @EventListener(ApplicationReadyEvent)
+    - recoverStaleBattlesOnStartup(): Scans and aborts stale battles from previous sessions
+    - cleanupTimedOutBattles(): Finds and aborts battles exceeding timeout threshold
+    - Graceful abort: Sets ABORTED status without awarding XP/ELO
+  - **BattleService integration (completed):**
+    - persistBattle(): Non-blocking persistence at battle lifecycle points
+    - markBattleCompleted(): Update status to COMPLETED on victory/forfeit/timeout
+    - markBattleAborted(): Update status to ABORTED on errors
+    - Persistence integrated in: createChallenge, acceptChallenge, performAttack, performDefend, performSpell, forfeit, timeoutTurn
+  - **Recovery flow:**
+    1. Bot starts → ApplicationReadyEvent fires
+    2. BattleRecoveryService queries ACTIVE/PENDING battles
+    3. Stale battles marked as ABORTED with logging
+    4. Bot continues with clean state
+  - **Status:** Battles survive bot restarts, stale battles cleaned up gracefully
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
