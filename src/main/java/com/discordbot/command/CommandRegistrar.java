@@ -87,6 +87,8 @@ public class CommandRegistrar extends ListenerAdapter {
                             true) // autoComplete enabled for future
                         .addOption(OptionType.INTEGER, "limit", "Number of players to show (1-25, default: 10)", false)
                 );
+                // Battle stats (Phase 8: Monitoring & Logging)
+                commands.add(Commands.slash("battle-stats", "View battle system metrics and statistics"));
             }
 
             // One atomic registration per guild
