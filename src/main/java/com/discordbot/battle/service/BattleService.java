@@ -47,6 +47,7 @@ public class BattleService {
     private final BattleProperties battleProperties;
     private final SpellResourceService spellResourceService;
     private final AbilityRepository abilityRepository;
+    private final StatusEffectService statusEffectService;
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
     // Active / pending battles: up to 60 minutes since last access.
@@ -91,13 +92,15 @@ public class BattleService {
                          BattleTurnRepository battleTurnRepository,
                          BattleProperties battleProperties,
                          SpellResourceService spellResourceService,
-                         AbilityRepository abilityRepository) {
+                         AbilityRepository abilityRepository,
+                         StatusEffectService statusEffectService) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
         this.battleProperties = battleProperties;
         this.spellResourceService = spellResourceService;
         this.abilityRepository = abilityRepository;
+        this.statusEffectService = statusEffectService;
     }
 
     /**
@@ -206,6 +209,33 @@ public class BattleService {
             throw new IllegalStateException("Not your turn");
         }
 
+        // Process turn start effects (DoT, HoT, stun check)
+        StatusEffectService.TurnStartEffectResult turnStartEffects =
+            statusEffectService.processTurnStartEffects(battle, attackerUserId);
+
+        // Check for stun - if stunned, skip action and advance turn
+        if (turnStartEffects.hasStun()) {
+            battle.addLog("{USER:" + attackerUserId + "} is stunned and cannot act!");
+            battle.resetLastActionAt();
+
+            // Tick effects and advance turn
+            statusEffectService.tickEffects(battleId, attackerUserId);
+            battle.advanceTurn();
+
+            // Check if attacker died from DoT
+            boolean ended = battle.getOpponentHp() <= 0 || battle.getChallengerHp() <= 0;
+            String winner = null;
+            if (ended) {
+                winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
+                battle.end(winner);
+                recordBattleCompletion(battle.getChallengerId());
+                recordBattleCompletion(battle.getOpponentId());
+                statusEffectService.cleanupBattleEffects(battleId);
+            }
+
+            return new AttackResult(battle, 0, 0, false, false, winner, turnStartEffects.messages());
+        }
+
         boolean attackerIsChallenger = attackerUserId.equals(battle.getChallengerId());
         String defenderUserId = attackerIsChallenger ? battle.getOpponentId() : battle.getChallengerId();
 
@@ -228,17 +258,23 @@ public class BattleService {
 
         int attackRoll = battle.rollD20();
         int strToHitMod = abilityMod(attackerChar.getStrength());
-        int totalAttack = attackRoll + strToHitMod;
+
+        // Apply status effect modifiers to attack roll (HASTE/SLOW)
+        int statusAttackMod = statusEffectService.getAttackModifier(battleId, attackerUserId);
+        int totalAttack = attackRoll + strToHitMod + statusAttackMod;
 
         // Apply defender's base AC plus any temporary AC bonus from defend
         int baseArmorClass = defenderStats.armorClass();
         int tempAcBonus = battle.getEffectiveAcBonus(defenderUserId);
-        int armorClass = baseArmorClass + tempAcBonus;
+        // Apply status effect AC modifiers (HASTE/SLOW)
+        int statusAcMod = statusEffectService.getAcModifier(battleId, defenderUserId);
+        int armorClass = baseArmorClass + tempAcBonus + statusAcMod;
 
         boolean crit = attackRoll >= battleProperties.getCombat().getCrit().getThreshold();
         boolean hit = crit || totalAttack >= armorClass;
 
         int damage = 0;
+        int shieldAbsorbed = 0;
         if (hit) {
             int baseWeapon = battle.rollD6();
             // attackDamageBonus already includes STR mod, so just add it once
@@ -252,6 +288,27 @@ public class BattleService {
                 damage = (int) Math.round(damage * critMultiplier);
             }
             damage = Math.max(0, damage); // Prevent negative damage if STR mod < 0
+
+            // Apply attacker damage modifiers (STRENGTH/WEAKNESS)
+            int damageModPercent = statusEffectService.getDamageModifierPercent(battleId, attackerUserId);
+            damage = (int) Math.round(damage * (damageModPercent / 100.0));
+
+            // Apply defender incoming damage modifiers (PROTECTION/VULNERABILITY)
+            int incomingDamagePercent = statusEffectService.getIncomingDamageModifierPercent(battleId, defenderUserId);
+            damage = (int) Math.round(damage * (incomingDamagePercent / 100.0));
+
+            // Check for shield absorption
+            int shieldHp = statusEffectService.getShieldValue(battleId, defenderUserId);
+            if (shieldHp > 0) {
+                int damageAfterShield = statusEffectService.consumeShield(battleId, defenderUserId, damage);
+                shieldAbsorbed = damage - damageAfterShield;
+                damage = damageAfterShield;
+                if (shieldAbsorbed > 0) {
+                    battle.addLog("🛡️ Shield absorbs " + shieldAbsorbed + " damage!");
+                }
+            }
+
+            // Apply remaining damage to HP
             if (attackerIsChallenger) {
                 battle.applyDamageToOpponent(damage);
             } else {
@@ -284,6 +341,9 @@ public class BattleService {
         persistBattleTurn(battle, attackerUserId, defenderUserId, BattleTurn.ActionType.ATTACK,
                          null, attackRoll, totalAttack, armorClass, damage, hit, crit);
 
+        // Tick status effects at end of attacker's turn
+        statusEffectService.tickEffects(battleId, attackerUserId);
+
         // Check end condition
         boolean ended = battle.getOpponentHp() <= 0 || battle.getChallengerHp() <= 0;
         String winner = null;
@@ -292,12 +352,14 @@ public class BattleService {
             battle.end(winner);
             recordBattleCompletion(battle.getChallengerId());
             recordBattleCompletion(battle.getOpponentId());
+            // Clean up all status effects for this battle
+            statusEffectService.cleanupBattleEffects(battleId);
             logger.info("Battle ended battleId={} winner={} CHP={} OHP={}", battle.getId(), winner, battle.getChallengerHp(), battle.getOpponentHp());
         } else {
             battle.advanceTurn();
         }
 
-        return new AttackResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner);
+        return new AttackResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner, turnStartEffects.messages());
     }
 
     /** Container for attack outcome. */
@@ -308,7 +370,8 @@ public class BattleService {
                                int damage,
                                boolean hit,
                                boolean crit,
-                               String winnerUserId) {}
+                               String winnerUserId,
+                               String statusEffectMessages) {}
 
     /** 
      * Compute starting HP using centralized D&D 5e formula from CharacterDerivedStats.
@@ -473,6 +536,9 @@ public class BattleService {
         recordBattleCompletion(battle.getChallengerId());
         recordBattleCompletion(battle.getOpponentId());
 
+        // Clean up status effects
+        statusEffectService.cleanupBattleEffects(battleId);
+
         logger.info("Battle forfeited battleId={} by {} winner={}", battle.getId(), userId, winner);
         return battle;
     }
@@ -490,6 +556,31 @@ public class BattleService {
             throw new IllegalStateException("Not your turn");
         }
 
+        // Process turn start effects (DoT, HoT, stun check)
+        StatusEffectService.TurnStartEffectResult turnStartEffects =
+            statusEffectService.processTurnStartEffects(battle, userId);
+
+        // Check for stun - if stunned, skip action and advance turn
+        if (turnStartEffects.hasStun()) {
+            battle.addLog("{USER:" + userId + "} is stunned and cannot act!");
+            battle.resetLastActionAt();
+            statusEffectService.tickEffects(battleId, userId);
+            battle.advanceTurn();
+
+            // Check if defender died from DoT
+            boolean ended = battle.getOpponentHp() <= 0 || battle.getChallengerHp() <= 0;
+            String winner = null;
+            if (ended) {
+                winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
+                battle.end(winner);
+                recordBattleCompletion(battle.getChallengerId());
+                recordBattleCompletion(battle.getOpponentId());
+                statusEffectService.cleanupBattleEffects(battleId);
+            }
+
+            return new DefendResult(battle, 0, winner, turnStartEffects.messages());
+        }
+
         final int DEFEND_AC_BONUS = 2;
         battle.applyTempAcBonus(userId, DEFEND_AC_BONUS);
         battle.addLog("{USER:" + userId + "} takes a defensive stance (+2 AC until next turn)");
@@ -503,15 +594,18 @@ public class BattleService {
         turn.setStatusEffectsApplied("AC+2 (defend)");
         battleTurnRepository.save(turn);
 
+        // Tick status effects at end of turn
+        statusEffectService.tickEffects(battleId, userId);
+
         // Advance turn
         battle.advanceTurn();
 
         logger.info("Defend action battleId={} userId={} acBonus={}", battle.getId(), userId, DEFEND_AC_BONUS);
-        return new DefendResult(battle, DEFEND_AC_BONUS, null);
+        return new DefendResult(battle, DEFEND_AC_BONUS, null, turnStartEffects.messages());
     }
 
     /** Container for defend outcome. */
-    public record DefendResult(ActiveBattle battle, int tempAcBonus, String winnerUserId) {}
+    public record DefendResult(ActiveBattle battle, int tempAcBonus, String winnerUserId, String statusEffectMessages) {}
 
     /**
      * Perform a spell attack (basic implementation for MVP).
@@ -689,6 +783,9 @@ public class BattleService {
         // Record completion for both participants
         recordBattleCompletion(battle.getChallengerId());
         recordBattleCompletion(battle.getOpponentId());
+
+        // Clean up status effects
+        statusEffectService.cleanupBattleEffects(battle.getId());
 
         logger.info("Battle timed out battleId={} timeoutUser={} winner={}",
                    battle.getId(), timeoutUserId, winner);
