@@ -382,7 +382,7 @@ public class BattleService {
         return CharacterDerivedStats.computeHp(pc, battleProperties);
     }
 
-    /** 
+    /**
      * Get base HP for a character class (D&D 5e hit die maximum).
      * Used for stats calculator; delegates to CharacterDerivedStats for consistency.
      */
@@ -390,8 +390,77 @@ public class BattleService {
         return CharacterDerivedStats.getBaseHpForClass(characterClass, battleProperties);
     }
 
-    private int abilityMod(int score) { 
-        return (score - ABILITY_SCORE_BASE) / ABILITY_MODIFIER_DIVISOR; 
+    /**
+     * Parse ability effect string and apply status effects.
+     * Effect format: "DAMAGE+X,APPLY_STATUS:TYPE:DURATION:STACKS:MAGNITUDE"
+     * Example: "DAMAGE+12,APPLY_STATUS:BURN:3:1:3"
+     *
+     * @param effectString The effect string to parse
+     * @param battleId Battle ID
+     * @param sourceUserId User who cast the spell
+     * @param targetUserId User to apply effects to
+     * @param currentTurn Current turn number
+     * @param messages StringBuilder to accumulate status effect messages
+     */
+    private void parseAndApplyStatusEffects(String effectString, String battleId,
+                                           String sourceUserId, String targetUserId,
+                                           int currentTurn, StringBuilder messages) {
+        if (effectString == null || effectString.isBlank()) {
+            return;
+        }
+
+        // Split by comma to get individual effects
+        String[] effects = effectString.split(",");
+        for (String effect : effects) {
+            effect = effect.trim();
+
+            // Check if this is a status effect application
+            if (effect.startsWith("APPLY_STATUS:")) {
+                String[] parts = effect.substring("APPLY_STATUS:".length()).split(":");
+                if (parts.length == 4) {
+                    try {
+                        String effectTypeStr = parts[0].trim();
+                        int duration = Integer.parseInt(parts[1].trim());
+                        int stacks = Integer.parseInt(parts[2].trim());
+                        int magnitude = Integer.parseInt(parts[3].trim());
+
+                        // Parse effect type
+                        com.discordbot.battle.entity.StatusEffectType effectType =
+                            com.discordbot.battle.entity.StatusEffectType.valueOf(effectTypeStr.toUpperCase());
+
+                        // Apply the status effect
+                        statusEffectService.applyEffect(
+                            battleId, targetUserId, effectType,
+                            duration, stacks, magnitude,
+                            sourceUserId, null, // ability key not needed here
+                            currentTurn
+                        );
+
+                        // Add message
+                        if (messages.length() > 0) {
+                            messages.append("\n");
+                        }
+                        messages.append(effectType.getEmoji()).append(" Applied ")
+                               .append(effectType.getDisplayName())
+                               .append(" (").append(duration).append(" turns");
+                        if (effectType.isStackable() && stacks > 1) {
+                            messages.append(", ").append(stacks).append(" stacks");
+                        }
+                        messages.append(")");
+
+                        logger.debug("Applied status effect {} to {} in battle {}", effectType, targetUserId, battleId);
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Failed to parse status effect: {} - {}", effect, e.getMessage());
+                    } catch (Exception e) {
+                        logger.error("Error applying status effect: {}", effect, e);
+                    }
+                }
+            }
+        }
+    }
+
+    private int abilityMod(int score) {
+        return (score - ABILITY_SCORE_BASE) / ABILITY_MODIFIER_DIVISOR;
     }
 
     private PlayerCharacter getCharacter(String guildId, String userId) {
@@ -724,10 +793,21 @@ public class BattleService {
         // Start cooldown AFTER successful cast
         spellResourceService.startAbilityCooldown(attackerChar, ability);
 
+        // Parse and apply status effects from ability effect string
+        StringBuilder statusEffectMessages = new StringBuilder();
+        String effectString = ability.getEffect();
+        if (effectString != null && !effectString.isBlank()) {
+            parseAndApplyStatusEffects(effectString, battleId, userId, defenderUserId, battle.getTurnNumber(), statusEffectMessages);
+        }
+
         // Persist spell turn with audit trail
         BattleTurn turn = createBattleTurn(battle, userId, defenderUserId, BattleTurn.ActionType.SPELL,
                          abilityId, attackRoll, totalAttack, armorClass, damage, hit, crit);
-        turn.setStatusEffectsApplied("Spell: " + ability.getKey());
+        String statusEffectsApplied = "Spell: " + ability.getKey();
+        if (statusEffectMessages.length() > 0) {
+            statusEffectsApplied += " | " + statusEffectMessages.toString();
+        }
+        turn.setStatusEffectsApplied(statusEffectsApplied);
         battleTurnRepository.save(turn);
 
         // Check end condition
@@ -738,12 +818,13 @@ public class BattleService {
             battle.end(winner);
             recordBattleCompletion(battle.getChallengerId());
             recordBattleCompletion(battle.getOpponentId());
+            statusEffectService.cleanupBattleEffects(battleId);
             logger.info("Battle ended (spell) battleId={} winner={} CHP={} OHP={}", battle.getId(), winner, battle.getChallengerHp(), battle.getOpponentHp());
         } else {
             battle.advanceTurn();
         }
 
-        return new SpellResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner);
+        return new SpellResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner, statusEffectMessages.toString());
     }
 
     /** Container for spell outcome. */
@@ -754,7 +835,8 @@ public class BattleService {
                               int damage,
                               boolean hit,
                               boolean crit,
-                              String winnerUserId) {}
+                              String winnerUserId,
+                              String statusEffectMessages) {}
 
     /**
      * Handle turn timeout by ending the battle with the opponent of the current turn user as winner.
