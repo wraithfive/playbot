@@ -52,5 +52,6 @@
 
     <!-- Battle System - Status Effects (Phase 4) -->
     <include file="db/changelog/changes/022-create-battle-status-effects-table.xml"/>
+    <include file="db/changelog/changes/023-add-status-effect-spells.xml"/>
 
 </databaseChangeLog>
