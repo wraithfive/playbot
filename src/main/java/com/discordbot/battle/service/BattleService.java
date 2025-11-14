@@ -2,10 +2,12 @@ package com.discordbot.battle.service;
 
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.effect.CharacterStatsCalculator;
+import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.BattleTurn;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.repository.AbilityRepository;
 import com.discordbot.battle.repository.BattleTurnRepository;
 import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
@@ -43,6 +45,8 @@ public class BattleService {
     private final CharacterAbilityRepository characterAbilityRepository;
     private final BattleTurnRepository battleTurnRepository;
     private final BattleProperties battleProperties;
+    private final SpellResourceService spellResourceService;
+    private final AbilityRepository abilityRepository;
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
     // Active / pending battles: up to 60 minutes since last access.
@@ -85,11 +89,15 @@ public class BattleService {
     public BattleService(PlayerCharacterRepository characterRepository,
                          CharacterAbilityRepository characterAbilityRepository,
                          BattleTurnRepository battleTurnRepository,
-                         BattleProperties battleProperties) {
+                         BattleProperties battleProperties,
+                         SpellResourceService spellResourceService,
+                         AbilityRepository abilityRepository) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
         this.battleProperties = battleProperties;
+        this.spellResourceService = spellResourceService;
+        this.abilityRepository = abilityRepository;
     }
 
     /**
@@ -109,6 +117,16 @@ public class BattleService {
             synchronized (lockB) {
                 // Clean up any expired pending challenges before enforcing constraints (without lock cleanup)
                 cleanUpExpiredChallengesOnly();
+                // Check cooldown for challenger
+                if (isOnCooldown(challengerUserId)) {
+                    throw new IllegalStateException("You're on cooldown. You can battle again in " +
+                        getRemainingCooldownSeconds(challengerUserId) + "s.");
+                }
+                // Check cooldown for opponent
+                if (isOnCooldown(opponentUserId)) {
+                    throw new IllegalStateException("That opponent is on cooldown. They can battle again in " +
+                        getRemainingCooldownSeconds(opponentUserId) + "s.");
+                }
                 // NEW: Only challenger must already have a character; opponent may create one later before accepting.
                 ensureChallengerHasCharacter(guildId, challengerUserId);
                 if (findExistingBetween(challengerUserId, opponentUserId).isPresent()) {
@@ -155,6 +173,13 @@ public class BattleService {
         }
         if (!hasCharacter(battle.getGuildId(), battle.getOpponentId())) {
             throw new IllegalStateException("You need to create a character first with /create-character before accepting.");
+        }
+        // Check if either participant is busy in another battle
+        if (isUserBusy(acceptingUserId)) {
+            throw new IllegalStateException("You're already in another battle.");
+        }
+        if (isUserBusy(battle.getChallengerId())) {
+            throw new IllegalStateException("The challenger is now in another battle.");
         }
         int challengerHp = computeStartingHp(battle.getGuildId(), battle.getChallengerId());
         int opponentHp = computeStartingHp(battle.getGuildId(), battle.getOpponentId());
@@ -472,9 +497,11 @@ public class BattleService {
         // Reset last action timestamp
         battle.resetLastActionAt();
 
-        // Persist defend turn
-        persistBattleTurn(battle, userId, null, BattleTurn.ActionType.DEFEND,
+        // Persist defend turn with audit trail
+        BattleTurn turn = createBattleTurn(battle, userId, null, BattleTurn.ActionType.DEFEND,
                          null, null, null, null, 0, false, false);
+        turn.setStatusEffectsApplied("AC+2 (defend)");
+        battleTurnRepository.save(turn);
 
         // Advance turn
         battle.advanceTurn();
@@ -506,15 +533,47 @@ public class BattleService {
         PlayerCharacter attackerChar = getCharacter(battle.getGuildId(), userId);
         PlayerCharacter defenderChar = getCharacter(battle.getGuildId(), defenderUserId);
 
+        // Verify ability exists and is learned
+        Ability ability = abilityRepository.findById(abilityId)
+            .orElseThrow(() -> new IllegalStateException("Ability not found"));
+
         // Get learned abilities for both characters
         List<CharacterAbility> attackerAbilities = characterAbilityRepository.findByCharacter(attackerChar);
         List<CharacterAbility> defenderAbilities = characterAbilityRepository.findByCharacter(defenderChar);
+
+        boolean learned = attackerAbilities.stream()
+            .anyMatch(ca -> ca.getAbility().getId().equals(abilityId));
+        if (!learned) {
+            throw new IllegalStateException("You haven't learned this ability");
+        }
+        if (!"SPELL".equalsIgnoreCase(ability.getType())) {
+            throw new IllegalStateException("This ability is not a spell");
+        }
+
+        // Check spell slot availability (if ability has spellSlotLevel > 0)
+        if (ability.getSpellSlotLevel() != null && ability.getSpellSlotLevel() > 0) {
+            if (!spellResourceService.hasAvailableSpellSlot(attackerChar, ability.getSpellSlotLevel())) {
+                throw new IllegalStateException("No spell slots available for this spell");
+            }
+        }
+
+        // Check cooldown availability
+        if (!spellResourceService.isAbilityAvailable(attackerChar, ability)) {
+            throw new IllegalStateException("This ability is on cooldown");
+        }
+
+        // Consume spell slot BEFORE damage calculation (if applicable)
+        if (ability.getSpellSlotLevel() != null && ability.getSpellSlotLevel() > 0) {
+            spellResourceService.consumeSpellSlot(attackerChar, ability.getSpellSlotLevel());
+        }
 
         // Calculate base HP for stats calculation
         int attackerBaseHp = getBaseHpForClass(attackerChar.getCharacterClass());
         int defenderBaseHp = getBaseHpForClass(defenderChar.getCharacterClass());
 
         // Calculate combat stats with ability bonuses
+        CharacterStatsCalculator.CombatStats attackerStats =
+            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp);
         CharacterStatsCalculator.CombatStats defenderStats =
             CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp);
 
@@ -533,13 +592,13 @@ public class BattleService {
         int damage = 0;
         if (hit) {
             int baseSpell = battle.rollD6();
-            // For MVP, spell damage = 1d6 + INT modifier
-            damage = baseSpell + intToHitMod;
+            // Use attackerStats.spellDamageBonus() instead of just INT mod
+            damage = baseSpell + attackerStats.spellDamageBonus();
             if (crit) {
                 double critMultiplier = battleProperties.getCombat().getCrit().getMultiplier();
                 damage = (int) Math.round(damage * critMultiplier);
             }
-            damage = Math.max(0, damage); // Prevent negative damage if INT mod < 0
+            damage = Math.max(0, damage); // Prevent negative damage if spell damage bonus < 0
             if (attackerIsChallenger) {
                 battle.applyDamageToOpponent(damage);
             } else {
@@ -548,7 +607,7 @@ public class BattleService {
         }
 
         StringBuilder logLine = new StringBuilder()
-            .append("{USER:").append(userId).append("}").append(" casts a spell (roll=").append(attackRoll)
+            .append("{USER:").append(userId).append("}").append(" casts ").append(ability.getKey()).append(" (roll=").append(attackRoll)
             .append(", intToHitMod=").append(intToHitMod)
             .append(", total=").append(totalAttack)
             .append(", AC=").append(armorClass);
@@ -568,9 +627,14 @@ public class BattleService {
         // Reset last action timestamp
         battle.resetLastActionAt();
 
-        // Persist spell turn
-        persistBattleTurn(battle, userId, defenderUserId, BattleTurn.ActionType.SPELL,
+        // Start cooldown AFTER successful cast
+        spellResourceService.startAbilityCooldown(attackerChar, ability);
+
+        // Persist spell turn with audit trail
+        BattleTurn turn = createBattleTurn(battle, userId, defenderUserId, BattleTurn.ActionType.SPELL,
                          abilityId, attackRoll, totalAttack, armorClass, damage, hit, crit);
+        turn.setStatusEffectsApplied("Spell: " + ability.getKey());
+        battleTurnRepository.save(turn);
 
         // Check end condition
         boolean ended = battle.getOpponentHp() <= 0 || battle.getChallengerHp() <= 0;
@@ -599,20 +663,53 @@ public class BattleService {
                               String winnerUserId) {}
 
     /**
-     * Persist a battle turn to the database.
-     * Called after each combat action.
+     * Handle turn timeout by ending the battle with the opponent of the current turn user as winner.
+     * Persists a TIMEOUT turn entry and records battle completion for both participants.
+     *
+     * @param battle The battle that timed out
+     * @return The updated battle with ENDED status
      */
-    private void persistBattleTurn(ActiveBattle battle,
-                                   String actorUserId,
-                                   String targetUserId,
-                                   BattleTurn.ActionType actionType,
-                                   Long abilityId,
-                                   Integer rawRoll,
-                                   Integer totalRoll,
-                                   Integer defenderAc,
-                                   int damageDealt,
-                                   boolean hit,
-                                   boolean crit) {
+    public ActiveBattle timeoutTurn(ActiveBattle battle) {
+        if (!battle.isActive()) {
+            throw new IllegalStateException("Battle not active");
+        }
+
+        String timeoutUserId = battle.getCurrentTurnUserId();
+        String winner = timeoutUserId.equals(battle.getChallengerId())
+            ? battle.getOpponentId()
+            : battle.getChallengerId();
+
+        battle.addLog("{USER:" + timeoutUserId + "} failed to act in time. Battle ended due to timeout.");
+        battle.end(winner);
+
+        // Persist timeout turn
+        persistBattleTurn(battle, timeoutUserId, winner, BattleTurn.ActionType.TIMEOUT,
+                         null, null, null, null, 0, false, false);
+
+        // Record completion for both participants
+        recordBattleCompletion(battle.getChallengerId());
+        recordBattleCompletion(battle.getOpponentId());
+
+        logger.info("Battle timed out battleId={} timeoutUser={} winner={}",
+                   battle.getId(), timeoutUserId, winner);
+        return battle;
+    }
+
+    /**
+     * Create a battle turn object without saving it.
+     * Allows for additional customization before persistence.
+     */
+    private BattleTurn createBattleTurn(ActiveBattle battle,
+                                        String actorUserId,
+                                        String targetUserId,
+                                        BattleTurn.ActionType actionType,
+                                        Long abilityId,
+                                        Integer rawRoll,
+                                        Integer totalRoll,
+                                        Integer defenderAc,
+                                        int damageDealt,
+                                        boolean hit,
+                                        boolean crit) {
         BattleTurn turn = new BattleTurn();
         turn.setBattleId(battle.getId());
         turn.setGuildId(battle.getGuildId());
@@ -636,6 +733,26 @@ public class BattleService {
             turn.setHpTargetAfter(targetIsChallenger ? battle.getChallengerHp() : battle.getOpponentHp());
         }
 
+        return turn;
+    }
+
+    /**
+     * Persist a battle turn to the database.
+     * Called after each combat action.
+     */
+    private void persistBattleTurn(ActiveBattle battle,
+                                   String actorUserId,
+                                   String targetUserId,
+                                   BattleTurn.ActionType actionType,
+                                   Long abilityId,
+                                   Integer rawRoll,
+                                   Integer totalRoll,
+                                   Integer defenderAc,
+                                   int damageDealt,
+                                   boolean hit,
+                                   boolean crit) {
+        BattleTurn turn = createBattleTurn(battle, actorUserId, targetUserId, actionType, abilityId,
+                                          rawRoll, totalRoll, defenderAc, damageDealt, hit, crit);
         battleTurnRepository.save(turn);
         logger.debug("Persisted turn {} for battle {} action={}", turn.getTurnNumber(), battle.getId(), actionType);
     }
