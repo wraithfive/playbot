@@ -38,7 +38,7 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
 14. Test Suite Build-Out (Phase 13)
 15. Deployment & Rollout (Phase 14)
 
-### 4.1 Phase status (as of 2025-11-09)
+### 4.1 Phase status (as of 2025-11-14)
 - Phase 0 — Foundation & feature flag: DONE
   - `battle.enabled` flag wired in `application.properties` with sane defaults.
 - Phases 1 / 1a / 1b — Character creation & persistence: CORE IMPLEMENTED (1a/1b enhancements pending)
@@ -66,9 +66,52 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - Repositories: `CharacterSpellSlotRepository`, `CharacterAbilityCooldownRepository` with @Transactional.
   - Validation: Triple-layer (setter checks + Jakarta annotations + database CHECK constraints).
   - Comprehensive unit tests: 38 new tests (CharacterSpellSlotTest, CharacterAbilityCooldownTest, AbilityTest).
-  - All 460 tests passing. Ready for service layer implementation (SpellResourceService).
-- Phase 3 — Duel combat MVP: PLANNED
-  - Command surface drafted (`/duel`, `/accept`, `/forfeit`). Implementation pending.
+  - All 460 tests passing.
+- Phase 2c — Resource management service layer: COMPLETED
+  - Implemented `SpellResourceService` for spell slots, cooldowns, and utility getters.
+  - Added unit tests (`SpellResourceServiceTest`): 26 tests covering initialization, consumption, restoration, cooldowns, cleanup.
+  - Note: Level-based slot tables are stubbed to level 1 for MVP (no level field yet on `PlayerCharacter`).
+  - All 486 tests passing.
+- Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED
+  - **Commands:** `/duel`, `/accept`, `/forfeit` fully implemented
+  - **Combat actions:** Attack, Defend, Forfeit with interactive button UI
+  - **Turn persistence:** Migration 021 creates `battle_turn_log` table with full audit trail
+  - **Anti-abuse:** Battle cooldowns, turn timeout detection, busy state validation
+  - **Critical fixes applied (2025-11-14):**
+    - Battle cooldown enforcement in challenge creation (prevents spam)
+    - Race condition prevention on accept (prevents duplicate battles)
+    - Full spell resource integration (slots, cooldowns, ability validation)
+    - Timeout handling mechanism (timeoutTurn method)
+    - Audit trail enrichment (status effects in turn logs)
+    - Defend AC lifecycle clarity (comment fixes)
+  - **Status:** Production-ready, all high/medium priority issues resolved
+
+### 4.2 Recent progress (2025-11-14)
+- **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
+  - **Initial Implementation (commit 537519a):**
+    - Database: `battle_turn_log` table (migration 021) with full audit trail
+    - Entities: `BattleTurn` (JPA entity), `ActiveBattle` extended with turnNumber, tempAcBonus, lastActionAt
+    - Commands: `/accept`, `/forfeit` with command handlers
+    - Combat actions: `performDefend` (grants +2 AC for one turn), basic `performSpell` (INT-based damage)
+    - Turn persistence: All actions logged to database
+    - Anti-abuse: In-memory cooldown tracking, turn timeout detection
+    - UI: Interactive buttons (⚔️ Attack / 🛡️ Defend / 🏳️ Forfeit)
+
+  - **Critical Fixes (commit 7be2cd4):**
+    - **Battle cooldown enforcement:** createChallenge now checks both challenger and opponent for cooldowns; rejects with remaining time
+    - **Race condition fix:** acceptChallenge re-validates busy state for both participants; prevents duplicate battles
+    - **Spell resource integration:** Full integration with SpellResourceService
+      - Verifies caster knows ability and it's a SPELL type
+      - Checks spell slot availability and consumes slots when cast
+      - Enforces per-ability cooldowns
+      - Uses proper spellDamageBonus() from stats calculator
+      - Includes ability name in combat logs and turn persistence
+    - **Timeout handling:** New timeoutTurn() method to end battles that exceed turn timeout
+    - **Audit trail enrichment:** Status effects in turn logs ("AC+2 (defend)", "Spell: {abilityKey}")
+    - **Code clarity:** Updated defend AC lifecycle comments
+
+  - **Architecture:** BattleService now depends on SpellResourceService and AbilityRepository
+  - **Status:** Production-ready, all code review issues resolved
 
 ### 4.2 Recent progress (2025-11-10)
 - **Phase 2b — Resource costs & spell casting: COMPLETED**
@@ -110,14 +153,27 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - Pending: Resource costs (spell slots, charges), casting pipeline for active spell use, cooldowns.
 
 ### 4.3 Next up
-- Phase 2c (Resource management service layer)
-  - Create SpellResourceService for managing spell slots, cooldowns, charges.
-  - Methods: initializeSpellSlots, consumeSpellSlot, restoreSpellSlots, checkAbilityCooldown, startAbilityCooldown.
-  - Integration tests for resource management service.
-- Phase 3 (Duel combat MVP)
-  - Wire `/duel`, `/accept`, `/forfeit` with a minimal battle session lifecycle.
-  - Add turn resolver for Attack/Defend/Spell with logging to `battle_turn_log`.
-  - Anti-abuse basics (timeouts, per-user duel cooldown) using existing config knobs.
+- Phase 3b (Anti-abuse enhancements - Optional)
+  - Scheduled timeout checker job to automatically end stale battles
+  - IP-based rate limiting for challenge creation (prevent multi-account abuse)
+  - Battle history analytics dashboard
+- Phase 4 (Expanded Actions & Status Effects)
+  - Implement status effect system (stun, burn, shield, haste, slow, poison)
+  - Status effect entity and tracking (duration, stacks, application/expiry)
+  - Extend spell system with status effect application
+  - UI indicators for active status effects
+- Phase 5 (Party System & Targeting - Optional)
+  - Party entity and member management
+  - Multi-target spell system
+  - Party turn order resolution (initiative-based)
+  - Party vs Party battles
+- Phase 6 (Progression & Leaderboards)
+  - Add level field to PlayerCharacter
+  - XP gain and leveling system
+  - ELO rating system for competitive ranking
+  - Proficiency bonuses based on level
+  - Battle leaderboards (by ELO, wins, kill/death ratio)
+  - Level-based spell slot progression
 
 ## 5. Domain Glossary
 - Character: Player-created persistent entity with D&D 5e ability scores (STR, DEX, CON, INT, WIS, CHA) & class.
