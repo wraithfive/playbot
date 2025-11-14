@@ -63,4 +63,7 @@
     <!-- Battle System - Chat-based XP & Progression -->
     <include file="db/changelog/changes/026-add-chat-xp-tracking.xml"/>
 
+    <!-- Battle System - Performance & Optimization (Phase 9) -->
+    <include file="db/changelog/changes/027-add-performance-indexes.xml"/>
+
 </databaseChangeLog>

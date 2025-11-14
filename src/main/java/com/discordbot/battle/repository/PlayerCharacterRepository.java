@@ -1,9 +1,11 @@
 package com.discordbot.battle.repository;
 
 import com.discordbot.battle.entity.PlayerCharacter;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -49,44 +51,52 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
     /**
      * Get top characters by ELO rating for a guild.
      * Phase 6: Leaderboards
+     * Phase 9: Optimized with read-only query hint
      *
      * @param guildId Discord guild ID
      * @param pageable Pagination settings (limit)
      * @return List of characters ordered by ELO descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.elo DESC, c.wins DESC")
+    @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByElo(@Param("guildId") String guildId, Pageable pageable);
 
     /**
      * Get top characters by wins for a guild.
      * Phase 6: Leaderboards
+     * Phase 9: Optimized with read-only query hint
      *
      * @param guildId Discord guild ID
      * @param pageable Pagination settings (limit)
      * @return List of characters ordered by wins descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.wins DESC, c.elo DESC")
+    @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByWins(@Param("guildId") String guildId, Pageable pageable);
 
     /**
      * Get top characters by level for a guild.
      * Phase 6: Leaderboards
+     * Phase 9: Optimized with read-only query hint
      *
      * @param guildId Discord guild ID
      * @param pageable Pagination settings (limit)
      * @return List of characters ordered by level descending, then XP
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.level DESC, c.xp DESC")
+    @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByLevel(@Param("guildId") String guildId, Pageable pageable);
 
     /**
      * Get characters with most battles (for activity leaderboard).
      * Phase 6: Leaderboards
+     * Phase 9: Optimized with read-only query hint
      *
      * @param guildId Discord guild ID
      * @param pageable Pagination settings (limit)
      * @return List of characters ordered by total battles descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY (c.wins + c.losses + c.draws) DESC")
+    @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByActivity(@Param("guildId") String guildId, Pageable pageable);
 }
