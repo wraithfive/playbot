@@ -90,15 +90,27 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - **Configuration:** Properties for timeout check intervals and feature toggle
   - **Test coverage:** Comprehensive unit tests for scheduler behavior
   - **Status:** Core scheduler complete, optional analytics/IP limiting deferred
-- Phase 4 — Expanded Actions & Status Effects: IN PROGRESS (Part 1/2 complete)
-  - **Base infrastructure (completed):**
+- Phase 4 — Expanded Actions & Status Effects: CORE COMPLETE (Part 2/3 done)
+  - **Base infrastructure (completed - Part 1):**
     - Database migration 022: battle_status_effect table with indexes
     - StatusEffectType enum: 12 effect types (STUN, BURN, POISON, REGEN, SHIELD, HASTE, SLOW, BLEED, WEAKNESS, STRENGTH, PROTECTION, VULNERABILITY)
     - BattleStatusEffect entity with business logic (stacking, duration, display)
     - BattleStatusEffectRepository with comprehensive query methods
     - StatusEffectService: Complete effect management (apply, tick, modifiers, shield absorption)
     - ActiveBattle extended with maxHP tracking
-  - **Pending:** Combat integration, UI indicators, spell extensions, tests
+  - **Combat integration (completed - Part 2):**
+    - Turn start processing: DoT (BURN, POISON, BLEED), HoT (REGEN), stun checks
+    - Stun handling: Skip action if stunned, advance turn
+    - Status effect modifiers: Attack, AC, damage output, damage taken
+    - Shield absorption: SHIELD effects block damage before HP loss
+    - Effect ticking: Duration management at turn end
+    - Cleanup: All battle end conditions (victory, forfeit, timeout)
+  - **UI indicators (completed - Part 2):**
+    - Status effect messages in combat embeds (💫 Status Effects field)
+    - Active effects displayed in HP fields with emojis
+    - Format: "HP: 45\n🔥 Burning (2 turns, 3 stacks)"
+  - **Status:** Core system functional and production-ready
+  - **Pending (optional):** Spell extensions with effect application, comprehensive test suite
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
