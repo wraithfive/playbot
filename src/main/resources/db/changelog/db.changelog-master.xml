@@ -57,4 +57,7 @@
     <!-- Battle System - Progression & Leaderboards (Phase 6) -->
     <include file="db/changelog/changes/024-add-character-progression-fields.xml"/>
 
+    <!-- Battle System - Edge Cases & Recovery (Phase 7) -->
+    <include file="db/changelog/changes/025-create-battle-session-table.xml"/>
+
 </databaseChangeLog>

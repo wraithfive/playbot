@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Phase 7: Edge Cases & Recovery
+        Create battle_session table for persistent battle state to survive bot restarts
+    -->
+    <changeSet id="025-create-battle-session-table" author="claude">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="battle_session"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="battle_session">
+            <!-- Primary key: battle ID (UUID string) -->
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <!-- Discord IDs -->
+            <column name="guild_id" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="challenger_id" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="opponent_id" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Battle lifecycle -->
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Timestamps -->
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="started_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="ended_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="last_action_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+
+            <!-- Combat state -->
+            <column name="current_turn_user_id" type="VARCHAR(20)">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="challenger_hp" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="opponent_hp" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="challenger_max_hp" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="opponent_max_hp" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="winner_user_id" type="VARCHAR(20)">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="turn_number" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="temp_ac_bonus" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="temp_ac_bonus_user_id" type="VARCHAR(20)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <!-- Index for finding active battles by status -->
+        <createIndex indexName="idx_battle_session_status" tableName="battle_session">
+            <column name="status"/>
+        </createIndex>
+
+        <!-- Index for guild-based queries -->
+        <createIndex indexName="idx_battle_session_guild" tableName="battle_session">
+            <column name="guild_id"/>
+        </createIndex>
+
+        <!-- Index for stale battle recovery (find old last_action_at) -->
+        <createIndex indexName="idx_battle_session_last_action" tableName="battle_session">
+            <column name="last_action_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="battle_session"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

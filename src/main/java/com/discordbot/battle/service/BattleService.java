@@ -4,10 +4,12 @@ import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.effect.CharacterStatsCalculator;
 import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.entity.BattleSession;
 import com.discordbot.battle.entity.BattleTurn;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.AbilityRepository;
+import com.discordbot.battle.repository.BattleSessionRepository;
 import com.discordbot.battle.repository.BattleTurnRepository;
 import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
@@ -48,6 +50,7 @@ public class BattleService {
     private final SpellResourceService spellResourceService;
     private final AbilityRepository abilityRepository;
     private final StatusEffectService statusEffectService;
+    private final BattleSessionRepository sessionRepository; // Phase 7: Persistent battle sessions
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
     // Active / pending battles: up to 60 minutes since last access.
@@ -93,7 +96,8 @@ public class BattleService {
                          BattleProperties battleProperties,
                          SpellResourceService spellResourceService,
                          AbilityRepository abilityRepository,
-                         StatusEffectService statusEffectService) {
+                         StatusEffectService statusEffectService,
+                         BattleSessionRepository sessionRepository) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
@@ -101,6 +105,7 @@ public class BattleService {
         this.spellResourceService = spellResourceService;
         this.abilityRepository = abilityRepository;
         this.statusEffectService = statusEffectService;
+        this.sessionRepository = sessionRepository;
     }
 
     /**
@@ -150,6 +155,7 @@ public class BattleService {
                 }
                 ActiveBattle battle = ActiveBattle.createPending(guildId, challengerUserId, opponentUserId);
                 battles.put(battle.getId(), battle);
+                persistBattle(battle); // Phase 7: Persist to database
                 logger.info("Challenge created battleId={} guild={} challenger={} opponent={}", battle.getId(), guildId, challengerUserId, opponentUserId);
                 return battle;
             }
@@ -187,6 +193,7 @@ public class BattleService {
         int challengerHp = computeStartingHp(battle.getGuildId(), battle.getChallengerId());
         int opponentHp = computeStartingHp(battle.getGuildId(), battle.getOpponentId());
         battle.start(challengerHp, opponentHp);
+        persistBattle(battle); // Phase 7: Persist ACTIVE status
         logger.info("Battle started battleId={} CHP={} OHP={}", battle.getId(), challengerHp, opponentHp);
         return battle;
     }
@@ -228,6 +235,7 @@ public class BattleService {
             if (ended) {
                 winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
                 battle.end(winner);
+                markBattleCompleted(battleId); // Phase 7: Mark as completed in DB
                 recordBattleCompletion(battle.getChallengerId());
                 recordBattleCompletion(battle.getOpponentId());
                 statusEffectService.cleanupBattleEffects(battleId);
@@ -598,6 +606,7 @@ public class BattleService {
         String winner = Objects.equals(userId, battle.getChallengerId()) ? battle.getOpponentId() : battle.getChallengerId();
         battle.addLog("{USER:" + userId + "} forfeits the battle");
         battle.end(winner);
+        markBattleCompleted(battleId); // Phase 7: Mark as completed in DB
 
         // Persist forfeit turn
         persistBattleTurn(battle, userId, winner, BattleTurn.ActionType.FORFEIT,
@@ -644,6 +653,7 @@ public class BattleService {
             if (ended) {
                 winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
                 battle.end(winner);
+                markBattleCompleted(battleId); // Phase 7: Mark as completed in DB
                 recordBattleCompletion(battle.getChallengerId());
                 recordBattleCompletion(battle.getOpponentId());
                 statusEffectService.cleanupBattleEffects(battleId);
@@ -861,6 +871,7 @@ public class BattleService {
 
         battle.addLog("{USER:" + timeoutUserId + "} failed to act in time. Battle ended due to timeout.");
         battle.end(winner);
+        markBattleCompleted(battle.getId()); // Phase 7: Mark as completed in DB
 
         // Persist timeout turn
         persistBattleTurn(battle, timeoutUserId, winner, BattleTurn.ActionType.TIMEOUT,
@@ -1082,5 +1093,54 @@ public class BattleService {
         logger.debug("Awarded rewards: userId={} xp=+{} (total={}) elo={} ({}{})",
             character.getUserId(), totalXp, character.getXp(), character.getElo(),
             eloChange >= 0 ? "+" : "", eloChange);
+    }
+
+    // ============ Phase 7: Battle Session Persistence ============
+
+    /**
+     * Persist battle to database for recovery purposes.
+     * Safe to call multiple times (upsert behavior).
+     */
+    private void persistBattle(ActiveBattle battle) {
+        try {
+            BattleSession session = BattleSession.fromActiveBattle(battle);
+            sessionRepository.save(session);
+            logger.debug("Persisted battle session: {}", battle.getId());
+        } catch (Exception e) {
+            // Non-fatal: persistence failure doesn't stop battle
+            logger.error("Failed to persist battle {}: {}", battle.getId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Mark battle as completed in database.
+     */
+    private void markBattleCompleted(String battleId) {
+        try {
+            sessionRepository.findById(battleId).ifPresent(session -> {
+                session.setStatus(BattleSession.BattleStatus.COMPLETED);
+                session.setEndedAt(java.time.LocalDateTime.now());
+                sessionRepository.save(session);
+                logger.debug("Marked battle {} as COMPLETED", battleId);
+            });
+        } catch (Exception e) {
+            logger.error("Failed to mark battle {} as completed: {}", battleId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Mark battle as aborted in database.
+     */
+    private void markBattleAborted(String battleId) {
+        try {
+            sessionRepository.findById(battleId).ifPresent(session -> {
+                session.setStatus(BattleSession.BattleStatus.ABORTED);
+                session.setEndedAt(java.time.LocalDateTime.now());
+                sessionRepository.save(session);
+                logger.debug("Marked battle {} as ABORTED", battleId);
+            });
+        } catch (Exception e) {
+            logger.error("Failed to mark battle {} as aborted: {}", battleId, e.getMessage(), e);
+        }
     }
 }
