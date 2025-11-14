@@ -18,9 +18,38 @@ public class CharacterStatsCalculator {
     private static final int BASE_AC = 10;
 
     /**
+     * Calculate proficiency bonus based on character level (D&D 5e standard progression).
+     * @param level Character level (1-20)
+     * @param proficiencyByLevel Config array mapping level to proficiency bonus
+     * @return Proficiency bonus (typically +2 to +6)
+     */
+    public static int calculateProficiencyBonus(int level, List<Integer> proficiencyByLevel) {
+        // Clamp level to valid range (1-20)
+        int clampedLevel = Math.max(1, Math.min(level, 20));
+        // proficiencyByLevel is 0-indexed, level is 1-indexed
+        int index = clampedLevel - 1;
+        if (index < proficiencyByLevel.size()) {
+            return proficiencyByLevel.get(index);
+        }
+        // Fallback: D&D 5e formula: +2 for levels 1-4, +1 every 4 levels after
+        return 2 + ((clampedLevel - 1) / 4);
+    }
+
+    /**
      * Calculate all combat-relevant stats for a character, including ability bonuses.
+     * Uses default proficiency bonus of +2 (for backward compatibility).
      */
     public static CombatStats calculateStats(PlayerCharacter character, List<CharacterAbility> learnedAbilities, int baseHp) {
+        // Default proficiency for level 1-4
+        return calculateStats(character, learnedAbilities, baseHp, List.of(2, 2, 2, 2));
+    }
+
+    /**
+     * Calculate all combat-relevant stats for a character, including ability bonuses and proficiency.
+     * @param proficiencyByLevel Config array mapping level to proficiency bonus (from BattleProperties)
+     */
+    public static CombatStats calculateStats(PlayerCharacter character, List<CharacterAbility> learnedAbilities,
+                                            int baseHp, List<Integer> proficiencyByLevel) {
         // Parse all learned ability effects (filter nulls/blanks for defensive programming)
         List<String> effectStrings = learnedAbilities.stream()
             .filter(ca -> ca.getAbility() != null && ca.getAbility().getEffect() != null)
@@ -76,6 +105,9 @@ public class CharacterStatsCalculator {
         // Crit bonuses
         int critDamageBonus = combinedEffect.getTotalBonus(EffectStat.CRIT_DAMAGE);
 
+        // Calculate proficiency bonus based on level
+        int proficiencyBonus = calculateProficiencyBonus(character.getLevel(), proficiencyByLevel);
+
         return new CombatStats(
             maxHp,
             ac,
@@ -83,6 +115,7 @@ public class CharacterStatsCalculator {
             spellDamageBonus,
             healingBonus,
             critDamageBonus,
+            proficiencyBonus,
             combinedEffect
         );
     }
@@ -97,6 +130,7 @@ public class CharacterStatsCalculator {
         int spellDamageBonus,
         int healingBonus,
         int critDamageBonus,
+        int proficiencyBonus,  // Based on character level (D&D 5e: +2 to +6)
         AbilityEffect combinedEffect  // Full effect for checking tags and other modifiers
     ) {}
 }

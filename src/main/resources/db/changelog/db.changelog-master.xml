@@ -54,4 +54,7 @@
     <include file="db/changelog/changes/022-create-battle-status-effects-table.xml"/>
     <include file="db/changelog/changes/023-add-status-effect-spells.xml"/>
 
+    <!-- Battle System - Progression & Leaderboards (Phase 6) -->
+    <include file="db/changelog/changes/024-add-character-progression-fields.xml"/>
+
 </databaseChangeLog>
