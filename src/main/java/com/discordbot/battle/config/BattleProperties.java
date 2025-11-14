@@ -313,6 +313,7 @@ public class BattleProperties {
     private List<Integer> proficiencyByLevel = List.of(2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6);
     private EloConfig elo = new EloConfig();
     private XpConfig xp = new XpConfig();
+    private ChatXpConfig chatXp = new ChatXpConfig();
 
         public List<Integer> getProficiencyByLevel() {
             return proficiencyByLevel;
@@ -336,6 +337,14 @@ public class BattleProperties {
 
         public void setXp(XpConfig xp) {
             this.xp = xp;
+        }
+
+        public ChatXpConfig getChatXp() {
+            return chatXp;
+        }
+
+        public void setChatXp(ChatXpConfig chatXp) {
+            this.chatXp = chatXp;
         }
 
         public int getProficiencyBonus(int level) {
@@ -362,6 +371,10 @@ public class BattleProperties {
             // Default values - overridden by battle.progression.xp.levelCurve property from application.properties
             // XP thresholds for levels 1-10 (D&D 5e standard progression)
             private List<Integer> levelCurve = List.of(0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000);
+            // Battle XP rewards (reduced to be a bonus, not primary source)
+            private long baseXp = 20;      // Base XP for participating in battle
+            private long winBonus = 30;    // Bonus XP for winning
+            private long drawBonus = 10;   // Bonus XP for draw
 
             public List<Integer> getLevelCurve() {
                 return levelCurve;
@@ -371,6 +384,30 @@ public class BattleProperties {
                 this.levelCurve = levelCurve;
             }
 
+            public long getBaseXp() {
+                return baseXp;
+            }
+
+            public void setBaseXp(long baseXp) {
+                this.baseXp = baseXp;
+            }
+
+            public long getWinBonus() {
+                return winBonus;
+            }
+
+            public void setWinBonus(long winBonus) {
+                this.winBonus = winBonus;
+            }
+
+            public long getDrawBonus() {
+                return drawBonus;
+            }
+
+            public void setDrawBonus(long drawBonus) {
+                this.drawBonus = drawBonus;
+            }
+
             public int getLevelForXp(int xp) {
                 for (int i = levelCurve.size() - 1; i >= 0; i--) {
                     if (xp >= levelCurve.get(i)) {
@@ -378,6 +415,64 @@ public class BattleProperties {
                     }
                 }
                 return 1;
+            }
+        }
+
+        public static class ChatXpConfig {
+            // Chat-based XP configuration (primary progression source)
+            private boolean enabled = true;
+            private int baseXp = 10;           // Base XP per message
+            private int bonusXpMax = 5;        // Random bonus (0 to bonusXpMax)
+            private int cooldownSeconds = 60;  // Cooldown between XP awards per user
+            private boolean levelUpNotification = true; // React with star emoji on level up
+            private boolean autoCreateCharacter = true; // Auto-create character on first XP award
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public int getBaseXp() {
+                return baseXp;
+            }
+
+            public void setBaseXp(int baseXp) {
+                this.baseXp = baseXp;
+            }
+
+            public int getBonusXpMax() {
+                return bonusXpMax;
+            }
+
+            public void setBonusXpMax(int bonusXpMax) {
+                this.bonusXpMax = bonusXpMax;
+            }
+
+            public int getCooldownSeconds() {
+                return cooldownSeconds;
+            }
+
+            public void setCooldownSeconds(int cooldownSeconds) {
+                this.cooldownSeconds = cooldownSeconds;
+            }
+
+            public boolean isLevelUpNotification() {
+                return levelUpNotification;
+            }
+
+            public void setLevelUpNotification(boolean levelUpNotification) {
+                this.levelUpNotification = levelUpNotification;
+            }
+
+            public boolean isAutoCreateCharacter() {
+                return autoCreateCharacter;
+            }
+
+            public void setAutoCreateCharacter(boolean autoCreateCharacter) {
+                this.autoCreateCharacter = autoCreateCharacter;
             }
         }
     }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="026-add-chat-xp-tracking" author="claude">
+        <comment>
+            Add chat XP tracking field to player_character table.
+            Tracks when user last received XP from chat messages for rate limiting.
+        </comment>
+
+        <!-- Add last_chat_xp_at timestamp for rate limiting chat XP awards -->
+        <addColumn tableName="player_character">
+            <column name="last_chat_xp_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <!-- Add index for efficient cooldown queries -->
+        <createIndex tableName="player_character" indexName="idx_player_character_last_chat_xp_at">
+            <column name="last_chat_xp_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="player_character" indexName="idx_player_character_last_chat_xp_at"/>
+            <dropColumn tableName="player_character" columnName="last_chat_xp_at"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

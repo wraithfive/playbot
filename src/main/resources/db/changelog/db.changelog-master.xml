@@ -60,4 +60,7 @@
     <!-- Battle System - Edge Cases & Recovery (Phase 7) -->
     <include file="db/changelog/changes/025-create-battle-session-table.xml"/>
 
+    <!-- Battle System - Chat-based XP & Progression -->
+    <include file="db/changelog/changes/026-add-chat-xp-tracking.xml"/>
+
 </databaseChangeLog>
