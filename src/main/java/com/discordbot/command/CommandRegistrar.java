@@ -72,6 +72,8 @@ public class CommandRegistrar extends ListenerAdapter {
                     Commands.slash("duel", "Challenge another player to a duel")
                         .addOption(OptionType.USER, "opponent", "The user you want to challenge", true)
                 );
+                commands.add(Commands.slash("accept", "Accept a pending duel challenge"));
+                commands.add(Commands.slash("forfeit", "Forfeit your current active battle"));
                 // Abilities management
                 commands.add(
                     Commands.slash("abilities", "View and learn abilities interactively")

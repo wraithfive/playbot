@@ -41,6 +41,14 @@ public class ActiveBattle {
     private final List<BattleLogEntry> logEntries = new ArrayList<>();
     /** Winner user ID once ended (null until ENDED). */
     private String winnerUserId;
+    /** Current turn number (starts at 1 when battle starts). */
+    private int turnNumber = 0;
+    /** Temporary AC bonus from defend action (cleared after one turn). */
+    private int tempAcBonus = 0;
+    /** User ID who has the temporary AC bonus (null if none). */
+    private String tempAcBonusUserId = null;
+    /** Last action timestamp in epoch millis (for turn timeout detection). */
+    private Long lastActionAt;
 
     // Dice suppliers (test seam). Defaults to ThreadLocalRandom but can be overridden in tests.
     private transient IntSupplier d20Supplier = () -> ThreadLocalRandom.current().nextInt(1, 21);
@@ -89,8 +97,10 @@ public class ActiveBattle {
         }
         this.status = BattleStatus.ACTIVE;
         this.startedAt = System.currentTimeMillis();
+        this.lastActionAt = System.currentTimeMillis();
         this.challengerHp = challengerHp;
         this.opponentHp = opponentHp;
+        this.turnNumber = 1;
         // Challenger goes first for MVP. Could randomize later.
         this.currentTurnUserId = challengerId;
         addLog("Battle started: " + challengerId + " vs " + opponentId + " (CHP=" + challengerHp + ", OHP=" + opponentHp + ")");
@@ -117,7 +127,14 @@ public class ActiveBattle {
     /** Advance turn to the other player. */
     public void advanceTurn() {
         if (status != BattleStatus.ACTIVE) return;
+        // Clear temp AC bonus if the person who had it is ending their turn
+        // (defend bonus applies until the start of the defender's next turn)
+        if (tempAcBonusUserId != null && !tempAcBonusUserId.equals(currentTurnUserId)) {
+            tempAcBonus = 0;
+            tempAcBonusUserId = null;
+        }
         currentTurnUserId = currentTurnUserId.equals(challengerId) ? opponentId : challengerId;
+        turnNumber++;
     }
 
     /** End battle and set winner. */
@@ -147,6 +164,25 @@ public class ActiveBattle {
         logEntries.add(new BattleLogEntry(System.currentTimeMillis(), message));
     }
 
+    /** Apply temporary AC bonus from defend action. */
+    public void applyTempAcBonus(String userId, int bonus) {
+        this.tempAcBonus = bonus;
+        this.tempAcBonusUserId = userId;
+    }
+
+    /** Get effective AC for a user (including temporary bonuses). */
+    public int getEffectiveAcBonus(String userId) {
+        if (tempAcBonusUserId != null && tempAcBonusUserId.equals(userId)) {
+            return tempAcBonus;
+        }
+        return 0;
+    }
+
+    /** Reset last action timestamp (called when a turn action is performed). */
+    public void resetLastActionAt() {
+        this.lastActionAt = System.currentTimeMillis();
+    }
+
     // Getters
     public String getId() { return id; }
     public String getGuildId() { return guildId; }
@@ -161,6 +197,10 @@ public class ActiveBattle {
     public int getOpponentHp() { return opponentHp; }
     public List<BattleLogEntry> getLogEntries() { return logEntries; }
     public String getWinnerUserId() { return winnerUserId; }
+    public int getTurnNumber() { return turnNumber; }
+    public int getTempAcBonus() { return tempAcBonus; }
+    public String getTempAcBonusUserId() { return tempAcBonusUserId; }
+    public Long getLastActionAt() { return lastActionAt; }
 
     // Convenience checks
     public boolean isPending() { return status == BattleStatus.PENDING; }

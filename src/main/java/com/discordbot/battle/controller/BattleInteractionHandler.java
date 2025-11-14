@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Handles Accept / Decline / Attack button interactions for battles.
+ * Handles Accept / Decline / Attack / Defend / Forfeit button interactions for battles.
  */
 @Component
 public class BattleInteractionHandler extends ListenerAdapter {
@@ -76,6 +76,8 @@ public class BattleInteractionHandler extends ListenerAdapter {
                 case "accept" -> handleAccept(event, battle, clicker);
                 case "decline" -> handleDecline(event, battle, clicker);
                 case "attack" -> handleAttack(event, battle, clicker);
+                case "defend" -> handleDefend(event, battle, clicker);
+                case "forfeit" -> handleForfeit(event, battle, clicker);
                 case "createchar" -> handleCreateCharacter(event, battle, clicker);
                 default -> event.reply("❌ Unknown action.").setEphemeral(true).queue();
             }
@@ -131,10 +133,12 @@ public class BattleInteractionHandler extends ListenerAdapter {
         embed.setTitle("⚔️ Battle Started");
         embed.addField("Turn", "It's " + mention(battle.getCurrentTurnUserId()) + "'s turn.", false);
 
-        Button attack = Button.primary(componentId(battle.getId(), "attack"), "Attack");
+        Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
+        Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+        Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
 
         event.editMessageEmbeds(embed.build())
-            .setComponents(ActionRow.of(attack))
+            .setComponents(ActionRow.of(attack, defend, forfeit))
             .queue();
     }
 
@@ -205,9 +209,76 @@ public class BattleInteractionHandler extends ListenerAdapter {
         if (result.winnerUserId() != null) {
             event.editMessageEmbeds(embed.build()).setComponents().queue();
         } else {
-            Button attack = Button.primary(componentId(battle.getId(), "attack"), "Attack");
-            event.editMessageEmbeds(embed.build()).setComponents(ActionRow.of(attack)).queue();
+            Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
+            Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+            Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
+            event.editMessageEmbeds(embed.build()).setComponents(ActionRow.of(attack, defend, forfeit)).queue();
         }
+    }
+
+    private void handleDefend(ButtonInteractionEvent event, ActiveBattle battle, User user) {
+        if (!battle.isActive()) {
+            event.reply("❌ Battle not active.").setEphemeral(true).queue();
+            return;
+        }
+        if (!user.getId().equals(battle.getCurrentTurnUserId())) {
+            event.reply("❌ Not your turn.").setEphemeral(true).queue();
+            return;
+        }
+
+        var result = battleService.performDefend(battle.getId(), user.getId());
+
+        EmbedBuilder embed = buildBattleEmbed(result.battle());
+        embed.setTitle("⚔️ Battle");
+        embed.setColor(Color.BLUE);
+
+        String outcome = "🛡️ " + mention(user.getId()) + " takes a defensive stance! (+" + result.tempAcBonus() + " AC next turn)";
+        embed.addField("Action", outcome, false);
+
+        if (result.winnerUserId() != null) {
+            embed.setColor(Color.YELLOW);
+            embed.addField("🏆 Winner", mention(result.winnerUserId()), false);
+        } else {
+            embed.addField("Turn", "Next: " + mention(result.battle().getCurrentTurnUserId()), false);
+        }
+
+        if (result.winnerUserId() != null) {
+            event.editMessageEmbeds(embed.build()).setComponents().queue();
+        } else {
+            Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
+            Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+            Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
+            event.editMessageEmbeds(embed.build()).setComponents(ActionRow.of(attack, defend, forfeit)).queue();
+        }
+    }
+
+    private void handleForfeit(ButtonInteractionEvent event, ActiveBattle battle, User user) {
+        if (!battle.isActive() && !battle.isPending()) {
+            event.reply("❌ Battle not active or already ended.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Allow forfeit from either participant
+        if (!user.getId().equals(battle.getChallengerId()) && !user.getId().equals(battle.getOpponentId())) {
+            event.reply("❌ You're not part of this battle.").setEphemeral(true).queue();
+            return;
+        }
+
+        battleService.forfeit(battle.getId(), user.getId());
+
+        String winnerId = user.getId().equals(battle.getChallengerId())
+            ? battle.getOpponentId()
+            : battle.getChallengerId();
+
+        EmbedBuilder embed = new EmbedBuilder();
+        embed.setColor(Color.RED);
+        embed.setTitle("🏳️ Battle Forfeited");
+        embed.setDescription(String.format("%s has forfeited the battle!", mention(user.getId())));
+        embed.addField("Winner", mention(winnerId), false);
+        embed.addField("Battle ID", battle.getId(), false);
+        embed.setFooter("Better luck next time!");
+
+        event.editMessageEmbeds(embed.build()).setComponents().queue();
     }
 
     private EmbedBuilder buildBattleEmbed(ActiveBattle battle) {

@@ -47,4 +47,7 @@
     <include file="db/changelog/changes/019-create-character-spell-slots-table.xml"/>
     <include file="db/changelog/changes/020-create-character-ability-cooldown-table.xml"/>
 
+    <!-- Battle System - Turn Log Persistence -->
+    <include file="db/changelog/changes/021-create-battle-turn-log-table.xml"/>
+
 </databaseChangeLog>
