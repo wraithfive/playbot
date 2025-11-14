@@ -128,8 +128,8 @@ public class BattleStatsCommandHandler implements CommandHandler {
             String.format("```" +
                 "Avg Turn:   %.1f ms\n" +
                 "Avg Battle: %.1f ms```",
-                stats.averageTurnDuration(),
-                stats.averageBattleDuration()),
+                stats.avgTurnDurationMs(),
+                stats.avgBattleDurationMs()),
             true);
 
         embed.setFooter("Metrics tracked since bot start • Phase 8: Monitoring");

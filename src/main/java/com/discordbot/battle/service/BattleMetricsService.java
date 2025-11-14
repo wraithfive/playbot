@@ -155,6 +155,13 @@ public class BattleMetricsService {
 
     // ============ Battle Lifecycle Metrics ============
 
+    public void recordBattleStarted() {
+        // Track when a battle actually starts (after challenge acceptance)
+        // Note: recordChallengeAccepted() already increments activeBattles
+        // This method is for additional tracking if needed
+        logger.debug("Battle started (active battles: {})", activeBattles.get());
+    }
+
     public void recordBattleCompleted(long durationMs) {
         battlesCompleted.increment();
         activeBattles.decrementAndGet();
