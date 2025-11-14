@@ -172,8 +172,9 @@ class BattleTimeoutSchedulerTest {
     }
 
     private ActiveBattle createActiveBattle(String battleId) {
-        ActiveBattle battle = new ActiveBattle(battleId, GUILD, USER_A, USER_B, 50, 50);
-        battle.start(USER_A);
+        // battleId parameter ignored - ActiveBattle.createPending() generates its own UUID
+        ActiveBattle battle = ActiveBattle.createPending(GUILD, USER_A, USER_B);
+        battle.start(50, 50);  // challengerHp, opponentHp
         return battle;
     }
 }

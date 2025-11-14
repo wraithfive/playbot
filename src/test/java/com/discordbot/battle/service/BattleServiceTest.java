@@ -3,8 +3,12 @@ package com.discordbot.battle.service;
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.repository.AbilityRepository;
+import com.discordbot.battle.repository.BattleSessionRepository;
+import com.discordbot.battle.repository.BattleTurnRepository;
 import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +25,14 @@ class BattleServiceTest {
 
     private PlayerCharacterRepository repo;
     private CharacterAbilityRepository abilityRepo;
+    private BattleTurnRepository turnRepo;
     private BattleProperties props;
+    private SpellResourceService spellResourceService;
+    private AbilityRepository abilityRepository;
+    private StatusEffectService statusEffectService;
+    private BattleSessionRepository sessionRepository;
+    private BattleMetricsService metricsService;
+    private MeterRegistry meterRegistry;
     private BattleService service;
 
     private static final String GUILD = "g1";
@@ -32,6 +43,7 @@ class BattleServiceTest {
     void setup() {
         repo = mock(PlayerCharacterRepository.class);
         abilityRepo = mock(CharacterAbilityRepository.class);
+        turnRepo = mock(BattleTurnRepository.class);
         props = new BattleProperties();
         props.setEnabled(true);
         // Crits: nat 20, x2 damage
@@ -43,10 +55,29 @@ class BattleServiceTest {
         props.getClassConfig().getMage().setBaseHp(6);
         props.getClassConfig().getCleric().setBaseHp(8);
 
+        // Mock Phase 4-9 dependencies
+        spellResourceService = mock(SpellResourceService.class);
+        abilityRepository = mock(AbilityRepository.class);
+        statusEffectService = mock(StatusEffectService.class);
+        sessionRepository = mock(BattleSessionRepository.class);
+        metricsService = mock(BattleMetricsService.class);
+        meterRegistry = mock(MeterRegistry.class);
+
         // Mock: No abilities learned by default
         when(abilityRepo.findByCharacter(any())).thenReturn(List.of());
 
-        service = new BattleService(repo, abilityRepo, props);
+        service = new BattleService(
+            repo,
+            abilityRepo,
+            turnRepo,
+            props,
+            spellResourceService,
+            abilityRepository,
+            statusEffectService,
+            sessionRepository,
+            metricsService,
+            meterRegistry
+        );
     }
 
     private void mockChars(String aClass, int aStr, int aDex, int aCon,
