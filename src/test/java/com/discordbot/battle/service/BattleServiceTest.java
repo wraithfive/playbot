@@ -61,7 +61,8 @@ class BattleServiceTest {
         statusEffectService = mock(StatusEffectService.class);
         sessionRepository = mock(BattleSessionRepository.class);
         metricsService = mock(BattleMetricsService.class);
-        meterRegistry = mock(MeterRegistry.class);
+        // Phase 9: Use RETURNS_DEEP_STUBS for MeterRegistry to support chained method calls like more().counter()
+        meterRegistry = mock(MeterRegistry.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
 
         // Mock: No abilities learned by default
         when(abilityRepo.findByCharacter(any())).thenReturn(List.of());
