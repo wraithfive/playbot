@@ -1,7 +1,10 @@
 package com.discordbot.battle.repository;
 
 import com.discordbot.battle.entity.PlayerCharacter;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -40,4 +43,50 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
      * @param guildId Discord guild ID (snowflake)
      */
     void deleteByUserIdAndGuildId(String userId, String guildId);
+
+    // ============ Phase 6: Leaderboard Queries ============
+
+    /**
+     * Get top characters by ELO rating for a guild.
+     * Phase 6: Leaderboards
+     *
+     * @param guildId Discord guild ID
+     * @param pageable Pagination settings (limit)
+     * @return List of characters ordered by ELO descending
+     */
+    @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.elo DESC, c.wins DESC")
+    List<PlayerCharacter> findTopByElo(@Param("guildId") String guildId, Pageable pageable);
+
+    /**
+     * Get top characters by wins for a guild.
+     * Phase 6: Leaderboards
+     *
+     * @param guildId Discord guild ID
+     * @param pageable Pagination settings (limit)
+     * @return List of characters ordered by wins descending
+     */
+    @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.wins DESC, c.elo DESC")
+    List<PlayerCharacter> findTopByWins(@Param("guildId") String guildId, Pageable pageable);
+
+    /**
+     * Get top characters by level for a guild.
+     * Phase 6: Leaderboards
+     *
+     * @param guildId Discord guild ID
+     * @param pageable Pagination settings (limit)
+     * @return List of characters ordered by level descending, then XP
+     */
+    @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.level DESC, c.xp DESC")
+    List<PlayerCharacter> findTopByLevel(@Param("guildId") String guildId, Pageable pageable);
+
+    /**
+     * Get characters with most battles (for activity leaderboard).
+     * Phase 6: Leaderboards
+     *
+     * @param guildId Discord guild ID
+     * @param pageable Pagination settings (limit)
+     * @return List of characters ordered by total battles descending
+     */
+    @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY (c.wins + c.losses + c.draws) DESC")
+    List<PlayerCharacter> findTopByActivity(@Param("guildId") String guildId, Pageable pageable);
 }

@@ -80,6 +80,13 @@ public class CommandRegistrar extends ListenerAdapter {
                         .addOption(OptionType.STRING, "filter", "Filter: available | learned (optional)", false)
                         .addOption(OptionType.STRING, "type", "Ability type: TALENT | SKILL | SPELL (optional)", false)
                 );
+                // Leaderboard (Phase 6: Progression & Leaderboards)
+                commands.add(
+                    Commands.slash("leaderboard", "View server battle rankings")
+                        .addOption(OptionType.STRING, "type", "Leaderboard type: elo | wins | level | activity (default: elo)", false,
+                            true) // autoComplete enabled for future
+                        .addOption(OptionType.INTEGER, "limit", "Number of players to show (1-25, default: 10)", false)
+                );
             }
 
             // One atomic registration per guild
