@@ -122,7 +122,7 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - StatusEffectServiceTest: 24 unit tests with full coverage
     - Tests cover: effect application (new/stacking/refresh), turn processing (DoT/HoT/stun), ticking/expiration, modifiers (AC/attack/damage), shield absorption, cleanup operations, display formatting
   - **Status:** Fully implemented and production-ready
-- Phase 6 — Progression & Leaderboards: CORE COMPLETE (2/3 done)
+- Phase 6 — Progression & Leaderboards: COMPLETED
   - **Progression infrastructure (completed - Part 1):**
     - Database migration 024: level, XP, ELO, wins, losses, draws fields
     - Indexes for leaderboard queries (ELO DESC, level DESC)
@@ -138,8 +138,15 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - ELO calculated using standard formula (K=32, expected = 1/(1+10^((Ropp-Rme)/400)))
     - Automatic level-up detection with logging
     - Win/loss/draw stats incremented and persisted
-  - **Pending (optional):** /leaderboard command, level-based spell slot progression, comprehensive tests
-  - **Status:** Functional progression system, rewards awarded on all battle conclusions
+  - **Leaderboard command (completed - Part 3):**
+    - PlayerCharacterRepository: Query methods for leaderboards (findTopByElo, findTopByWins, findTopByLevel, findTopByActivity)
+    - LeaderboardCommandHandler: /leaderboard command with 4 view types
+    - Display options: elo (ELO + win rate), wins (victories), level (progression), activity (total battles)
+    - Configurable limit (1-25 players, default 10)
+    - Medal emojis for top 3 positions (🥇🥈🥉)
+    - Formatted stats with W-L-D records, percentages, and rankings
+  - **Deferred (optional):** Level-based spell slot progression (requires SpellResourceService implementation), comprehensive tests
+  - **Status:** Fully functional progression and competitive ranking system
 - Phase 7 — Edge Cases & Recovery: COMPLETED
   - **Persistent battle sessions (completed):**
     - Database migration 025: battle_session table with battle state persistence
