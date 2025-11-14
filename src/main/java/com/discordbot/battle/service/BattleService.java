@@ -253,6 +253,7 @@ public class BattleService {
 
     /** Perform an attack action by current turn user. */
     public AttackResult performAttack(String battleId, String attackerUserId) {
+        long turnStartTime = System.currentTimeMillis(); // Phase 9: Capture for metrics
         ActiveBattle battle = getBattleOrThrow(battleId);
         if (!battle.isActive()) {
             throw new IllegalStateException("Battle not active");
@@ -286,7 +287,7 @@ public class BattleService {
                 statusEffectService.cleanupBattleEffects(battleId);
             }
 
-            return new AttackResult(battle, 0, 0, false, false, winner, turnStartEffects.messages());
+            return new AttackResult(battle, 0, 0, 0, 0, false, false, winner, turnStartEffects.messages());
         }
 
         boolean attackerIsChallenger = attackerUserId.equals(battle.getChallengerId());
@@ -393,8 +394,9 @@ public class BattleService {
         battle.resetLastActionAt();
 
         // Phase 8: Record metrics
+        long turnDuration = System.currentTimeMillis() - turnStartTime;
         metricsService.recordAttack(crit);
-        metricsService.recordTurnPlayed();
+        metricsService.recordTurnPlayed(turnDuration);
 
         // Persist turn to database
         persistBattleTurn(battle, attackerUserId, defenderUserId, BattleTurn.ActionType.ATTACK,
@@ -708,7 +710,7 @@ public class BattleService {
         markBattleCompleted(battleId); // Phase 7: Mark as completed in DB
 
         // Phase 8: Record metrics
-        metricsService.recordBattleForfeit();
+        metricsService.recordBattleForfeit(battleDuration);
         metricsService.recordBattleCompleted(battleDuration);
 
         // Persist forfeit turn
@@ -731,6 +733,7 @@ public class BattleService {
      * Returns DefendResult with battle state, temp AC bonus, and winner if battle ended.
      */
     public DefendResult performDefend(String battleId, String userId) {
+        long turnStartTime = System.currentTimeMillis(); // Phase 9: Capture for metrics
         ActiveBattle battle = getBattleOrThrow(battleId);
         if (!battle.isActive()) {
             throw new IllegalStateException("Battle not active");
@@ -774,8 +777,9 @@ public class BattleService {
         battle.resetLastActionAt();
 
         // Phase 8: Record metrics
+        long turnDuration = System.currentTimeMillis() - turnStartTime;
         metricsService.recordDefend();
-        metricsService.recordTurnPlayed();
+        metricsService.recordTurnPlayed(turnDuration);
 
         // Persist defend turn with audit trail
         BattleTurn turn = createBattleTurn(battle, userId, null, BattleTurn.ActionType.DEFEND,
@@ -802,6 +806,7 @@ public class BattleService {
      * Creates SPELL turn log entry.
      */
     public SpellResult performSpell(String battleId, String userId, Long abilityId) {
+        long turnStartTime = System.currentTimeMillis(); // Phase 9: Capture for metrics
         ActiveBattle battle = getBattleOrThrow(battleId);
         if (!battle.isActive()) {
             throw new IllegalStateException("Battle not active");
@@ -913,8 +918,9 @@ public class BattleService {
         battle.resetLastActionAt();
 
         // Phase 8: Record metrics
+        long turnDuration = System.currentTimeMillis() - turnStartTime;
         metricsService.recordSpellCast(crit);
-        metricsService.recordTurnPlayed();
+        metricsService.recordTurnPlayed(turnDuration);
 
         // Start cooldown AFTER successful cast
         spellResourceService.startAbilityCooldown(attackerChar, ability);
@@ -998,7 +1004,7 @@ public class BattleService {
         markBattleCompleted(battle.getId()); // Phase 7: Mark as completed in DB
 
         // Phase 8: Record metrics & event
-        metricsService.recordBattleTimeout();
+        metricsService.recordBattleTimeout(battleDuration);
         metricsService.recordBattleCompleted(battleDuration);
         new BattleEvent.BattleTimeout(battle.getId(), timeoutUserId, winner).log(logger);
 

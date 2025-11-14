@@ -103,7 +103,7 @@ public class LeaderboardCommandHandler implements CommandHandler {
      */
     private EmbedBuilder buildLeaderboardEmbed(String type, List<PlayerCharacter> topPlayers, Guild guild) {
         EmbedBuilder embed = new EmbedBuilder();
-        embed.setColor(Color.GOLD);
+        embed.setColor(0xFFD700); // Gold color
 
         // Set title based on type
         String title = switch (type.toLowerCase()) {
