@@ -96,10 +96,10 @@ class StatusEffectServiceTest {
         ActiveBattle battle = createTestBattle();
         int initialHp = battle.getChallengerHp();
 
-        BattleStatusEffect burn = new BattleStatusEffect(BATTLE_ID, USER_A, StatusEffectType.BURN,
+        BattleStatusEffect burn = new BattleStatusEffect(battle.getId(), USER_A, StatusEffectType.BURN,
             3, 2, 5, USER_B, "fireball", 1); // 2 stacks * 5 magnitude = 10 damage
 
-        when(repository.findByBattleIdAndAffectedUserId(BATTLE_ID, USER_A))
+        when(repository.findByBattleIdAndAffectedUserId(battle.getId(), USER_A))
             .thenReturn(List.of(burn));
 
         StatusEffectService.TurnStartEffectResult result = service.processTurnStartEffects(battle, USER_A);
@@ -117,10 +117,10 @@ class StatusEffectServiceTest {
         battle.setChallengerHp(30); // Reduce HP so we can heal
         int initialHp = battle.getChallengerHp();
 
-        BattleStatusEffect regen = new BattleStatusEffect(BATTLE_ID, USER_A, StatusEffectType.REGEN,
+        BattleStatusEffect regen = new BattleStatusEffect(battle.getId(), USER_A, StatusEffectType.REGEN,
             3, 1, 4, USER_B, "regeneration", 1); // 1 stack * 4 magnitude = 4 healing
 
-        when(repository.findByBattleIdAndAffectedUserId(BATTLE_ID, USER_A))
+        when(repository.findByBattleIdAndAffectedUserId(battle.getId(), USER_A))
             .thenReturn(List.of(regen));
 
         StatusEffectService.TurnStartEffectResult result = service.processTurnStartEffects(battle, USER_A);
@@ -136,10 +136,10 @@ class StatusEffectServiceTest {
     void processTurnStartEffects_detectsStun() {
         ActiveBattle battle = createTestBattle();
 
-        BattleStatusEffect stun = new BattleStatusEffect(BATTLE_ID, USER_A, StatusEffectType.STUN,
+        BattleStatusEffect stun = new BattleStatusEffect(battle.getId(), USER_A, StatusEffectType.STUN,
             1, 1, 0, USER_B, "shocking-grasp", 1);
 
-        when(repository.findByBattleIdAndAffectedUserId(BATTLE_ID, USER_A))
+        when(repository.findByBattleIdAndAffectedUserId(battle.getId(), USER_A))
             .thenReturn(List.of(stun));
 
         StatusEffectService.TurnStartEffectResult result = service.processTurnStartEffects(battle, USER_A);

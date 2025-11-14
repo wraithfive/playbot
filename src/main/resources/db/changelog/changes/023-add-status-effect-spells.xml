@@ -18,9 +18,10 @@
     <changeSet id="023-add-mage-status-effect-spells" author="claude">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="ability"/>
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key = 'fireball'</sqlCheck>
         </preConditions>
 
-        <!-- Fireball - Burn effect -->
+        <!-- Fireball - Burn effect (skip if already exists from migration 016) -->
         <insert tableName="ability">
             <column name="ability_key" value="fireball"/>
             <column name="name" value="Fireball"/>
