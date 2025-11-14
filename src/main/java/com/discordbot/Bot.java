@@ -59,11 +59,12 @@ public class Bot {
 
     @Bean
     @Profile("!repository-test")
-    public JDA jda(com.discordbot.command.CommandRouter commandRouter, 
+    public JDA jda(com.discordbot.command.CommandRouter commandRouter,
                    com.discordbot.command.CommandRegistrar commandRegistrar,
                    com.discordbot.battle.controller.CharacterCreationInteractionHandler characterCreationInteractionHandler,
                    com.discordbot.battle.controller.BattleInteractionHandler battleInteractionHandler,
-                   com.discordbot.battle.controller.AbilityInteractionHandler abilityInteractionHandler) throws InterruptedException {
+                   com.discordbot.battle.controller.AbilityInteractionHandler abilityInteractionHandler,
+                   com.discordbot.battle.listener.ChatXpListener chatXpListener) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -97,12 +98,14 @@ public class Bot {
             // CommandRouter handles all slash command interactions
             // CommandRegistrar handles command registration on guild events
             // CharacterCreationInteractionHandler handles character creation button/select menu interactions
+            // ChatXpListener awards XP for chat messages (primary progression system)
             builder.addEventListeners(commandRouter);
             builder.addEventListeners(commandRegistrar);
             builder.addEventListeners(characterCreationInteractionHandler);
             builder.addEventListeners(battleInteractionHandler);
             builder.addEventListeners(abilityInteractionHandler);
-            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler, BattleInteractionHandler, AbilityInteractionHandler");
+            builder.addEventListeners(chatXpListener);
+            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler, BattleInteractionHandler, AbilityInteractionHandler, ChatXpListener");
 
             // Build and start the bot
             JDA jda = builder.build();

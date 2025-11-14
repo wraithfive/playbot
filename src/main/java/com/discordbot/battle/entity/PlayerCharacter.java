@@ -114,6 +114,13 @@ public class PlayerCharacter {
     private LocalDateTime updatedAt;
 
     /**
+     * Timestamp when user last received XP from chat messages.
+     * Used for rate limiting chat XP awards to prevent spam.
+     */
+    @Column(nullable = true)
+    private LocalDateTime lastChatXpAt;
+
+    /**
      * Default constructor for JPA
      */
     protected PlayerCharacter() {
@@ -200,6 +207,14 @@ public class PlayerCharacter {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public LocalDateTime getLastChatXpAt() {
+        return lastChatXpAt;
+    }
+
+    public void setLastChatXpAt(LocalDateTime lastChatXpAt) {
+        this.lastChatXpAt = lastChatXpAt;
     }
 
     // Setters for updates (not for userId/guildId - those are immutable after creation)
