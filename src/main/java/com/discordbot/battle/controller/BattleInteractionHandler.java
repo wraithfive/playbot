@@ -199,6 +199,11 @@ public class BattleInteractionHandler extends ListenerAdapter {
         embed.addField("Action", outcome, false);
 
         if (result.winnerUserId() != null) {
+            // Award XP and ELO to both participants
+            String winner = result.winnerUserId();
+            String loser = winner.equals(battle.getChallengerId()) ? battle.getOpponentId() : battle.getChallengerId();
+            battleService.awardProgressionRewards(winner, loser, battle.getGuildId(), false);
+
             embed.setColor(Color.YELLOW);
             embed.addField("🏆 Winner", mention(result.winnerUserId()), false);
         } else {
@@ -249,6 +254,11 @@ public class BattleInteractionHandler extends ListenerAdapter {
         embed.addField("Action", outcome, false);
 
         if (result.winnerUserId() != null) {
+            // Award XP and ELO to both participants
+            String winner = result.winnerUserId();
+            String loser = winner.equals(battle.getChallengerId()) ? battle.getOpponentId() : battle.getChallengerId();
+            battleService.awardProgressionRewards(winner, loser, battle.getGuildId(), false);
+
             embed.setColor(Color.YELLOW);
             embed.addField("🏆 Winner", mention(result.winnerUserId()), false);
         } else {
@@ -282,6 +292,9 @@ public class BattleInteractionHandler extends ListenerAdapter {
         String winnerId = user.getId().equals(battle.getChallengerId())
             ? battle.getOpponentId()
             : battle.getChallengerId();
+
+        // Award XP and ELO to both participants (forfeit counts as normal loss/win)
+        battleService.awardProgressionRewards(winnerId, user.getId(), battle.getGuildId(), false);
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setColor(Color.RED);
