@@ -90,7 +90,7 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
   - **Configuration:** Properties for timeout check intervals and feature toggle
   - **Test coverage:** Comprehensive unit tests for scheduler behavior
   - **Status:** Core scheduler complete, optional analytics/IP limiting deferred
-- Phase 4 — Expanded Actions & Status Effects: CORE COMPLETE (Part 2/3 done)
+- Phase 4 — Expanded Actions & Status Effects: COMPLETED (All parts done)
   - **Base infrastructure (completed - Part 1):**
     - Database migration 022: battle_status_effect table with indexes
     - StatusEffectType enum: 12 effect types (STUN, BURN, POISON, REGEN, SHIELD, HASTE, SLOW, BLEED, WEAKNESS, STRENGTH, PROTECTION, VULNERABILITY)
@@ -109,8 +109,19 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Status effect messages in combat embeds (💫 Status Effects field)
     - Active effects displayed in HP fields with emojis
     - Format: "HP: 45\n🔥 Burning (2 turns, 3 stacks)"
-  - **Status:** Core system functional and production-ready
-  - **Pending (optional):** Spell extensions with effect application, comprehensive test suite
+  - **Spell extensions (completed - Part 3):**
+    - Database migration 023: 12 status effect spells/skills across all classes
+    - Mage: Fireball (BURN), Shocking Grasp (STUN), Haste, Slow
+    - Rogue: Poison Strike (POISON), Crippling Blow (WEAKNESS)
+    - Cleric: Regeneration (REGEN), Shield of Faith (SHIELD), Bless (STRENGTH), Protection from Evil (PROTECTION)
+    - Warrior: Rending Strike (BLEED), Sunder Armor (VULNERABILITY)
+    - Effect parsing: parseAndApplyStatusEffects() for "APPLY_STATUS:TYPE:DURATION:STACKS:MAGNITUDE" format
+    - Updated performSpell() to parse and apply effects from ability definitions
+    - SpellResult record extended with statusEffectMessages
+  - **Comprehensive test suite (completed - Part 4):**
+    - StatusEffectServiceTest: 24 unit tests with full coverage
+    - Tests cover: effect application (new/stacking/refresh), turn processing (DoT/HoT/stun), ticking/expiration, modifiers (AC/attack/damage), shield absorption, cleanup operations, display formatting
+  - **Status:** Fully implemented and production-ready
 
 ### 4.2 Recent progress (2025-11-14)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
