@@ -66,6 +66,42 @@ public class PlayerCharacter {
     private int charisma;
 
     /**
+     * Character level (1-20 in D&D 5e)
+     */
+    @Column(nullable = false)
+    private int level = 1;
+
+    /**
+     * Experience points for leveling
+     */
+    @Column(nullable = false)
+    private long xp = 0;
+
+    /**
+     * ELO rating for competitive ranking (starts at 1000)
+     */
+    @Column(nullable = false)
+    private int elo = 1000;
+
+    /**
+     * Number of battle victories
+     */
+    @Column(nullable = false)
+    private int wins = 0;
+
+    /**
+     * Number of battle defeats
+     */
+    @Column(nullable = false)
+    private int losses = 0;
+
+    /**
+     * Number of battle draws
+     */
+    @Column(nullable = false)
+    private int draws = 0;
+
+    /**
      * Timestamp when character was created
      */
     @Column(nullable = false, updatable = false)
@@ -197,5 +233,98 @@ public class PlayerCharacter {
 
     public void setCharisma(int charisma) {
         this.charisma = charisma;
+    }
+
+    // Progression getters
+    public int getLevel() {
+        return level;
+    }
+
+    public long getXp() {
+        return xp;
+    }
+
+    public int getElo() {
+        return elo;
+    }
+
+    public int getWins() {
+        return wins;
+    }
+
+    public int getLosses() {
+        return losses;
+    }
+
+    public int getDraws() {
+        return draws;
+    }
+
+    // Progression setters
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public void setXp(long xp) {
+        this.xp = xp;
+    }
+
+    public void setElo(int elo) {
+        this.elo = elo;
+    }
+
+    public void setWins(int wins) {
+        this.wins = wins;
+    }
+
+    public void setLosses(int losses) {
+        this.losses = losses;
+    }
+
+    public void setDraws(int draws) {
+        this.draws = draws;
+    }
+
+    /**
+     * Increment wins counter
+     */
+    public void incrementWins() {
+        this.wins++;
+    }
+
+    /**
+     * Increment losses counter
+     */
+    public void incrementLosses() {
+        this.losses++;
+    }
+
+    /**
+     * Increment draws counter
+     */
+    public void incrementDraws() {
+        this.draws++;
+    }
+
+    /**
+     * Add XP and return true if leveled up
+     */
+    public boolean addXp(long amount, long[] levelThresholds) {
+        int oldLevel = this.level;
+        this.xp += amount;
+
+        // Check for level up (level is 1-indexed, array is 0-indexed)
+        while (this.level < levelThresholds.length && this.xp >= levelThresholds[this.level]) {
+            this.level++;
+        }
+
+        return this.level > oldLevel;
+    }
+
+    /**
+     * Update ELO rating
+     */
+    public void updateElo(int change) {
+        this.elo = Math.max(0, this.elo + change); // Floor at 0
     }
 }

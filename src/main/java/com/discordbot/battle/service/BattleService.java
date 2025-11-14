@@ -250,18 +250,20 @@ public class BattleService {
         int attackerBaseHp = getBaseHpForClass(attackerChar.getCharacterClass());
         int defenderBaseHp = getBaseHpForClass(defenderChar.getCharacterClass());
 
-        // Calculate combat stats with ability bonuses
+        // Calculate combat stats with ability bonuses and proficiency
+        List<Integer> proficiencyByLevel = battleProperties.getProgression().getProficiencyByLevel();
         CharacterStatsCalculator.CombatStats attackerStats =
-            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp);
+            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp, proficiencyByLevel);
         CharacterStatsCalculator.CombatStats defenderStats =
-            CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp);
+            CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp, proficiencyByLevel);
 
         int attackRoll = battle.rollD20();
         int strToHitMod = abilityMod(attackerChar.getStrength());
 
         // Apply status effect modifiers to attack roll (HASTE/SLOW)
         int statusAttackMod = statusEffectService.getAttackModifier(battleId, attackerUserId);
-        int totalAttack = attackRoll + strToHitMod + statusAttackMod;
+        // D&D 5e attack roll: d20 + proficiency + ability mod + status mods
+        int totalAttack = attackRoll + attackerStats.proficiencyBonus() + strToHitMod + statusAttackMod;
 
         // Apply defender's base AC plus any temporary AC bonus from defend
         int baseArmorClass = defenderStats.armorClass();
@@ -734,15 +736,17 @@ public class BattleService {
         int attackerBaseHp = getBaseHpForClass(attackerChar.getCharacterClass());
         int defenderBaseHp = getBaseHpForClass(defenderChar.getCharacterClass());
 
-        // Calculate combat stats with ability bonuses
+        // Calculate combat stats with ability bonuses and proficiency
+        List<Integer> proficiencyByLevel = battleProperties.getProgression().getProficiencyByLevel();
         CharacterStatsCalculator.CombatStats attackerStats =
-            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp);
+            CharacterStatsCalculator.calculateStats(attackerChar, attackerAbilities, attackerBaseHp, proficiencyByLevel);
         CharacterStatsCalculator.CombatStats defenderStats =
-            CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp);
+            CharacterStatsCalculator.calculateStats(defenderChar, defenderAbilities, defenderBaseHp, proficiencyByLevel);
 
         int attackRoll = battle.rollD20();
         int intToHitMod = abilityMod(attackerChar.getIntelligence());
-        int totalAttack = attackRoll + intToHitMod;
+        // D&D 5e spell attack roll: d20 + proficiency + casting ability mod
+        int totalAttack = attackRoll + attackerStats.proficiencyBonus() + intToHitMod;
 
         // Apply defender's base AC plus any temporary AC bonus from defend
         int baseArmorClass = defenderStats.armorClass();
@@ -993,5 +997,90 @@ public class BattleService {
         return battles.asMap().values().stream()
             .filter(ActiveBattle::isActive)
             .collect(java.util.stream.Collectors.toList());
+    }
+
+    // ============ Phase 6: Progression & Rewards ============
+
+    /**
+     * Award XP and ELO to both participants after battle ends.
+     * @param winnerId User ID of the winner (null for draw)
+     * @param loserId User ID of the loser (null for draw)
+     * @param guildId Guild where battle took place
+     * @param isDraw Whether the battle was a draw
+     */
+    public void awardProgressionRewards(String winnerId, String loserId, String guildId, boolean isDraw) {
+        if (winnerId == null && loserId == null && !isDraw) {
+            logger.warn("Cannot award rewards: no winner or draw state");
+            return;
+        }
+
+        PlayerCharacter winner = winnerId != null ?
+            characterRepository.findByUserIdAndGuildId(winnerId, guildId).orElse(null) : null;
+        PlayerCharacter loser = loserId != null ?
+            characterRepository.findByUserIdAndGuildId(loserId, guildId).orElse(null) : null;
+
+        if (isDraw) {
+            // Draw: both get reduced XP and ELO 0.5 score
+            if (winner != null && loser != null) {
+                awardXpAndElo(winner, loser, 0.5); // Draw: 0.5 for both
+                awardXpAndElo(loser, winner, 0.5);
+                winner.incrementDraws();
+                loser.incrementDraws();
+                characterRepository.save(winner);
+                characterRepository.save(loser);
+                logger.info("Battle draw: awarded draw rewards to {} and {}", winner.getUserId(), loser.getUserId());
+            }
+        } else {
+            // Victory/Loss
+            if (winner != null && loser != null) {
+                awardXpAndElo(winner, loser, 1.0); // Winner: score = 1
+                awardXpAndElo(loser, winner, 0.0); // Loser: score = 0
+                winner.incrementWins();
+                loser.incrementLosses();
+                characterRepository.save(winner);
+                characterRepository.save(loser);
+                logger.info("Battle victory: {} defeated {}, rewards awarded", winner.getUserId(), loser.getUserId());
+            }
+        }
+    }
+
+    /**
+     * Calculate and apply XP and ELO rewards for a character.
+     * @param character The character receiving rewards
+     * @param opponent The opponent character (for ELO calculation)
+     * @param score 1.0 for win, 0.0 for loss, 0.5 for draw
+     */
+    private void awardXpAndElo(PlayerCharacter character, PlayerCharacter opponent, double score) {
+        // XP Reward
+        long baseXp = battleProperties.getProgression().getXp().getBaseXp();
+        long bonusXp = switch ((int) (score * 2)) {
+            case 2 -> battleProperties.getProgression().getXp().getWinBonus(); // Win
+            case 1 -> battleProperties.getProgression().getXp().getDrawBonus(); // Draw
+            default -> 0; // Loss
+        };
+        long totalXp = baseXp + bonusXp;
+
+        // Add XP and check for level up
+        long[] levelThresholds = battleProperties.getProgression().getXp().getLevelCurve().stream()
+            .mapToLong(Integer::longValue).toArray();
+        boolean leveledUp = character.addXp(totalXp, levelThresholds);
+
+        if (leveledUp) {
+            logger.info("Character leveled up! userId={} guildId={} newLevel={} totalXp={}",
+                character.getUserId(), character.getGuildId(), character.getLevel(), character.getXp());
+        }
+
+        // ELO Calculation (standard ELO formula)
+        int myElo = character.getElo();
+        int opponentElo = opponent.getElo();
+        double expected = 1.0 / (1.0 + Math.pow(10, (opponentElo - myElo) / 400.0));
+        int k = battleProperties.getProgression().getElo().getK();
+        int eloChange = (int) Math.round(k * (score - expected));
+
+        character.updateElo(eloChange);
+
+        logger.debug("Awarded rewards: userId={} xp=+{} (total={}) elo={} ({}{})",
+            character.getUserId(), totalXp, character.getXp(), character.getElo(),
+            eloChange >= 0 ? "+" : "", eloChange);
     }
 }
