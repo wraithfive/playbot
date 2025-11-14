@@ -8,6 +8,7 @@ import com.discordbot.battle.entity.BattleSession;
 import com.discordbot.battle.entity.BattleTurn;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.event.BattleEvent;
 import com.discordbot.battle.repository.AbilityRepository;
 import com.discordbot.battle.repository.BattleSessionRepository;
 import com.discordbot.battle.repository.BattleTurnRepository;
@@ -159,7 +160,11 @@ public class BattleService {
                 ActiveBattle battle = ActiveBattle.createPending(guildId, challengerUserId, opponentUserId);
                 battles.put(battle.getId(), battle);
                 persistBattle(battle); // Phase 7: Persist to database
-                logger.info("Challenge created battleId={} guild={} challenger={} opponent={}", battle.getId(), guildId, challengerUserId, opponentUserId);
+
+                // Phase 8: Metrics & Events
+                metricsService.recordChallengeCreated();
+                new BattleEvent.ChallengeCreated(battle.getId(), guildId, challengerUserId, opponentUserId).log(logger);
+
                 return battle;
             }
         }
@@ -197,7 +202,12 @@ public class BattleService {
         int opponentHp = computeStartingHp(battle.getGuildId(), battle.getOpponentId());
         battle.start(challengerHp, opponentHp);
         persistBattle(battle); // Phase 7: Persist ACTIVE status
-        logger.info("Battle started battleId={} CHP={} OHP={}", battle.getId(), challengerHp, opponentHp);
+
+        // Phase 8: Metrics & Events
+        metricsService.recordChallengeAccepted();
+        metricsService.recordBattleStarted();
+        new BattleEvent.ChallengeAccepted(battle.getId(), battle.getGuildId(), acceptingUserId).log(logger);
+
         return battle;
     }
 
@@ -205,6 +215,10 @@ public class BattleService {
     public ActiveBattle declineChallenge(String battleId, String decliningUserId) {
         ActiveBattle battle = getBattleOrThrow(battleId);
         battle.decline(decliningUserId);
+
+        // Phase 8: Metrics
+        metricsService.recordChallengeDeclined();
+
         logger.info("Battle declined battleId={} by {}", battle.getId(), decliningUserId);
         return battle;
     }
@@ -350,9 +364,19 @@ public class BattleService {
         // Reset last action timestamp
         battle.resetLastActionAt();
 
+        // Phase 8: Record metrics
+        metricsService.recordAttack(crit);
+        metricsService.recordTurnPlayed();
+
         // Persist turn to database
         persistBattleTurn(battle, attackerUserId, defenderUserId, BattleTurn.ActionType.ATTACK,
                          null, attackRoll, totalAttack, armorClass, damage, hit, crit);
+
+        // Phase 8: Log turn resolved event
+        new BattleEvent.TurnResolved(
+            battleId, battle.getTurnNumber(), attackerUserId, "ATTACK",
+            damage, crit, battle.getChallengerHp(), battle.getOpponentHp()
+        ).log(logger);
 
         // Tick status effects at end of attacker's turn
         statusEffectService.tickEffects(battleId, attackerUserId);
@@ -362,9 +386,14 @@ public class BattleService {
         String winner = null;
         if (ended) {
             winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
+            long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
             battle.end(winner);
             recordBattleCompletion(battle.getChallengerId());
             recordBattleCompletion(battle.getOpponentId());
+
+            // Phase 8: Record battle completion
+            metricsService.recordBattleCompleted(battleDuration);
+
             // Clean up all status effects for this battle
             statusEffectService.cleanupBattleEffects(battleId);
             logger.info("Battle ended battleId={} winner={} CHP={} OHP={}", battle.getId(), winner, battle.getChallengerHp(), battle.getOpponentHp());
@@ -608,8 +637,13 @@ public class BattleService {
 
         String winner = Objects.equals(userId, battle.getChallengerId()) ? battle.getOpponentId() : battle.getChallengerId();
         battle.addLog("{USER:" + userId + "} forfeits the battle");
+        long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
         battle.end(winner);
         markBattleCompleted(battleId); // Phase 7: Mark as completed in DB
+
+        // Phase 8: Record metrics
+        metricsService.recordBattleForfeit();
+        metricsService.recordBattleCompleted(battleDuration);
 
         // Persist forfeit turn
         persistBattleTurn(battle, userId, winner, BattleTurn.ActionType.FORFEIT,
@@ -671,6 +705,10 @@ public class BattleService {
 
         // Reset last action timestamp
         battle.resetLastActionAt();
+
+        // Phase 8: Record metrics
+        metricsService.recordDefend();
+        metricsService.recordTurnPlayed();
 
         // Persist defend turn with audit trail
         BattleTurn turn = createBattleTurn(battle, userId, null, BattleTurn.ActionType.DEFEND,
@@ -807,6 +845,10 @@ public class BattleService {
         // Reset last action timestamp
         battle.resetLastActionAt();
 
+        // Phase 8: Record metrics
+        metricsService.recordSpellCast(crit);
+        metricsService.recordTurnPlayed();
+
         // Start cooldown AFTER successful cast
         spellResourceService.startAbilityCooldown(attackerChar, ability);
 
@@ -827,14 +869,25 @@ public class BattleService {
         turn.setStatusEffectsApplied(statusEffectsApplied);
         battleTurnRepository.save(turn);
 
+        // Phase 8: Log turn resolved event
+        new BattleEvent.TurnResolved(
+            battleId, battle.getTurnNumber(), userId, "SPELL:" + ability.getKey(),
+            damage, crit, battle.getChallengerHp(), battle.getOpponentHp()
+        ).log(logger);
+
         // Check end condition
         boolean ended = battle.getOpponentHp() <= 0 || battle.getChallengerHp() <= 0;
         String winner = null;
         if (ended) {
             winner = battle.getOpponentHp() <= 0 ? battle.getChallengerId() : battle.getOpponentId();
+            long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
             battle.end(winner);
             recordBattleCompletion(battle.getChallengerId());
             recordBattleCompletion(battle.getOpponentId());
+
+            // Phase 8: Record battle completion
+            metricsService.recordBattleCompleted(battleDuration);
+
             statusEffectService.cleanupBattleEffects(battleId);
             logger.info("Battle ended (spell) battleId={} winner={} CHP={} OHP={}", battle.getId(), winner, battle.getChallengerHp(), battle.getOpponentHp());
         } else {
@@ -873,8 +926,14 @@ public class BattleService {
             : battle.getChallengerId();
 
         battle.addLog("{USER:" + timeoutUserId + "} failed to act in time. Battle ended due to timeout.");
+        long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
         battle.end(winner);
         markBattleCompleted(battle.getId()); // Phase 7: Mark as completed in DB
+
+        // Phase 8: Record metrics & event
+        metricsService.recordBattleTimeout();
+        metricsService.recordBattleCompleted(battleDuration);
+        new BattleEvent.BattleTimeout(battle.getId(), timeoutUserId, winner).log(logger);
 
         // Persist timeout turn
         persistBattleTurn(battle, timeoutUserId, winner, BattleTurn.ActionType.TIMEOUT,
@@ -887,8 +946,6 @@ public class BattleService {
         // Clean up status effects
         statusEffectService.cleanupBattleEffects(battle.getId());
 
-        logger.info("Battle timed out battleId={} timeoutUser={} winner={}",
-                   battle.getId(), timeoutUserId, winner);
         return battle;
     }
 
@@ -1042,6 +1099,13 @@ public class BattleService {
                 loser.incrementDraws();
                 characterRepository.save(winner);
                 characterRepository.save(loser);
+
+                // Phase 8: Log battle completion event (draw)
+                new BattleEvent.BattleCompleted(
+                    "unknown", null, true,
+                    0, 0L // Turn count and duration tracked elsewhere
+                ).log(logger);
+
                 logger.info("Battle draw: awarded draw rewards to {} and {}", winner.getUserId(), loser.getUserId());
             }
         } else {
@@ -1053,6 +1117,13 @@ public class BattleService {
                 loser.incrementLosses();
                 characterRepository.save(winner);
                 characterRepository.save(loser);
+
+                // Phase 8: Log battle completion event (victory)
+                new BattleEvent.BattleCompleted(
+                    "unknown", winnerId, false,
+                    0, 0L // Turn count and duration tracked elsewhere
+                ).log(logger);
+
                 logger.info("Battle victory: {} defeated {}, rewards awarded", winner.getUserId(), loser.getUserId());
             }
         }
