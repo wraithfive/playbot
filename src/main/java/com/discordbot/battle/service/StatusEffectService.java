@@ -33,6 +33,10 @@ public class StatusEffectService {
      * If the effect is stackable and already exists, adds stacks.
      * If the effect is non-stackable and already exists, refreshes duration.
      *
+     * <p><b>Thread Safety (Phase 9):</b> Protected against race conditions via unique
+     * constraint on (battle_id, affected_user_id, effect_type). If concurrent applications
+     * occur, the database constraint prevents duplicates and this method retries once.</p>
+     *
      * @param battleId ID of the battle
      * @param affectedUserId User ID of the affected character
      * @param effectType Type of status effect
@@ -43,6 +47,7 @@ public class StatusEffectService {
      * @param sourceAbilityKey Ability key that applied this effect
      * @param currentTurn Current turn number when applied
      * @return The applied or updated status effect
+     * @throws org.springframework.dao.DataIntegrityViolationException if retry fails
      */
     @Transactional
     public BattleStatusEffect applyEffect(String battleId, String affectedUserId,
@@ -50,37 +55,61 @@ public class StatusEffectService {
                                          int stacks, int magnitude,
                                          String sourceUserId, String sourceAbilityKey,
                                          int currentTurn) {
-        // Check if effect already exists
-        Optional<BattleStatusEffect> existing = repository.findByBattleIdAndAffectedUserIdAndEffectType(
-            battleId, affectedUserId, effectType);
+        try {
+            // Check if effect already exists
+            Optional<BattleStatusEffect> existing = repository.findByBattleIdAndAffectedUserIdAndEffectType(
+                battleId, affectedUserId, effectType);
 
-        if (existing.isPresent()) {
-            BattleStatusEffect effect = existing.get();
+            if (existing.isPresent()) {
+                BattleStatusEffect effect = existing.get();
 
-            if (effectType.isStackable()) {
-                // Stackable effect: add stacks and refresh duration
-                effect.addStacks(stacks);
-                effect.refreshDuration(durationTurns);
-                logger.debug("Stacked {} effect on user {} in battle {}: {} stacks, {} turns",
-                    effectType, affectedUserId, battleId, effect.getStacks(), effect.getDurationTurns());
+                if (effectType.isStackable()) {
+                    // Stackable effect: add stacks and refresh duration
+                    effect.addStacks(stacks);
+                    effect.refreshDuration(durationTurns);
+                    logger.debug("Stacked {} effect on user {} in battle {}: {} stacks, {} turns",
+                        effectType, affectedUserId, battleId, effect.getStacks(), effect.getDurationTurns());
+                } else {
+                    // Non-stackable effect: just refresh duration
+                    effect.refreshDuration(durationTurns);
+                    logger.debug("Refreshed {} effect on user {} in battle {}: {} turns",
+                        effectType, affectedUserId, battleId, effect.getDurationTurns());
+                }
+
+                return repository.save(effect);
             } else {
-                // Non-stackable effect: just refresh duration
-                effect.refreshDuration(durationTurns);
-                logger.debug("Refreshed {} effect on user {} in battle {}: {} turns",
-                    effectType, affectedUserId, battleId, effect.getDurationTurns());
+                // New effect
+                BattleStatusEffect effect = new BattleStatusEffect(
+                    battleId, affectedUserId, effectType, durationTurns,
+                    stacks, magnitude, sourceUserId, sourceAbilityKey, currentTurn);
+
+                logger.debug("Applied new {} effect to user {} in battle {}: {} stacks, {} turns, magnitude {}",
+                    effectType, affectedUserId, battleId, stacks, durationTurns, magnitude);
+
+                return repository.save(effect);
             }
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Phase 9: Race condition protection (migration 028 unique constraint)
+            // Another thread created the effect between our check and save. Retry once.
+            logger.debug("Race condition detected applying {} to user {} in battle {}, retrying...",
+                effectType, affectedUserId, battleId);
 
-            return repository.save(effect);
-        } else {
-            // New effect
-            BattleStatusEffect effect = new BattleStatusEffect(
-                battleId, affectedUserId, effectType, durationTurns,
-                stacks, magnitude, sourceUserId, sourceAbilityKey, currentTurn);
+            Optional<BattleStatusEffect> existing = repository.findByBattleIdAndAffectedUserIdAndEffectType(
+                battleId, affectedUserId, effectType);
 
-            logger.debug("Applied new {} effect to user {} in battle {}: {} stacks, {} turns, magnitude {}",
-                effectType, affectedUserId, battleId, stacks, durationTurns, magnitude);
-
-            return repository.save(effect);
+            if (existing.isPresent()) {
+                BattleStatusEffect effect = existing.get();
+                if (effectType.isStackable()) {
+                    effect.addStacks(stacks);
+                    effect.refreshDuration(durationTurns);
+                } else {
+                    effect.refreshDuration(durationTurns);
+                }
+                return repository.save(effect);
+            } else {
+                logger.error("Failed to apply status effect after race condition retry", e);
+                throw e;
+            }
         }
     }
 

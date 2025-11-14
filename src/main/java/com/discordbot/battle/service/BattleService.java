@@ -18,6 +18,8 @@ import com.discordbot.battle.util.CharacterDerivedStats;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -92,17 +94,21 @@ public class BattleService {
     // Phase 9: Character cache to reduce database queries during battles.
     // Caches PlayerCharacter entities for active battles (5 minute TTL).
     // Key format: "guildId:userId"
+    // Metrics enabled for monitoring cache performance
     private final Cache<String, PlayerCharacter> characterCache = Caffeine.newBuilder()
         .expireAfterWrite(5, TimeUnit.MINUTES)
         .maximumSize(5000)
+        .recordStats()
         .build();
 
     // Phase 9: Character abilities cache to reduce JOIN queries during battles.
     // Caches character abilities list for active battles (5 minute TTL).
     // Key format: "characterId"
+    // Metrics enabled for monitoring cache performance
     private final Cache<Long, List<CharacterAbility>> characterAbilitiesCache = Caffeine.newBuilder()
         .expireAfterWrite(5, TimeUnit.MINUTES)
         .maximumSize(5000)
+        .recordStats()
         .build();
 
     // Per-user lightweight monitor objects to prevent race conditions when issuing challenges.
@@ -116,7 +122,8 @@ public class BattleService {
                          AbilityRepository abilityRepository,
                          StatusEffectService statusEffectService,
                          BattleSessionRepository sessionRepository,
-                         BattleMetricsService metricsService) {
+                         BattleMetricsService metricsService,
+                         MeterRegistry meterRegistry) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
@@ -126,6 +133,11 @@ public class BattleService {
         this.statusEffectService = statusEffectService;
         this.sessionRepository = sessionRepository;
         this.metricsService = metricsService;
+
+        // Phase 9: Register cache metrics for monitoring
+        CaffeineCacheMetrics.monitor(meterRegistry, characterCache, "battle.cache.characters");
+        CaffeineCacheMetrics.monitor(meterRegistry, characterAbilitiesCache, "battle.cache.abilities");
+        logger.info("BattleService initialized with cache metrics monitoring");
     }
 
     /**
@@ -753,9 +765,10 @@ public class BattleService {
             return new DefendResult(battle, 0, winner, turnStartEffects.messages());
         }
 
-        final int DEFEND_AC_BONUS = 2;
-        battle.applyTempAcBonus(userId, DEFEND_AC_BONUS);
-        battle.addLog("{USER:" + userId + "} takes a defensive stance (+2 AC until next turn)");
+        // Phase 9: Use configured defend AC bonus instead of hard-coded value
+        int defendAcBonus = battleProperties.getCombat().getDefendAcBonus();
+        battle.applyTempAcBonus(userId, defendAcBonus);
+        battle.addLog("{USER:" + userId + "} takes a defensive stance (+" + defendAcBonus + " AC until next turn)");
 
         // Reset last action timestamp
         battle.resetLastActionAt();
@@ -767,7 +780,7 @@ public class BattleService {
         // Persist defend turn with audit trail
         BattleTurn turn = createBattleTurn(battle, userId, null, BattleTurn.ActionType.DEFEND,
                          null, null, null, null, 0, false, false);
-        turn.setStatusEffectsApplied("AC+2 (defend)");
+        turn.setStatusEffectsApplied("AC+" + defendAcBonus + " (defend)");
         battleTurnRepository.save(turn);
 
         // Tick status effects at end of turn
@@ -776,8 +789,8 @@ public class BattleService {
         // Advance turn
         battle.advanceTurn();
 
-        logger.info("Defend action battleId={} userId={} acBonus={}", battle.getId(), userId, DEFEND_AC_BONUS);
-        return new DefendResult(battle, DEFEND_AC_BONUS, null, turnStartEffects.messages());
+        logger.info("Defend action battleId={} userId={} acBonus={}", battle.getId(), userId, defendAcBonus);
+        return new DefendResult(battle, defendAcBonus, null, turnStartEffects.messages());
     }
 
     /** Container for defend outcome. */
