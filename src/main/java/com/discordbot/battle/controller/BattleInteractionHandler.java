@@ -32,13 +32,16 @@ public class BattleInteractionHandler extends ListenerAdapter {
     private final BattleService battleService;
     private final BattleProperties battleProperties;
     private final CharacterCreationUIBuilder uiBuilder;
+    private final com.discordbot.battle.service.StatusEffectService statusEffectService;
 
-    public BattleInteractionHandler(BattleService battleService, 
+    public BattleInteractionHandler(BattleService battleService,
                                    BattleProperties battleProperties,
-                                   CharacterCreationUIBuilder uiBuilder) {
+                                   CharacterCreationUIBuilder uiBuilder,
+                                   com.discordbot.battle.service.StatusEffectService statusEffectService) {
         this.battleService = battleService;
         this.battleProperties = battleProperties;
         this.uiBuilder = uiBuilder;
+        this.statusEffectService = statusEffectService;
     }
 
     @Override
@@ -180,6 +183,11 @@ public class BattleInteractionHandler extends ListenerAdapter {
         embed.setTitle("⚔️ Battle");
         embed.setColor(Color.ORANGE);
 
+        // Show status effect messages if any (DoT, HoT, stun)
+        if (result.statusEffectMessages() != null && !result.statusEffectMessages().isBlank()) {
+            embed.addField("💫 Status Effects", result.statusEffectMessages().trim(), false);
+        }
+
         String outcome;
         if (!result.hit()) {
             outcome = mention(user.getId()) + " attacks and misses! (Roll " + result.rawRoll() + ")";
@@ -231,6 +239,11 @@ public class BattleInteractionHandler extends ListenerAdapter {
         EmbedBuilder embed = buildBattleEmbed(result.battle());
         embed.setTitle("⚔️ Battle");
         embed.setColor(Color.BLUE);
+
+        // Show status effect messages if any (DoT, HoT, stun)
+        if (result.statusEffectMessages() != null && !result.statusEffectMessages().isBlank()) {
+            embed.addField("💫 Status Effects", result.statusEffectMessages().trim(), false);
+        }
 
         String outcome = "🛡️ " + mention(user.getId()) + " takes a defensive stance! (+" + result.tempAcBonus() + " AC next turn)";
         embed.addField("Action", outcome, false);
@@ -284,8 +297,23 @@ public class BattleInteractionHandler extends ListenerAdapter {
     private EmbedBuilder buildBattleEmbed(ActiveBattle battle) {
         EmbedBuilder embed = new EmbedBuilder();
         embed.setDescription(String.format("%s vs %s", mention(battle.getChallengerId()), mention(battle.getOpponentId())));
-        embed.addField("Challenger HP", String.valueOf(battle.getChallengerHp()), true);
-        embed.addField("Opponent HP", String.valueOf(battle.getOpponentHp()), true);
+
+        // Show challenger HP with active effects
+        String challengerHpDisplay = String.valueOf(battle.getChallengerHp());
+        String challengerEffects = statusEffectService.getEffectsDisplayString(battle.getId(), battle.getChallengerId());
+        if (!challengerEffects.isEmpty()) {
+            challengerHpDisplay += "\n" + challengerEffects;
+        }
+        embed.addField("Challenger HP", challengerHpDisplay, true);
+
+        // Show opponent HP with active effects
+        String opponentHpDisplay = String.valueOf(battle.getOpponentHp());
+        String opponentEffects = statusEffectService.getEffectsDisplayString(battle.getId(), battle.getOpponentId());
+        if (!opponentEffects.isEmpty()) {
+            opponentHpDisplay += "\n" + opponentEffects;
+        }
+        embed.addField("Opponent HP", opponentHpDisplay, true);
+
         embed.addField("Status", battle.getStatus().name(), true);
         embed.setFooter("Battle ID: " + battle.getId());
         return embed;
