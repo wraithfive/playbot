@@ -89,6 +89,22 @@ public class BattleService {
         .maximumSize(10000)
         .build();
 
+    // Phase 9: Character cache to reduce database queries during battles.
+    // Caches PlayerCharacter entities for active battles (5 minute TTL).
+    // Key format: "guildId:userId"
+    private final Cache<String, PlayerCharacter> characterCache = Caffeine.newBuilder()
+        .expireAfterWrite(5, TimeUnit.MINUTES)
+        .maximumSize(5000)
+        .build();
+
+    // Phase 9: Character abilities cache to reduce JOIN queries during battles.
+    // Caches character abilities list for active battles (5 minute TTL).
+    // Key format: "characterId"
+    private final Cache<Long, List<CharacterAbility>> characterAbilitiesCache = Caffeine.newBuilder()
+        .expireAfterWrite(5, TimeUnit.MINUTES)
+        .maximumSize(5000)
+        .build();
+
     // Per-user lightweight monitor objects to prevent race conditions when issuing challenges.
     private final ConcurrentHashMap<String, Object> userLocks = new ConcurrentHashMap<>();
 
@@ -267,9 +283,9 @@ public class BattleService {
         PlayerCharacter attackerChar = getCharacter(battle.getGuildId(), attackerUserId);
         PlayerCharacter defenderChar = getCharacter(battle.getGuildId(), defenderUserId);
 
-        // Get learned abilities for both characters
-        List<CharacterAbility> attackerAbilities = characterAbilityRepository.findByCharacter(attackerChar);
-        List<CharacterAbility> defenderAbilities = characterAbilityRepository.findByCharacter(defenderChar);
+        // Get learned abilities for both characters (Phase 9: cached)
+        List<CharacterAbility> attackerAbilities = getCharacterAbilities(attackerChar);
+        List<CharacterAbility> defenderAbilities = getCharacterAbilities(defenderChar);
 
         // Calculate base HP for stats calculation
         int attackerBaseHp = getBaseHpForClass(attackerChar.getCharacterClass());
@@ -505,9 +521,47 @@ public class BattleService {
         return (score - ABILITY_SCORE_BASE) / ABILITY_MODIFIER_DIVISOR;
     }
 
+    /**
+     * Get character with caching (Phase 9 optimization).
+     * Cache key format: "guildId:userId"
+     */
     private PlayerCharacter getCharacter(String guildId, String userId) {
-        return characterRepository.findByUserIdAndGuildId(userId, guildId)
+        String cacheKey = guildId + ":" + userId;
+        PlayerCharacter cached = characterCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        PlayerCharacter character = characterRepository.findByUserIdAndGuildId(userId, guildId)
             .orElseThrow(() -> new IllegalStateException("Character not found for user=" + userId));
+        characterCache.put(cacheKey, character);
+        return character;
+    }
+
+    /**
+     * Get character abilities with caching (Phase 9 optimization).
+     * Cache key: characterId
+     */
+    private List<CharacterAbility> getCharacterAbilities(PlayerCharacter character) {
+        Long characterId = character.getId();
+        List<CharacterAbility> cached = characterAbilitiesCache.getIfPresent(characterId);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<CharacterAbility> abilities = characterAbilityRepository.findByCharacter(character);
+        characterAbilitiesCache.put(characterId, abilities);
+        return abilities;
+    }
+
+    /**
+     * Invalidate caches for a character (Phase 9 optimization).
+     * Call this after character updates (stats, abilities, etc.)
+     */
+    private void invalidateCharacterCache(PlayerCharacter character) {
+        String cacheKey = character.getGuildId() + ":" + character.getUserId();
+        characterCache.invalidate(cacheKey);
+        characterAbilitiesCache.invalidate(character.getId());
     }
 
     /** Ensure challenger has a character. */
@@ -753,9 +807,9 @@ public class BattleService {
         Ability ability = abilityRepository.findById(abilityId)
             .orElseThrow(() -> new IllegalStateException("Ability not found"));
 
-        // Get learned abilities for both characters
-        List<CharacterAbility> attackerAbilities = characterAbilityRepository.findByCharacter(attackerChar);
-        List<CharacterAbility> defenderAbilities = characterAbilityRepository.findByCharacter(defenderChar);
+        // Get learned abilities for both characters (Phase 9: cached)
+        List<CharacterAbility> attackerAbilities = getCharacterAbilities(attackerChar);
+        List<CharacterAbility> defenderAbilities = getCharacterAbilities(defenderChar);
 
         boolean learned = attackerAbilities.stream()
             .anyMatch(ca -> ca.getAbility().getId().equals(abilityId));
@@ -1099,6 +1153,9 @@ public class BattleService {
                 loser.incrementDraws();
                 characterRepository.save(winner);
                 characterRepository.save(loser);
+                // Phase 9: Invalidate caches after character updates
+                invalidateCharacterCache(winner);
+                invalidateCharacterCache(loser);
 
                 // Phase 8: Log battle completion event (draw)
                 new BattleEvent.BattleCompleted(
@@ -1117,6 +1174,9 @@ public class BattleService {
                 loser.incrementLosses();
                 characterRepository.save(winner);
                 characterRepository.save(loser);
+                // Phase 9: Invalidate caches after character updates
+                invalidateCharacterCache(winner);
+                invalidateCharacterCache(loser);
 
                 // Phase 8: Log battle completion event (victory)
                 new BattleEvent.BattleCompleted(

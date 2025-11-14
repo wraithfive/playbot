@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Phase 9: Performance & Optimization
+        Add missing composite index for wins-based leaderboard queries
+    -->
+    <changeSet id="027-add-performance-indexes" author="claude">
+        <comment>
+            Add composite index for wins-based leaderboard to optimize /leaderboard type:wins queries.
+            Index includes elo as secondary sort to break ties efficiently.
+        </comment>
+
+        <!-- Index for wins-based leaderboard queries (order by wins DESC, elo DESC) -->
+        <createIndex indexName="idx_player_character_wins" tableName="player_character">
+            <column name="guild_id"/>
+            <column name="wins" descending="true"/>
+            <column name="elo" descending="true"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_player_character_wins" tableName="player_character"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
