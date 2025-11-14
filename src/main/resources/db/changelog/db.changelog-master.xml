@@ -50,4 +50,7 @@
     <!-- Battle System - Turn Log Persistence -->
     <include file="db/changelog/changes/021-create-battle-turn-log-table.xml"/>
 
+    <!-- Battle System - Status Effects (Phase 4) -->
+    <include file="db/changelog/changes/022-create-battle-status-effects-table.xml"/>
+
 </databaseChangeLog>

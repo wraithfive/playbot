@@ -37,6 +37,10 @@ public class ActiveBattle {
     private int challengerHp;
     /** Current HP of opponent. */
     private int opponentHp;
+    /** Maximum HP of challenger (for healing cap). */
+    private int challengerMaxHp;
+    /** Maximum HP of opponent (for healing cap). */
+    private int opponentMaxHp;
     /** Simple chronological log of events. */
     private final List<BattleLogEntry> logEntries = new ArrayList<>();
     /** Winner user ID once ended (null until ENDED). */
@@ -100,6 +104,8 @@ public class ActiveBattle {
         this.lastActionAt = System.currentTimeMillis();
         this.challengerHp = challengerHp;
         this.opponentHp = opponentHp;
+        this.challengerMaxHp = challengerHp;  // Store initial max HP
+        this.opponentMaxHp = opponentHp;      // Store initial max HP
         this.turnNumber = 1;
         // Challenger goes first for MVP. Could randomize later.
         this.currentTurnUserId = challengerId;
@@ -195,12 +201,18 @@ public class ActiveBattle {
     public String getCurrentTurnUserId() { return currentTurnUserId; }
     public int getChallengerHp() { return challengerHp; }
     public int getOpponentHp() { return opponentHp; }
+    public int getChallengerMaxHp() { return challengerMaxHp; }
+    public int getOpponentMaxHp() { return opponentMaxHp; }
     public List<BattleLogEntry> getLogEntries() { return logEntries; }
     public String getWinnerUserId() { return winnerUserId; }
     public int getTurnNumber() { return turnNumber; }
     public int getTempAcBonus() { return tempAcBonus; }
     public String getTempAcBonusUserId() { return tempAcBonusUserId; }
     public Long getLastActionAt() { return lastActionAt; }
+
+    // Setters for HP (used by status effects and combat)
+    public void setChallengerHp(int hp) { this.challengerHp = Math.max(0, hp); }
+    public void setOpponentHp(int hp) { this.opponentHp = Math.max(0, hp); }
 
     // Convenience checks
     public boolean isPending() { return status == BattleStatus.PENDING; }
