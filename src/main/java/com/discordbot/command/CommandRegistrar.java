@@ -92,6 +92,15 @@ public class CommandRegistrar extends ListenerAdapter {
                 );
                 // Battle stats (Phase 8: Monitoring & Logging)
                 commands.add(Commands.slash("battle-stats", "View battle system metrics and statistics"));
+
+                // Admin commands (Phase 11: Security & Permissions)
+                commands.add(
+                    Commands.slash("battle-cancel", "Admin: Cancel an active or pending battle")
+                        .addOption(OptionType.STRING, "battle_id", "The battle ID to cancel", true)
+                );
+                commands.add(
+                    Commands.slash("battle-config-reload", "Admin: View current battle system configuration")
+                );
             }
 
             // One atomic registration per guild
