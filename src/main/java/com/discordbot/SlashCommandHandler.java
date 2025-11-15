@@ -167,6 +167,8 @@ public class SlashCommandHandler extends ListenerAdapter {
             event.replyChoices(choices).queue();
         } else if (event.getName().equals("create-character")) {
             characterAutocompleteHandler.handleCreateCharacterAutocomplete(event);
+        } else if (event.getName().equals("battle-help")) {
+            characterAutocompleteHandler.handleBattleHelpAutocomplete(event);
         }
     }
 
