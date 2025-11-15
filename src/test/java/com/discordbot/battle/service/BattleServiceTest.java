@@ -11,6 +11,7 @@ import com.discordbot.battle.repository.PlayerCharacterRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,10 +19,12 @@ import java.util.function.IntSupplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import org.mockito.Answers;
 
+@TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class BattleServiceTest {
 
     private PlayerCharacterRepository repo;
@@ -68,6 +71,15 @@ class BattleServiceTest {
         // Mock: No abilities learned by default
         when(abilityRepo.findByCharacter(any())).thenReturn(List.of());
 
+        // Mock status effect processing to return empty result (no effects)
+        when(statusEffectService.processTurnStartEffects(any(), any()))
+            .thenReturn(new StatusEffectService.TurnStartEffectResult(0, 0, "", false));
+        // Mock damage modifiers to return 100% (no modification)
+        when(statusEffectService.getDamageModifierPercent(any(), any())).thenReturn(100);
+        when(statusEffectService.getIncomingDamageModifierPercent(any(), any())).thenReturn(100);
+        // Mock shield to return 0 (no shield)
+        when(statusEffectService.getShieldValue(any(), any())).thenReturn(0);
+
         service = new BattleService(
             repo,
             abilityRepo,
@@ -82,12 +94,27 @@ class BattleServiceTest {
         );
     }
 
+
     private void mockChars(String aClass, int aStr, int aDex, int aCon,
                            String bClass, int bStr, int bDex, int bCon) {
         PlayerCharacter pa = new PlayerCharacter(A, GUILD, aClass, "Human",
                 aStr, aDex, aCon, 10, 10, 10);
         PlayerCharacter pb = new PlayerCharacter(B, GUILD, bClass, "Human",
                 bStr, bDex, bCon, 10, 10, 10);
+
+        // Set IDs using reflection (needed for cache key in Phase 9)
+        try {
+            java.lang.reflect.Field idFieldA = PlayerCharacter.class.getDeclaredField("id");
+            idFieldA.setAccessible(true);
+            idFieldA.set(pa, 1L);
+
+            java.lang.reflect.Field idFieldB = PlayerCharacter.class.getDeclaredField("id");
+            idFieldB.setAccessible(true);
+            idFieldB.set(pb, 2L);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set character IDs", e);
+        }
+
         when(repo.findByUserIdAndGuildId(A, GUILD)).thenReturn(Optional.of(pa));
         when(repo.findByUserIdAndGuildId(B, GUILD)).thenReturn(Optional.of(pb));
     }
@@ -211,6 +238,7 @@ class BattleServiceTest {
     }
 
     @Test
+    @org.junit.jupiter.api.Timeout(value = 10, unit = java.util.concurrent.TimeUnit.SECONDS)
     void concurrent_challenges_only_one_created() throws InterruptedException {
         mockChars("Warrior", 10, 10, 10, "Mage", 10, 10, 10);
 
@@ -238,7 +266,7 @@ class BattleServiceTest {
         t1.start();
         t2.start();
         start.countDown();
-        done.await();
+        assertTrue(done.await(5, java.util.concurrent.TimeUnit.SECONDS), "Threads should complete within 5 seconds");
 
         assertEquals(1, successes.get(), "Exactly one challenge should be created under contention");
         assertTrue(service.findExistingBetween(A, B).isPresent());
@@ -345,35 +373,45 @@ class BattleServiceTest {
     void cleanupUnusedLocks_preserves_locks_for_users_in_active_battles() {
         // Create two battles: one active, one ended
         mockChars("Warrior", 10, 10, 10, "Mage", 10, 10, 10);
-        
+
         // Battle 1: A vs B - will stay active
         var battle1 = service.createChallenge(GUILD, A, B);
         service.acceptChallenge(battle1.getId(), B);
-        
+
         // Battle 2: A vs C - will be ended (need to mock C)
         PlayerCharacter pcC = new PlayerCharacter("userC", GUILD, "Rogue", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId("userC", GUILD)).thenReturn(Optional.of(pcC));
-        
+
         // End battle1 to free up A for another challenge
         var active1 = service.getBattleOrThrow(battle1.getId());
         active1.setTestDiceSuppliers(() -> 20, () -> 6);
         while (!active1.isEnded()) {
             service.performAttack(battle1.getId(), active1.getCurrentTurnUserId());
         }
-        
+
+        // Clear cooldowns so A can immediately start battle2 (test is about lock cleanup, not cooldowns)
+        try {
+            var cooldownField = BattleService.class.getDeclaredField("battleCooldowns");
+            cooldownField.setAccessible(true);
+            var cooldowns = (com.github.benmanes.caffeine.cache.Cache<String, Long>) cooldownField.get(service);
+            cooldowns.invalidateAll();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to clear cooldowns", e);
+        }
+
         // Now A can start a new battle with C
         var battle2 = service.createChallenge(GUILD, A, "userC");
         service.acceptChallenge(battle2.getId(), "userC");
-        
+
         // Get locks map via reflection
         var locksField = assertDoesNotThrow(() -> BattleService.class.getDeclaredField("userLocks"));
         locksField.setAccessible(true);
         @SuppressWarnings("unchecked")
         var locks = assertDoesNotThrow(() -> (java.util.concurrent.ConcurrentHashMap<String, Object>) locksField.get(service));
-        
+
         // Run cleanup
         service.cleanUpExpiredChallenges();
-        
+
         // A and C should still have locks (active battle), B should not (no active battles)
         assertTrue(locks.containsKey(A), "Lock for user A should remain (active in battle2)");
         assertTrue(locks.containsKey("userC"), "Lock for user C should remain (active in battle2)");
@@ -436,20 +474,21 @@ class BattleServiceTest {
     @Test
     void defender_with_ac_bonus_harder_to_hit() {
         // Test that AC bonuses from abilities make defender harder to hit
-        // Attacker: STR 10 (+0)
+        // Attacker: STR 10 (+0), proficiency +2
         // Defender: DEX 10 (+0), AC+3 bonus → AC = 10 + 0 + 3 = 13
         mockChars("Warrior", 10, 10, 10, "Cleric", 10, 10, 10);
-        
-        PlayerCharacter defenderChar = repo.findByUserIdAndGuildId(B, GUILD).get();
+
         var mockAbility = mock(com.discordbot.battle.entity.CharacterAbility.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         when(mockAbility.getAbility().getEffect()).thenReturn("AC+3");
-        when(abilityRepo.findByCharacter(defenderChar)).thenReturn(List.of(mockAbility));
-        
-        ActiveBattle battle = startBattle(() -> 12, () -> 4); // roll 12
-        
-        // Attack roll: 12 + STR mod(+0) = 12 < AC 13
+        // Match any character with userId = B (defender)
+        when(abilityRepo.findByCharacter(argThat(pc -> pc != null && B.equals(pc.getUserId()))))
+            .thenReturn(List.of(mockAbility));
+
+        ActiveBattle battle = startBattle(() -> 10, () -> 4); // roll 10
+
+        // Attack roll: 10 + proficiency(+2) + STR mod(+0) = 12 < AC 13 (MISS)
         var result = service.performAttack(battle.getId(), A);
-        
+
         assertFalse(result.hit());
         assertEquals(0, result.damage());
     }

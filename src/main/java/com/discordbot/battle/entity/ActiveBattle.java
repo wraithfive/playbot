@@ -15,6 +15,9 @@ import java.util.function.IntSupplier;
  */
 public class ActiveBattle {
 
+    /** Maximum turns allowed before declaring a stalemate/draw. */
+    public static final int MAX_TURNS = 10000;
+
     /** Unique battle identifier (UUID string for easy logging). */
     private final String id;
     /** Discord guild/server ID. */
@@ -141,6 +144,14 @@ public class ActiveBattle {
         }
         currentTurnUserId = currentTurnUserId.equals(challengerId) ? opponentId : challengerId;
         turnNumber++;
+
+        // Check for max turns exceeded (stalemate/draw)
+        if (turnNumber >= MAX_TURNS) {
+            this.status = BattleStatus.ENDED;
+            this.winnerUserId = null; // null indicates draw
+            this.endedAt = System.currentTimeMillis();
+            addLog("⚔️ **Battle ended in a DRAW** after " + MAX_TURNS + " turns! Both fighters are evenly matched.");
+        }
     }
 
     /** End battle and set winner. */

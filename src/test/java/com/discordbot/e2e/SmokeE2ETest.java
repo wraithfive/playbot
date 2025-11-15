@@ -29,12 +29,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = {
         "spring.datasource.url=jdbc:h2:mem:testdb",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.profiles.active=repository-test"
     }
 )
 @AutoConfigureMockMvc
 class SmokeE2ETest {
-    @MockitoBean(name = "jda")
+    @MockitoBean
     private JDA jda;
 
     @Autowired

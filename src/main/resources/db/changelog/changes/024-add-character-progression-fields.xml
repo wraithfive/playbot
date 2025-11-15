@@ -59,13 +59,13 @@
 
         <!-- Index for leaderboard queries (order by ELO DESC) -->
         <createIndex indexName="idx_player_character_elo" tableName="player_character">
-            <column name="guildId"/>
+            <column name="guild_id"/>
             <column name="elo" descending="true"/>
         </createIndex>
 
         <!-- Index for level-based queries -->
         <createIndex indexName="idx_player_character_level" tableName="player_character">
-            <column name="guildId"/>
+            <column name="guild_id"/>
             <column name="level" descending="true"/>
         </createIndex>
 
