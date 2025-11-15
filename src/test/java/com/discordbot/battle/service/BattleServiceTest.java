@@ -1,6 +1,9 @@
 package com.discordbot.battle.service;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.AbilityRepository;
@@ -97,9 +100,9 @@ class BattleServiceTest {
 
     private void mockChars(String aClass, int aStr, int aDex, int aCon,
                            String bClass, int bStr, int bDex, int bCon) {
-        PlayerCharacter pa = new PlayerCharacter(A, GUILD, aClass, "Human",
+        PlayerCharacter pa = create(A, GUILD, aClass, "Human",
                 aStr, aDex, aCon, 10, 10, 10);
-        PlayerCharacter pb = new PlayerCharacter(B, GUILD, bClass, "Human",
+        PlayerCharacter pb = create(B, GUILD, bClass, "Human",
                 bStr, bDex, bCon, 10, 10, 10);
 
         // Set IDs using reflection (needed for cache key in Phase 9)
@@ -222,7 +225,7 @@ class BattleServiceTest {
         mockChars("Warrior", 10, 10, 10, "Mage", 10, 10, 10); // reuse mock
         service.createChallenge(GUILD, A, B);
         // A tries to challenge someone else (new opponent C) - need to mock C character
-        PlayerCharacter pcC = new PlayerCharacter("userC", GUILD, "Rogue", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pcC = create("userC", GUILD, "Rogue", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId("userC", GUILD)).thenReturn(Optional.of(pcC));
         assertThrows(IllegalStateException.class, () -> service.createChallenge(GUILD, A, "userC"));
     }
@@ -277,7 +280,7 @@ class BattleServiceTest {
         // Challenger missing
         when(repo.findByUserIdAndGuildId(A, GUILD)).thenReturn(Optional.empty());
         // Opponent present
-        PlayerCharacter pb = new PlayerCharacter(B, GUILD, "Mage", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pb = create(B, GUILD, "Mage", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId(B, GUILD)).thenReturn(Optional.of(pb));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.createChallenge(GUILD, A, B));
@@ -287,7 +290,7 @@ class BattleServiceTest {
     @Test
     void challenge_allowed_if_opponent_missing_character() {
         // Challenger present, opponent missing
-        PlayerCharacter pa = new PlayerCharacter(A, GUILD, "Warrior", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pa = create(A, GUILD, "Warrior", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId(A, GUILD)).thenReturn(Optional.of(pa));
         when(repo.findByUserIdAndGuildId(B, GUILD)).thenReturn(Optional.empty());
         ActiveBattle battle = service.createChallenge(GUILD, A, B);
@@ -298,14 +301,14 @@ class BattleServiceTest {
     @Test
     void accept_requires_opponent_character_then_succeeds_after_creation() {
         // Challenger present, opponent initially missing
-        PlayerCharacter pa = new PlayerCharacter(A, GUILD, "Warrior", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pa = create(A, GUILD, "Warrior", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId(A, GUILD)).thenReturn(Optional.of(pa));
         when(repo.findByUserIdAndGuildId(B, GUILD)).thenReturn(Optional.empty());
         ActiveBattle battle = service.createChallenge(GUILD, A, B);
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.acceptChallenge(battle.getId(), B));
         assertTrue(ex.getMessage().toLowerCase().contains("create a character"));
         // Now opponent creates a character
-        PlayerCharacter pb = new PlayerCharacter(B, GUILD, "Mage", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pb = create(B, GUILD, "Mage", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId(B, GUILD)).thenReturn(Optional.of(pb));
         ActiveBattle active = service.acceptChallenge(battle.getId(), B);
         assertTrue(active.isActive());
@@ -379,7 +382,7 @@ class BattleServiceTest {
         service.acceptChallenge(battle1.getId(), B);
 
         // Battle 2: A vs C - will be ended (need to mock C)
-        PlayerCharacter pcC = new PlayerCharacter("userC", GUILD, "Rogue", "Human", 10, 10, 10, 10, 10, 10);
+        PlayerCharacter pcC = create("userC", GUILD, "Rogue", "Human", 10, 10, 10, 10, 10, 10);
         when(repo.findByUserIdAndGuildId("userC", GUILD)).thenReturn(Optional.of(pcC));
 
         // End battle1 to free up A for another challenge

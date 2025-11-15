@@ -133,8 +133,24 @@ public class PlayerCharacter {
                           String characterClass, String race,
                           int strength, int dexterity, int constitution,
                           int intelligence, int wisdom, int charisma) {
-        validateDiscordSnowflake(userId, "userId");
-        validateDiscordSnowflake(guildId, "guildId");
+        this(userId, guildId, characterClass, race, strength, dexterity, constitution, intelligence, wisdom, charisma, true);
+    }
+
+    /**
+     * Package-private constructor for testing that allows bypassing Discord snowflake validation.
+     * Should only be used in test code.
+     *
+     * @param validateIds if true, validates Discord snowflake format; if false, skips validation (for tests)
+     */
+    PlayerCharacter(String userId, String guildId,
+                   String characterClass, String race,
+                   int strength, int dexterity, int constitution,
+                   int intelligence, int wisdom, int charisma,
+                   boolean validateIds) {
+        if (validateIds) {
+            validateDiscordSnowflake(userId, "userId");
+            validateDiscordSnowflake(guildId, "guildId");
+        }
 
         this.userId = userId;
         this.guildId = guildId;
