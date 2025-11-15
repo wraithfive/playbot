@@ -814,7 +814,7 @@ public class BattleService {
         long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
 
         // Mark as ended with no winner
-        battle.setStatus(ActiveBattle.BattleStatus.ENDED);
+        battle.end(null); // No winner for admin-cancelled battles
         markBattleAborted(battleId); // Mark as ABORTED in DB (Phase 7)
 
         // Clean up resources without awarding progression
@@ -823,7 +823,7 @@ public class BattleService {
         statusEffectService.cleanupBattleEffects(battleId);
 
         // Phase 8: Record metrics
-        metricsService.recordBattleAborted(battleDuration);
+        metricsService.recordBattleAborted();
 
         logger.warn("Battle admin-cancelled battleId={} by admin={} guild={}",
             battleId, adminUserId, guildId);
