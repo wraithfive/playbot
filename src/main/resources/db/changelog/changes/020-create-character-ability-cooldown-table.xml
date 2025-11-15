@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="020-create-character-ability-cooldown-table" author="copilot">
+        <comment>Create character_ability_cooldown table for tracking per-character ability cooldowns</comment>
+
+        <createTable tableName="character_ability_cooldown">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_character_ability_cooldown"/>
+            </column>
+            <column name="character_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_character_ability_cooldown_character"
+                             references="player_character(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="ability_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_character_ability_cooldown_ability"
+                             references="ability(id)"
+                             deleteCascade="true"/>
+            </column>
+            <column name="last_used" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="available_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="character_ability_cooldown" 
+                             columnNames="character_id,ability_id" 
+                             constraintName="uk_character_ability_cooldown"/>
+
+        <createIndex tableName="character_ability_cooldown" 
+                     indexName="idx_character_ability_cooldown_character">
+            <column name="character_id"/>
+        </createIndex>
+
+        <createIndex tableName="character_ability_cooldown" 
+                     indexName="idx_character_ability_cooldown_ability">
+            <column name="ability_id"/>
+        </createIndex>
+
+        <!-- Index for finding expired cooldowns -->
+        <createIndex tableName="character_ability_cooldown" 
+                     indexName="idx_character_ability_cooldown_available_at">
+            <column name="available_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

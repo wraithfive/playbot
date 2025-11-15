@@ -27,4 +27,44 @@
     <!-- D20 roll mechanic (issue #5) -->
     <include file="db/changelog/changes/010-add-d20-mechanic-columns.xml"/>
 
+    <!-- Battle System - Character Persistence -->
+    <include file="db/changelog/changes/011-add-player-character-table.xml"/>
+
+    <!-- Legacy QoTD compatibility (ensure deprecated banner table exists for validation) -->
+    <include file="db/changelog/changes/012-ensure-deprecated-qotd-banner.xml"/>
+
+    <!-- Safety: ensure player_character table exists on older file DBs that drifted -->
+    <include file="db/changelog/changes/013-ensure-player-character-table.xml"/>
+
+    <!-- Legacy QoTD compatibility (ensure deprecated configs table exists for validation) -->
+    <include file="db/changelog/changes/014-ensure-deprecated-qotd-configs.xml"/>
+
+    <!-- Battle System - Abilities (talents/skills/spells) -->
+    <include file="db/changelog/changes/015-add-ability-tables.xml"/>
+    <include file="db/changelog/changes/016-seed-abilities.xml"/>
+    <include file="db/changelog/changes/017-expand-class-abilities.xml"/>
+    <include file="db/changelog/changes/018-add-ability-resource-costs.xml"/>
+    <include file="db/changelog/changes/019-create-character-spell-slots-table.xml"/>
+    <include file="db/changelog/changes/020-create-character-ability-cooldown-table.xml"/>
+
+    <!-- Battle System - Turn Log Persistence -->
+    <include file="db/changelog/changes/021-create-battle-turn-log-table.xml"/>
+
+    <!-- Battle System - Status Effects (Phase 4) -->
+    <include file="db/changelog/changes/022-create-battle-status-effects-table.xml"/>
+    <include file="db/changelog/changes/023-add-status-effect-spells.xml"/>
+
+    <!-- Battle System - Progression & Leaderboards (Phase 6) -->
+    <include file="db/changelog/changes/024-add-character-progression-fields.xml"/>
+
+    <!-- Battle System - Edge Cases & Recovery (Phase 7) -->
+    <include file="db/changelog/changes/025-create-battle-session-table.xml"/>
+
+    <!-- Battle System - Chat-based XP & Progression -->
+    <include file="db/changelog/changes/026-add-chat-xp-tracking.xml"/>
+
+    <!-- Battle System - Performance & Optimization (Phase 9) -->
+    <include file="db/changelog/changes/027-add-performance-indexes.xml"/>
+    <include file="db/changelog/changes/028-add-status-effect-unique-constraint.xml"/>
+
 </databaseChangeLog>

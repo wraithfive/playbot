@@ -18,7 +18,8 @@ class ColorSwatchRenderTest {
             null, // GuildsCache
             null, // WebSocketNotificationService
             null, // QotdSubmissionService
-            null  // DiscordApiClient
+            null, // DiscordApiClient
+            null  // CharacterAutocompleteHandler
         );
         Method m = SlashCommandHandler.class.getDeclaredMethod(
             "renderSingleColorSwatch",

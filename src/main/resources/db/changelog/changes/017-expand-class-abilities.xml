@@ -1,0 +1,648 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================
+         CLERIC ABILITIES (Complete Set)
+         ======================================== -->
+    <changeSet id="017-seed-cleric-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) > 0 FROM ability WHERE ability_key = 'cleric-disciple-of-life'</sqlCheck>
+            </not>
+        </preConditions>
+        <comment>Seed Cleric abilities based on D&amp;D 5e Life Domain</comment>
+        
+        <!-- Cleric Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="cleric-disciple-of-life"/>
+            <column name="name" value="Disciple of Life"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="MAX_HP+4"/>
+            <column name="description" value="Your divine connection grants you enhanced vitality. +4 Max HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="cleric-blessed-healer"/>
+            <column name="name" value="Blessed Healer"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="cleric-disciple-of-life"/>
+            <column name="effect" value="HEAL_BONUS+3"/>
+            <column name="description" value="When you heal others, you are blessed as well. +3 healing effectiveness."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="cleric-divine-strike"/>
+            <column name="name" value="Divine Strike"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+2,RADIANT"/>
+            <column name="description" value="You infuse your weapon strikes with divine energy. +2 Radiant Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="cleric-preserve-life"/>
+            <column name="name" value="Preserve Life"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="cleric-blessed-healer"/>
+            <column name="effect" value="MAX_HP+3,HEAL_BONUS+2"/>
+            <column name="description" value="Your divine magic protects the living. +3 Max HP, +2 healing effectiveness."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Cleric Spells -->
+        <insert tableName="ability">
+            <column name="ability_key" value="cure-wounds"/>
+            <column name="name" value="Cure Wounds"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="HEAL+4"/>
+            <column name="description" value="Channel divine energy to heal wounds. Restore 4 HP (future: cast to heal)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="sacred-flame"/>
+            <column name="name" value="Sacred Flame"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+3,RADIANT"/>
+            <column name="description" value="Call down flame-like radiance to sear your foe. +3 Radiant Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="guiding-bolt"/>
+            <column name="name" value="Guiding Bolt"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="sacred-flame"/>
+            <column name="effect" value="DAMAGE+4,RADIANT,NEXT_ATTACK_ADVANTAGE"/>
+            <column name="description" value="A bolt of divine light strikes your enemy. +4 Radiant Damage, next attack has advantage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="spiritual-weapon"/>
+            <column name="name" value="Spiritual Weapon"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+3,BONUS_ACTION"/>
+            <column name="description" value="Create a floating weapon of force. +3 Damage as bonus action."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="spirit-guardians"/>
+            <column name="name" value="Spirit Guardians"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="spiritual-weapon"/>
+            <column name="effect" value="DAMAGE+2,RADIANT,AOE"/>
+            <column name="description" value="Call spectral beings to protect you. +2 Radiant Damage, area effect."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="beacon-of-hope"/>
+            <column name="name" value="Beacon of Hope"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Cleric"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="cure-wounds"/>
+            <column name="effect" value="HEAL_BONUS+5,WIS_SAVE_BONUS+2"/>
+            <column name="description" value="Inspire hope and resilience. +5 healing effectiveness, +2 Wisdom saves."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ========================================
+         EXPANDED WARRIOR ABILITIES
+         ======================================== -->
+    <changeSet id="017-expand-warrior-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) > 0 FROM ability WHERE ability_key = 'shield-master'</sqlCheck>
+            </not>
+        </preConditions>
+        <comment>Expand Warrior abilities with Fighter features from D&amp;D 5e</comment>
+        
+        <!-- More Warrior Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="shield-master"/>
+            <column name="name" value="Shield Master"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="AC+2,DEX_SAVE_BONUS+1"/>
+            <column name="description" value="You are trained in using shields effectively. +2 AC, +1 Dexterity saves."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="great-weapon-master"/>
+            <column name="name" value="Great Weapon Master"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CRIT_DAMAGE+20,HEAVY_WEAPON"/>
+            <column name="description" value="You've mastered heavy weapons. +20% Crit Damage with heavy weapons."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="defensive-fighting"/>
+            <column name="name" value="Defensive Fighting"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="shield-master"/>
+            <column name="effect" value="AC+1,DAMAGE_REDUCTION+1"/>
+            <column name="description" value="You focus on protecting yourself. +1 AC, +1 damage reduction."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Warrior Skills -->
+        <insert tableName="ability">
+            <column name="ability_key" value="second-wind"/>
+            <column name="name" value="Second Wind"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="SELF_HEAL+5,BONUS_ACTION"/>
+            <column name="description" value="You have reserves of stamina. Heal 5 HP as a bonus action (future: once per battle)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="action-surge"/>
+            <column name="name" value="Action Surge"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="second-wind"/>
+            <column name="effect" value="EXTRA_ACTION"/>
+            <column name="description" value="Push yourself beyond limits. Take an additional action (future: once per battle)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="indomitable"/>
+            <column name="name" value="Indomitable"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="battle-hardened"/>
+            <column name="effect" value="REROLL_SAVE"/>
+            <column name="description" value="You can reroll a failed saving throw (future: once per battle)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="riposte"/>
+            <column name="name" value="Riposte"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="COUNTER_ATTACK+3"/>
+            <column name="description" value="When an enemy misses, you strike back. +3 counter damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ========================================
+         EXPANDED ROGUE ABILITIES
+         ======================================== -->
+    <changeSet id="017-expand-rogue-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) > 0 FROM ability WHERE ability_key = 'sneak-attack'</sqlCheck>
+            </not>
+        </preConditions>
+        <comment>Expand Rogue abilities with features from D&amp;D 5e</comment>
+        
+        <!-- More Rogue Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="sneak-attack"/>
+            <column name="name" value="Sneak Attack"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="SNEAK_DAMAGE+6"/>
+            <column name="description" value="Deal extra damage when you have advantage. +6 damage on advantaged attacks."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="evasion"/>
+            <column name="name" value="Evasion"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="nimble"/>
+            <column name="effect" value="DEX_SAVE_BONUS+3,HALF_DAMAGE_ON_SAVE"/>
+            <column name="description" value="You dodge out of danger. +3 Dexterity saves, half damage on successful saves."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="uncanny-dodge"/>
+            <column name="name" value="Uncanny Dodge"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="evasion"/>
+            <column name="effect" value="HALF_DAMAGE_REACTION"/>
+            <column name="description" value="Use your reaction to halve an attack's damage against you."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="reliable-talent"/>
+            <column name="name" value="Reliable Talent"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="shadow-training"/>
+            <column name="effect" value="SKILL_MIN_10"/>
+            <column name="description" value="Your skill checks can't roll lower than 10 (future: skill check minimum)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Rogue Skills -->
+        <insert tableName="ability">
+            <column name="ability_key" value="cunning-action"/>
+            <column name="name" value="Cunning Action"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="BONUS_ACTION_DASH_DISENGAGE_HIDE"/>
+            <column name="description" value="Take Dash, Disengage, or Hide as a bonus action."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="poison-blade"/>
+            <column name="name" value="Poison Blade"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="backstab"/>
+            <column name="effect" value="DAMAGE+2,POISON,DOT+1"/>
+            <column name="description" value="Coat your blade with poison. +2 Poison damage, +1 damage over time."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="shadow-step"/>
+            <column name="name" value="Shadow Step"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="cunning-action"/>
+            <column name="effect" value="TELEPORT,ADVANTAGE_NEXT"/>
+            <column name="description" value="Step through shadows to teleport short distances. Advantage on next attack."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="death-strike"/>
+            <column name="name" value="Death Strike"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="assassinate,poison-blade"/>
+            <column name="effect" value="CRIT_DAMAGE+25,LETHAL_MULTIPLIER"/>
+            <column name="description" value="Your most devastating strike. +25% Crit Damage, double damage on surprised enemies."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ========================================
+         EXPANDED MAGE ABILITIES
+         ======================================== -->
+    <changeSet id="017-expand-mage-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) > 0 FROM ability WHERE ability_key = 'spell-mastery'</sqlCheck>
+            </not>
+        </preConditions>
+        <comment>Expand Mage abilities with Wizard features from D&amp;D 5e</comment>
+        
+        <!-- More Mage Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="spell-mastery"/>
+            <column name="name" value="Spell Mastery"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="arcane-focus"/>
+            <column name="effect" value="SPELL_DAMAGE+3,SPELL_CRIT+5"/>
+            <column name="description" value="You've mastered the arcane arts. +3 Spell Damage, +5% Spell Crit."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="arcane-recovery"/>
+            <column name="name" value="Arcane Recovery"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="mana-shield"/>
+            <column name="effect" value="MANA_REGEN+5"/>
+            <column name="description" value="You can recover magical energy quickly. +5 mana regeneration (future: mana system)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="evocation-specialist"/>
+            <column name="name" value="Evocation Specialist"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="spell-mastery"/>
+            <column name="effect" value="EVOCATION_DAMAGE+4,AOE_BONUS+2"/>
+            <column name="description" value="You specialize in destructive magic. +4 Evocation damage, +2 area effect damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="spell-absorption"/>
+            <column name="name" value="Spell Absorption"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="arcane-recovery"/>
+            <column name="effect" value="SPELL_RESIST+15,HEAL_ON_ABSORB"/>
+            <column name="description" value="Absorb hostile magic to heal yourself. +15% Spell Resistance, heal when resisting spells."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Mage Spells -->
+        <insert tableName="ability">
+            <column name="ability_key" value="magic-missile"/>
+            <column name="name" value="Magic Missile"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+3,AUTO_HIT,MULTI_TARGET"/>
+            <column name="description" value="Launch unerring darts of force. +3 Force damage, automatically hits."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="counterspell"/>
+            <column name="name" value="Counterspell"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="INTERRUPT_SPELL"/>
+            <column name="description" value="Interrupt and nullify an enemy's spell (future: reaction to counter spells)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="misty-step"/>
+            <column name="name" value="Misty Step"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="TELEPORT_BONUS_ACTION"/>
+            <column name="description" value="Teleport up to 30 feet as a bonus action (future: movement ability)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="cone-of-cold"/>
+            <column name="name" value="Cone of Cold"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="lightning-bolt"/>
+            <column name="effect" value="DAMAGE+5,COLD,AOE_CONE"/>
+            <column name="description" value="Blast a cone of freezing air. +5 Cold damage in cone area."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="chain-lightning"/>
+            <column name="name" value="Chain Lightning"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="lightning-bolt"/>
+            <column name="effect" value="DAMAGE+4,LIGHTNING,CHAIN_3"/>
+            <column name="description" value="Lightning arcs between foes. +4 Lightning damage, chains to 3 targets."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="disintegrate"/>
+            <column name="name" value="Disintegrate"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="meteor-storm"/>
+            <column name="effect" value="DAMAGE+8,FORCE,EXECUTE_LOW_HP"/>
+            <column name="description" value="A thin green ray reduces targets to dust. +8 Force damage, instant kill at low HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="time-stop"/>
+            <column name="name" value="Time Stop"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="disintegrate,misty-step"/>
+            <column name="effect" value="EXTRA_TURNS+2"/>
+            <column name="description" value="Stop time briefly to act freely. Take 2 extra turns (future: ultimate ability)."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- ========================================
+         EXPANDED UNIVERSAL ABILITIES
+         ======================================== -->
+        <changeSet id="017-expand-universal-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">SELECT COUNT(*) > 0 FROM ability WHERE ability_key = 'athlete'</sqlCheck>
+            </not>
+        </preConditions>
+        <comment>Expand Universal abilities with feats from D&amp;D 5e</comment>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="athlete"/>
+            <column name="name" value="Athlete"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="STR+1,DEX+1,CLIMB_SPEED"/>
+            <column name="description" value="You have athletic prowess. +1 Strength, +1 Dexterity, enhanced mobility."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="tough"/>
+            <column name="name" value="Tough"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="MAX_HP+8"/>
+            <column name="description" value="Your hit point maximum increases. +8 Max HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="alert"/>
+            <column name="name" value="Alert"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="INITIATIVE+5,NO_SURPRISE"/>
+            <column name="description" value="Always on the lookout for danger. +5 Initiative, can't be surprised."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="lucky"/>
+            <column name="name" value="Lucky"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="LUCK_POINTS+3"/>
+            <column name="description" value="You have inexplicable luck. Gain 3 luck points to reroll attacks, saves, or checks."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="sentinel"/>
+            <column name="name" value="Sentinel"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="OPPORTUNITY_ATTACK_BONUS,ENEMY_SPEED_0"/>
+            <column name="description" value="You excel at locking down foes. Opportunity attacks stop enemy movement."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="war-caster"/>
+            <column name="name" value="War Caster"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CONCENTRATION_ADVANTAGE,CAST_WITH_WEAPONS"/>
+            <column name="description" value="You can cast and fight simultaneously. Advantage on concentration saves."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="resilient"/>
+            <column name="name" value="Resilient"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="ABILITY_SCORE+1,SAVE_PROFICIENCY"/>
+            <column name="description" value="You gain proficiency in one saving throw. +1 to an ability score."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="mobile"/>
+            <column name="name" value="Mobile"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="SPEED+10,IGNORE_DIFFICULT_TERRAIN"/>
+            <column name="description" value="You are exceptionally speedy and agile. +10 movement speed."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

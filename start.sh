@@ -19,10 +19,14 @@ echo ""
 
 # Parse arguments
 RESTART=false
+RESET_DB=false
 for arg in "$@"; do
     case "$arg" in
         --restart|-r)
             RESTART=true
+            ;;
+        --reset-db|-D)
+            RESET_DB=true
             ;;
     esac
 done
@@ -64,6 +68,14 @@ fi
 
 echo -e "${GREEN}✓ Environment checks passed${NC}"
 echo ""
+
+# Optional: reset H2 file database
+if [ "$RESET_DB" = true ]; then
+    echo -e "${YELLOW}Resetting local H2 database (data/playbot)...${NC}"
+    rm -f data/playbot.mv.db data/playbot.trace.db || true
+    echo -e "${GREEN}✓ Database reset complete${NC}"
+    echo ""
+fi
 
 # Optional restart: stop production (systemd or /opt) and any dev instances from this workspace
 if [ "$RESTART" = true ]; then

@@ -21,8 +21,6 @@ import net.dv8tion.jda.api.events.session.ReadyEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.Command;
-import net.dv8tion.jda.api.interactions.commands.OptionType;
-import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.utils.FileUpload;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -65,6 +63,7 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final WebSocketNotificationService webSocketNotificationService;
     private final QotdSubmissionService qotdSubmissionService;
     private final DiscordApiClient discordApiClient;
+    private final com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler;
     private final Random random = new Random();
 
     // (Removed image icon cache - using emoji-only inline in text rendering)
@@ -76,13 +75,15 @@ public class SlashCommandHandler extends ListenerAdapter {
             GuildsCache guildsCache,
             WebSocketNotificationService webSocketNotificationService,
             QotdSubmissionService qotdSubmissionService,
-            DiscordApiClient discordApiClient) {
+            DiscordApiClient discordApiClient,
+            com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler) {
         this.cooldownRepository = cooldownRepository;
         this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
         this.qotdSubmissionService = qotdSubmissionService;
         this.discordApiClient = discordApiClient;
+        this.characterAutocompleteHandler = characterAutocompleteHandler;
         logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
@@ -95,49 +96,23 @@ public class SlashCommandHandler extends ListenerAdapter {
 
     @Override
     public void onGuildReady(@NotNull GuildReadyEvent event) {
-        // Register slash commands for this guild
-        event.getGuild().updateCommands().addCommands(
-            Commands.slash("roll", "Roll for a random gacha role (once per day)"),
-            Commands.slash("d20", "Roll a d20 for bonus/penalty (60 min after /roll)"),
-            Commands.slash("testroll", "Test roll without cooldown (admin only)"),
-            Commands.slash("mycolor", "Check your current gacha role"),
-            Commands.slash("colors", "View all available gacha roles"),
-            Commands.slash("help", "Show help information"),
-            Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
-                .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
-                .addOption(OptionType.STRING, "stream", "Target stream (optional)", false, true)
-        ).queue(
-            success -> logger.info("Registered slash commands for guild: {}", event.getGuild().getName()),
-            error -> logger.error("Failed to register slash commands for guild {}: {}",
-                event.getGuild().getName(), error.getMessage())
-        );
+        // Unified registration handled by CommandRegistrar.
+        logger.info("Guild ready: {} (commands registered by CommandRegistrar)", event.getGuild().getName());
     }
 
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
         String guildId = event.getGuild().getId();
         String guildName = event.getGuild().getName();
-        
+
         // Evict cache so backend reflects the change immediately
         if (guildsCache != null) guildsCache.evictAll();
-        
+
         // Notify all connected WebSocket clients
         webSocketNotificationService.notifyGuildJoined(guildId, guildName);
-        
-        event.getGuild().updateCommands().addCommands(
-            Commands.slash("roll", "Roll for a random gacha role (once per day)"),
-            Commands.slash("d20", "Roll a d20 for bonus/penalty (60 min after /roll)"),
-            Commands.slash("testroll", "Test roll without cooldown (admin only)"),
-            Commands.slash("mycolor", "Check your current gacha role"),
-            Commands.slash("colors", "View all available gacha roles"),
-            Commands.slash("help", "Show help information"),
-            Commands.slash("qotd-submit", "Suggest a Question of the Day for admins to review")
-                .addOption(OptionType.STRING, "question", "Your question (max 300 chars)", true)
-                .addOption(OptionType.STRING, "stream", "Target stream (optional)", false, true)
-        ).queue(
-            success -> logger.info("Registered slash commands for newly joined guild: {}", guildName),
-            error -> logger.error("Failed to register slash commands on guild join for {}: {}", guildName, error.getMessage())
-        );
+
+        // Registration now handled by CommandRegistrar
+        logger.info("Guild joined: {} (commands registered by CommandRegistrar)", guildName);
     }
 
     @Override
@@ -171,7 +146,10 @@ public class SlashCommandHandler extends ListenerAdapter {
             case "colors" -> handleColors(event);
             case "help" -> handleHelp(event);
             case "qotd-submit" -> handleQotdSubmit(event);
-            default -> event.reply("Unknown command!").setEphemeral(true).queue();
+            default -> {
+                // Don't reply - let other handlers (e.g., BattleCommandHandler) handle it
+                // If no handler processes it, Discord will show "This interaction failed"
+            }
         }
     }
 
@@ -187,6 +165,8 @@ public class SlashCommandHandler extends ListenerAdapter {
                 .toList();
 
             event.replyChoices(choices).queue();
+        } else if (event.getName().equals("create-character")) {
+            characterAutocompleteHandler.handleCreateCharacterAutocomplete(event);
         }
     }
 
