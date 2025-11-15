@@ -25,7 +25,7 @@ class CharacterValidationServiceTest {
         battleProperties = new BattleProperties();
 
         var character = new BattleProperties.CharacterConfig();
-        var pointBuy = new BattleProperties.PointBuyConfig();
+        var pointBuy = new BattleProperties.CharacterConfig.PointBuyConfig();
         pointBuy.setTotalPoints(27);
         pointBuy.setMinScore(8);
         pointBuy.setMaxScore(15);
