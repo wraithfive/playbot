@@ -1,6 +1,9 @@
 package com.discordbot.battle.controller;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
@@ -61,7 +64,7 @@ class AbilityInteractionHandlerTest {
             abilityService
         );
 
-        character = new PlayerCharacter("u1", "g1", "Warrior", "Human", 15, 14, 13, 12, 10, 8);
+        character = create("u1", "g1", "Warrior", "Human", 15, 14, 13, 12, 10, 8);
         ability1 = new Ability("power-strike", "Power Strike", "SKILL", "Warrior", 1, "", "DAMAGE+3", "Deal extra damage");
         ability2 = new Ability("battle-focus", "Battle Focus", "TALENT", null, 1, "", "CRIT_CHANCE+5", "Increases crit chance");
     }

@@ -1,6 +1,9 @@
 package com.discordbot.battle.service;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.*;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.repository.CharacterAbilityCooldownRepository;
 import com.discordbot.battle.repository.CharacterSpellSlotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,9 +46,9 @@ class SpellResourceServiceTest {
         service = new SpellResourceService(spellSlotRepository, cooldownRepository);
 
         // Create test characters with standard ability scores (10 = +0 modifier)
-        mageCharacter = new PlayerCharacter("user123", "guild456", "Mage", "Human", 
+        mageCharacter = create("user123", "guild456", "Mage", "Human", 
                                            8, 10, 10, 15, 12, 10); // High INT for Mage
-        warriorCharacter = new PlayerCharacter("user789", "guild456", "Warrior", "Dwarf",
+        warriorCharacter = create("user789", "guild456", "Warrior", "Dwarf",
                                               15, 10, 14, 8, 10, 10); // High STR/CON for Warrior
 
         // Create test abilities
@@ -76,7 +79,7 @@ class SpellResourceServiceTest {
 
     @Test
     void initializeSpellSlots_forCleric_createsLevel1Slots() {
-        PlayerCharacter cleric = new PlayerCharacter("user999", "guild456", "Cleric", "Human",
+        PlayerCharacter cleric = create("user999", "guild456", "Cleric", "Human",
                                                      10, 10, 12, 10, 15, 10); // High WIS for Cleric
         when(spellSlotRepository.findByCharacterOrderBySlotLevel(cleric))
                 .thenReturn(Collections.emptyList());

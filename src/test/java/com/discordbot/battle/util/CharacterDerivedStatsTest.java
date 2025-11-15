@@ -1,6 +1,9 @@
 package com.discordbot.battle.util;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.PlayerCharacter;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +47,7 @@ public class CharacterDerivedStatsTest {
 
     @Test
     void testComputeAc() {
-        PlayerCharacter pc = new PlayerCharacter("u", "g", "Warrior", "Human",
+        PlayerCharacter pc = create("u", "g", "Warrior", "Human",
                 10, 14, 10, 10, 10, 10);
         assertEquals(12, CharacterDerivedStats.computeAc(pc)); // 10 + DEX mod(14)=+2
     }
@@ -52,7 +55,7 @@ public class CharacterDerivedStatsTest {
     @Test
     void testComputeHp() {
         BattleProperties props = createConfiguredProperties();
-        PlayerCharacter pc = new PlayerCharacter("u", "g", "Warrior", "Human",
+        PlayerCharacter pc = create("u", "g", "Warrior", "Human",
                 10, 10, 14, 10, 10, 10);
         // D&D 5e Level 1: Warrior (Fighter d10 max=10) + CON mod(14)=+2 = 12
         assertEquals(10 + CharacterDerivedStats.abilityMod(14), CharacterDerivedStats.computeHp(pc, props));
@@ -65,19 +68,19 @@ public class CharacterDerivedStatsTest {
         int conMod = CharacterDerivedStats.abilityMod(con);
 
         // Warrior (Fighter d10): baseHp = 10
-        PlayerCharacter warrior = new PlayerCharacter("u", "g", "Warrior", "Human", 10, 10, con, 10, 10, 10);
+        PlayerCharacter warrior = create("u", "g", "Warrior", "Human", 10, 10, con, 10, 10, 10);
         assertEquals(10 + conMod, CharacterDerivedStats.computeHp(warrior, props));
 
         // Rogue (d8): baseHp = 8
-        PlayerCharacter rogue = new PlayerCharacter("u", "g", "Rogue", "Elf", 10, 10, con, 10, 10, 10);
+        PlayerCharacter rogue = create("u", "g", "Rogue", "Elf", 10, 10, con, 10, 10, 10);
         assertEquals(8 + conMod, CharacterDerivedStats.computeHp(rogue, props));
 
         // Mage (Wizard d6): baseHp = 6
-        PlayerCharacter mage = new PlayerCharacter("u", "g", "Mage", "Human", 10, 10, con, 10, 10, 10);
+        PlayerCharacter mage = create("u", "g", "Mage", "Human", 10, 10, con, 10, 10, 10);
         assertEquals(6 + conMod, CharacterDerivedStats.computeHp(mage, props));
 
         // Cleric (d8): baseHp = 8
-        PlayerCharacter cleric = new PlayerCharacter("u", "g", "Cleric", "Dwarf", 10, 10, con, 10, 10, 10);
+        PlayerCharacter cleric = create("u", "g", "Cleric", "Dwarf", 10, 10, con, 10, 10, 10);
         assertEquals(8 + conMod, CharacterDerivedStats.computeHp(cleric, props));
     }
 
@@ -86,12 +89,12 @@ public class CharacterDerivedStatsTest {
         BattleProperties props = createConfiguredProperties();
 
         // Very low CON (8 = -1 modifier)
-        PlayerCharacter lowCon = new PlayerCharacter("u", "g", "Mage", "Human", 10, 10, 8, 10, 10, 10);
+        PlayerCharacter lowCon = create("u", "g", "Mage", "Human", 10, 10, 8, 10, 10, 10);
         int expectedLowConHp = 6 - 1; // D&D 5e: hitDieMax(6) + CON mod(-1) = 5
         assertEquals(expectedLowConHp, CharacterDerivedStats.computeHp(lowCon, props));
 
         // Very high CON (20 = +5 modifier)
-        PlayerCharacter highCon = new PlayerCharacter("u", "g", "Warrior", "Human", 10, 10, 20, 10, 10, 10);
+        PlayerCharacter highCon = create("u", "g", "Warrior", "Human", 10, 10, 20, 10, 10, 10);
         int expectedHighConHp = 10 + 5; // D&D 5e: hitDieMax(10) + CON mod(+5) = 15
         assertEquals(expectedHighConHp, CharacterDerivedStats.computeHp(highCon, props));
     }
@@ -100,7 +103,7 @@ public class CharacterDerivedStatsTest {
     void testComputeHpUnknownClassFallback() {
         BattleProperties props = createConfiguredProperties();
         // Unknown class should fall back to baseHp = 8 (like Rogue/Cleric)
-        PlayerCharacter unknown = new PlayerCharacter("u", "g", "Bard", "Human", 10, 10, 12, 10, 10, 10);
+        PlayerCharacter unknown = create("u", "g", "Bard", "Human", 10, 10, 12, 10, 10, 10);
         int conMod = CharacterDerivedStats.abilityMod(12); // +1
         assertEquals(8 + conMod, CharacterDerivedStats.computeHp(unknown, props));
     }

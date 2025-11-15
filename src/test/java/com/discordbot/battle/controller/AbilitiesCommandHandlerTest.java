@@ -1,6 +1,9 @@
 package com.discordbot.battle.controller;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
@@ -66,7 +69,7 @@ class AbilitiesCommandHandlerTest {
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
         doNothing().when(replyAction).queue();
 
-        character = new PlayerCharacter("u1", "g1", "Warrior", "Human", 15, 14, 13, 12, 10, 8);
+        character = create("u1", "g1", "Warrior", "Human", 15, 14, 13, 12, 10, 8);
         when(pcRepo.findByUserIdAndGuildId("u1", "g1")).thenReturn(Optional.of(character));
     }
 

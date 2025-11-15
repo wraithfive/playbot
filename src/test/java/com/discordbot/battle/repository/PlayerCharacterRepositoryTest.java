@@ -1,6 +1,9 @@
 package com.discordbot.battle.repository;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.service.CharacterValidationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -147,7 +150,7 @@ class PlayerCharacterRepositoryTest {
      * Uses 27-point budget: 15+14+13+12+10+8 = 27 points
      */
     private PlayerCharacter createValidCharacter(String userId, String guildId) {
-        PlayerCharacter character = new PlayerCharacter(
+        PlayerCharacter character = create(
             userId, guildId,
             "Warrior", "Human",
             15, 14, 13, 12, 10, 8

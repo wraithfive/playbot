@@ -5,6 +5,7 @@ import com.discordbot.battle.service.CharacterValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -46,7 +47,7 @@ class PlayerCharacterTest {
     void validCharacter_passesValidation() {
         // Build a valid character using max budget efficiently
         // Strategy: max one stat, high second stat, distribute rest to hit exact budget
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Warrior",
             "Human",
@@ -67,7 +68,7 @@ class PlayerCharacterTest {
     @Test
     void invalidScore_failsValidation() {
         // Score above configured max
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Mage",
             "Elf",
@@ -85,7 +86,7 @@ class PlayerCharacterTest {
     @Test
     void scoreBelowMin_failsValidation() {
         // Score below configured min
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Rogue",
             "Halfling",
@@ -103,7 +104,7 @@ class PlayerCharacterTest {
     @Test
     void underBudget_failsValidation() {
         // All minimum scores = 0 points (under budget)
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Rogue",
             "Halfling",
@@ -118,7 +119,7 @@ class PlayerCharacterTest {
     @Test
     void overBudget_failsValidation() {
         // All max scores = way over budget
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Cleric",
             "Dwarf",
@@ -133,7 +134,7 @@ class PlayerCharacterTest {
     @Test
     void invalidClassOrRace_failsValidation() {
         // Valid point-buy but invalid class and race
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Ninja", // Invalid class
             "Orc",   // Invalid race

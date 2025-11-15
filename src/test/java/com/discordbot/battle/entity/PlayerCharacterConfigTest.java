@@ -1,6 +1,9 @@
 package com.discordbot.battle.entity;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
+import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.service.CharacterValidationService;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +47,7 @@ class PlayerCharacterConfigTest {
         // Character with 30-point allocation:
         // STR=16 costs 19 pts, DEX=12 costs 7 pts, CON=10 costs 4 pts, rest at min (6) costs 0 pts each
         // Total: 19 + 7 + 4 + 0 + 0 + 0 = 30 points
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Warrior",
             "Human",
@@ -80,7 +83,7 @@ class PlayerCharacterConfigTest {
         // Character with 20-point allocation:
         // STR=14 costs 9 pts, DEX=13 costs 7 pts, CON=11 costs 4 pts, rest at min (7) costs 0 pts each
         // Total: 9 + 7 + 4 + 0 + 0 + 0 = 20 points
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Mage",
             "Elf",
@@ -113,7 +116,7 @@ class PlayerCharacterConfigTest {
         // Character using 27 points (exceeds 20-point budget):
         // 14=9 pts, 14=9 pts, 14=9 pts, 12=5 pts, 7=0 pts, 7=0 pts
         // Total: 9 + 9 + 9 + 5 + 0 + 0 = 32 points > 20 (should fail)
-        PlayerCharacter pc = new PlayerCharacter(
+        PlayerCharacter pc = create(
             "user123", "guild456",
             "Cleric",
             "Dwarf",
