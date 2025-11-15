@@ -55,8 +55,23 @@ public class BattleInteractionHandler extends ListenerAdapter {
             event.reply("❌ Invalid battle component.").setEphemeral(true).queue();
             return;
         }
+
+        // Validate battleId format (UUID is 36 chars, but allow up to 50 for flexibility)
         String battleId = parts[1];
+        if (battleId == null || battleId.length() > 50 || battleId.trim().isEmpty()) {
+            logger.warn("Invalid battleId format in component interaction: length={}", battleId == null ? "null" : battleId.length());
+            event.reply("❌ Invalid battle identifier.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Validate action is reasonable length
         String action = parts[2];
+        if (action == null || action.length() > 20 || action.trim().isEmpty()) {
+            logger.warn("Invalid action format in component interaction: length={}", action == null ? "null" : action.length());
+            event.reply("❌ Invalid action type.").setEphemeral(true).queue();
+            return;
+        }
+
         User clicker = event.getUser();
 
         ActiveBattle battle;
@@ -85,10 +100,18 @@ public class BattleInteractionHandler extends ListenerAdapter {
                 default -> event.reply("❌ Unknown action.").setEphemeral(true).queue();
             }
         } catch (IllegalStateException ise) {
+            // Battle state issues (e.g., not active, not your turn)
             event.reply("❌ " + ise.getMessage()).setEphemeral(true).queue();
+        } catch (IllegalArgumentException iae) {
+            // Invalid arguments (e.g., invalid ability, bad parameters)
+            logger.warn("Invalid battle action: battleId={}, userId={}, action={}, error={}",
+                       battleId, clicker.getId(), action, iae.getMessage());
+            event.reply("❌ Invalid action: " + iae.getMessage()).setEphemeral(true).queue();
         } catch (Exception e) {
-            logger.error("Error handling battle interaction", e);
-            event.reply("❌ Action failed.").setEphemeral(true).queue();
+            // Unexpected errors
+            logger.error("Unexpected error handling battle interaction: battleId={}, userId={}, action={}",
+                        battleId, clicker.getId(), action, e);
+            event.reply("❌ An unexpected error occurred. Please try again or contact support.").setEphemeral(true).queue();
         }
     }
 

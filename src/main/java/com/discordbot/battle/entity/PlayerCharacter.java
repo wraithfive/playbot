@@ -130,9 +130,12 @@ public class PlayerCharacter {
      * Constructor for creating a new character
      */
     public PlayerCharacter(String userId, String guildId,
-                          String characterClass, String race, 
+                          String characterClass, String race,
                           int strength, int dexterity, int constitution,
                           int intelligence, int wisdom, int charisma) {
+        validateDiscordSnowflake(userId, "userId");
+        validateDiscordSnowflake(guildId, "guildId");
+
         this.userId = userId;
         this.guildId = guildId;
         this.characterClass = characterClass;
@@ -143,6 +146,29 @@ public class PlayerCharacter {
         this.intelligence = intelligence;
         this.wisdom = wisdom;
         this.charisma = charisma;
+    }
+
+    /**
+     * Validates that a string is a valid Discord snowflake ID.
+     * Discord snowflakes are numeric strings typically 17-19 characters long,
+     * but can range from 15-22 characters.
+     *
+     * @param id the ID to validate
+     * @param fieldName the name of the field (for error messages)
+     * @throws IllegalArgumentException if the ID is invalid
+     */
+    private void validateDiscordSnowflake(String id, String fieldName) {
+        if (id == null) {
+            throw new IllegalArgumentException(fieldName + " cannot be null");
+        }
+        if (id.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " cannot be empty");
+        }
+        if (!id.matches("^[0-9]{15,22}$")) {
+            throw new IllegalArgumentException(
+                fieldName + " must be a valid Discord snowflake (15-22 digit numeric string), got: " + id
+            );
+        }
     }
 
     @PrePersist

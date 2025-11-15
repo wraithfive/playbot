@@ -21,8 +21,16 @@ public class CharacterValidationService {
 
     /**
      * Validates character according to configured point-buy rules.
+     *
+     * @param character the character to validate
+     * @return true if character is valid according to all rules, false otherwise
      */
     public boolean isValid(PlayerCharacter character) {
+        // Null check
+        if (character == null) {
+            return false;
+        }
+
         // Validate class and race
         if (!isValidClass(character.getCharacterClass()) || !isValidRace(character.getRace())) {
             return false;
@@ -75,8 +83,15 @@ public class CharacterValidationService {
 
     /**
      * Calculate total point-buy cost of ability scores.
+     *
+     * @param character the character whose point-buy cost to calculate
+     * @return total point-buy cost, or 0 if character is null
      */
     public int calculatePointBuyTotal(PlayerCharacter character) {
+        if (character == null) {
+            return 0;
+        }
+
         var pointBuy = battleProperties.getCharacter().getPointBuy();
         List<Integer> costs = pointBuy.getCosts();
         int minScore = pointBuy.getMinScore();
