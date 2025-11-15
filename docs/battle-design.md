@@ -289,6 +289,47 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Cross-topic navigation via footer hints
     - Step-by-step quick start guide
   - **Status:** Phase 10 complete, comprehensive documentation ready
+- Phase 11 — Security & Permissions: COMPLETED
+  - **Permission service (completed):**
+    - BattlePermissionService: Centralized admin permission checking
+    - Checks for ADMINISTRATOR or MANAGE_SERVER permissions
+    - Guild membership validation with detailed logging
+    - User-friendly error messages for permission denials
+  - **Admin commands (completed):**
+    - `/battle-cancel battle_id:<id>`: Admin-only battle cancellation
+      - Cancels active or pending battles by ID
+      - Permission check: ADMINISTRATOR or MANAGE_SERVER required
+      - Updates battle status to ABORTED (no progression awarded)
+      - Cleans up resources (cooldowns, status effects)
+      - Public response so participants can see cancellation
+      - Audit logging: admin user ID, battle ID, guild ID
+    - `/battle-config-reload`: View current battle system configuration
+      - Permission check: ADMINISTRATOR or MANAGE_SERVER required
+      - Displays system status, character config, combat config, challenge config
+      - Note: Config changes require bot restart (@ConfigurationProperties limitation)
+      - Ephemeral response (private to admin)
+  - **Service layer (completed):**
+    - BattleService.adminCancelBattle(): Admin cancellation logic
+      - Validates battle exists (cache or database lookup)
+      - Marks battle as ENDED with no winner
+      - Persists ABORTED status to database
+      - Records metrics via MetricsService
+      - Cleans up cooldowns and status effects
+      - Detailed logging with admin user for audit trail
+  - **Command registration (completed):**
+    - CommandRegistrar updated with admin commands
+    - Commands registered when battle.enabled=true
+    - Automatically routed via CommandRouter (Spring DI)
+  - **Test coverage (completed):**
+    - BattlePermissionServiceTest: 7 tests covering all permission scenarios
+    - BattleAdminCommandHandlerTest: 12 tests covering commands, permissions, errors
+    - Tests verify permission checks, error handling, embed formatting
+  - **Existing security validations (confirmed):**
+    - Guild context validation: All battle commands require guild (no DMs)
+    - Bot validation: Cannot challenge bots
+    - Self-duel prevention: Cannot duel yourself
+    - Character validation: Checks character existence before battles
+  - **Status:** Phase 11 complete, admin controls and permission checks operational
 
 ### 4.2 Recent progress (2025-11-15)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**

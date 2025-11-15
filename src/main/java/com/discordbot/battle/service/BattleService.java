@@ -785,6 +785,53 @@ public class BattleService {
     }
 
     /**
+     * Admin-only operation to cancel a battle regardless of state.
+     * Phase 11: Security & Permissions
+     *
+     * @param battleId the battle to cancel
+     * @param adminUserId the admin user performing the cancellation (for audit logging)
+     * @return the cancelled battle
+     * @throws IllegalArgumentException if battle not found
+     */
+    public ActiveBattle adminCancelBattle(String battleId, String adminUserId) {
+        ActiveBattle battle = battles.getIfPresent(battleId);
+        if (battle == null) {
+            // Try to load from database
+            Optional<BattleSession> session = sessionRepository.findById(battleId);
+            if (session.isEmpty()) {
+                throw new IllegalArgumentException("Battle not found: " + battleId);
+            }
+            // Battle exists in DB but not in cache - already ended or never started
+            throw new IllegalStateException("Battle " + battleId + " is not active (status: " + session.get().getStatus() + ")");
+        }
+
+        // Cancel regardless of state (PENDING or ACTIVE)
+        String guildId = battle.getGuildId();
+        String challengerId = battle.getChallengerId();
+        String opponentId = battle.getOpponentId();
+
+        battle.addLog("Battle cancelled by administrator {USER:" + adminUserId + "}");
+        long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
+
+        // Mark as ended with no winner
+        battle.setStatus(ActiveBattle.BattleStatus.ENDED);
+        markBattleAborted(battleId); // Mark as ABORTED in DB (Phase 7)
+
+        // Clean up resources without awarding progression
+        recordBattleCompletion(challengerId);
+        recordBattleCompletion(opponentId);
+        statusEffectService.cleanupBattleEffects(battleId);
+
+        // Phase 8: Record metrics
+        metricsService.recordBattleAborted(battleDuration);
+
+        logger.warn("Battle admin-cancelled battleId={} by admin={} guild={}",
+            battleId, adminUserId, guildId);
+
+        return battle;
+    }
+
+    /**
      * Perform a defend action, granting temporary AC bonus (+2) for one turn.
      * Returns DefendResult with battle state, temp AC bonus, and winner if battle ended.
      */
