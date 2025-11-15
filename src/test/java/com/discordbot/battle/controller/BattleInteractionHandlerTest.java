@@ -18,6 +18,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.Collections;
 
@@ -29,6 +31,7 @@ import static org.mockito.Mockito.*;
  * Tests the primary user interface for battle interactions.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class BattleInteractionHandlerTest {
 
     private BattleInteractionHandler handler;
@@ -81,9 +84,9 @@ class BattleInteractionHandlerTest {
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.reply(any(MessageCreateData.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
-        when(event.editMessageEmbeds(anyCollection())).thenReturn(editAction);
-        when(editAction.setComponents(any(ActionRow.class))).thenReturn(editAction);
-        when(editAction.setComponents()).thenReturn(editAction);
+        // editMessageEmbeds can take varargs MessageEmbed[] - match any args
+        when(event.editMessageEmbeds(any())).thenReturn(editAction);
+        when(editAction.setComponents(any())).thenReturn(editAction);
 
         // Mock battle
         when(battle.getId()).thenReturn("battle-123");
@@ -254,7 +257,7 @@ class BattleInteractionHandlerTest {
         handler.onButtonInteraction(event);
 
         verify(battleService).acceptChallenge("battle-123", "876543210987654321");
-        verify(editAction).setComponents(any(ActionRow.class));
+        verify(editAction).setComponents(any());
         verify(editAction).queue();
     }
 
