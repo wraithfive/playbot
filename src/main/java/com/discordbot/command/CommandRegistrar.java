@@ -61,7 +61,10 @@ public class CommandRegistrar extends ListenerAdapter {
 
             // Battle commands (feature-flagged)
             if (battleProperties != null && battleProperties.isEnabled()) {
-                commands.add(Commands.slash("battle-help", "Show information about the battle system"));
+                commands.add(
+                    Commands.slash("battle-help", "Show comprehensive battle system guide")
+                        .addOption(OptionType.STRING, "topic", "Help topic to view", false, true)
+                );
                 commands.add(Commands.slash("create-character", "Create a new battle character with D&D 5e stats"));
                 // Character sheet view (optional user argument to view someone else's character)
                 commands.add(
