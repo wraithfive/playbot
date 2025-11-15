@@ -36,6 +36,29 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Core service managing battle lifecycle and combat resolution.
  * MVP: In-memory transient battles (no persistence) with simple melee attacks.
+ *
+ * <p><b>FUTURE REFACTORING NEEDED:</b> This class has grown to 1300+ lines and violates the
+ * Single Responsibility Principle. It currently handles multiple concerns:</p>
+ * <ul>
+ *   <li>Battle lifecycle management (create, accept, decline, end)</li>
+ *   <li>Combat resolution (attack, defend, ability execution)</li>
+ *   <li>Character caching and data access</li>
+ *   <li>Cooldown tracking</li>
+ *   <li>Progression rewards (XP, ELO, leveling)</li>
+ *   <li>Battle session persistence</li>
+ *   <li>Metrics and monitoring</li>
+ * </ul>
+ *
+ * <p><b>Recommended refactoring (Phase 10+):</b></p>
+ * <ul>
+ *   <li>Extract {@code BattleCombatEngine} - handles attack/defend/ability resolution</li>
+ *   <li>Extract {@code BattleProgressionService} - handles XP, ELO, leveling, rewards</li>
+ *   <li>Extract {@code BattleCacheService} - handles character and ability caching</li>
+ *   <li>Extract {@code BattleCooldownService} - handles battle cooldown tracking</li>
+ *   <li>Keep {@code BattleService} focused on lifecycle orchestration only</li>
+ * </ul>
+ *
+ * <p>This refactoring would improve testability, maintainability, and adherence to SOLID principles.</p>
  */
 @Service
 public class BattleService {
@@ -569,6 +592,26 @@ public class BattleService {
     }
 
     /**
+     * Get character with caching, returning null if not found (Phase 9 optimization).
+     * Used when character might not exist (e.g., reward distribution).
+     */
+    private PlayerCharacter getCharacterOrNull(String guildId, String userId) {
+        String cacheKey = guildId + ":" + userId;
+        PlayerCharacter cached = characterCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        Optional<PlayerCharacter> characterOpt = characterRepository.findByUserIdAndGuildId(userId, guildId);
+        if (characterOpt.isPresent()) {
+            PlayerCharacter character = characterOpt.get();
+            characterCache.put(cacheKey, character);
+            return character;
+        }
+        return null;
+    }
+
+    /**
      * Invalidate caches for a character (Phase 9 optimization).
      * Call this after character updates (stats, abilities, etc.)
      */
@@ -587,6 +630,12 @@ public class BattleService {
 
     /** Public helper to check if a user has a character (used by interaction layer). */
     public boolean hasCharacter(String guildId, String userId) {
+        // Phase 9: Check cache first to avoid unnecessary database query
+        String cacheKey = guildId + ":" + userId;
+        if (characterCache.getIfPresent(cacheKey) != null) {
+            return true;
+        }
+        // If not in cache, query database for existence
         return characterRepository.findByUserIdAndGuildId(userId, guildId).isPresent();
     }
 
@@ -1165,10 +1214,9 @@ public class BattleService {
             return;
         }
 
-        PlayerCharacter winner = winnerId != null ?
-            characterRepository.findByUserIdAndGuildId(winnerId, guildId).orElse(null) : null;
-        PlayerCharacter loser = loserId != null ?
-            characterRepository.findByUserIdAndGuildId(loserId, guildId).orElse(null) : null;
+        // Phase 9: Use cached character lookup to avoid N+1 queries
+        PlayerCharacter winner = winnerId != null ? getCharacterOrNull(guildId, winnerId) : null;
+        PlayerCharacter loser = loserId != null ? getCharacterOrNull(guildId, loserId) : null;
 
         if (isDraw) {
             // Draw: both get reduced XP and ELO 0.5 score
