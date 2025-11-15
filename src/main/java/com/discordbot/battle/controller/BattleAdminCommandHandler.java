@@ -151,9 +151,10 @@ public class BattleAdminCommandHandler implements CommandHandler {
         if (battleProperties.getCombat() != null) {
             var combat = battleProperties.getCombat();
             embed.addField("Combat Settings",
-                "Base Damage: " + combat.getBaseDamage() + "\n" +
-                "Crit Multiplier: " + combat.getCritMultiplier() + "\n" +
-                "Crit Chance: " + combat.getCritChance() + "%",
+                "Crit Threshold: " + combat.getCrit().getThreshold() + "\n" +
+                "Crit Multiplier: " + combat.getCrit().getMultiplier() + "x\n" +
+                "Defend AC Bonus: +" + combat.getDefendAcBonus() + "\n" +
+                "Cooldown: " + combat.getCooldownSeconds() + "s",
                 true);
         }
 
@@ -161,8 +162,7 @@ public class BattleAdminCommandHandler implements CommandHandler {
         if (battleProperties.getChallenge() != null) {
             var challenge = battleProperties.getChallenge();
             embed.addField("Challenge Settings",
-                "Expire Seconds: " + challenge.getExpireSeconds() + "\n" +
-                "Cooldown Seconds: " + challenge.getCooldownSeconds(),
+                "Expire Seconds: " + challenge.getExpireSeconds(),
                 true);
         }
 

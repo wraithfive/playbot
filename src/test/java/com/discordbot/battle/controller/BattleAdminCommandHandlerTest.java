@@ -194,16 +194,18 @@ class BattleAdminCommandHandlerTest {
 
         // Mock combat config
         BattleProperties.CombatConfig combatConfig = mock(BattleProperties.CombatConfig.class);
+        BattleProperties.CombatConfig.CritConfig critConfig = mock(BattleProperties.CombatConfig.CritConfig.class);
         when(battleProperties.getCombat()).thenReturn(combatConfig);
-        when(combatConfig.getBaseDamage()).thenReturn(4);
-        when(combatConfig.getCritMultiplier()).thenReturn(2.0);
-        when(combatConfig.getCritChance()).thenReturn(10);
+        when(combatConfig.getCrit()).thenReturn(critConfig);
+        when(critConfig.getThreshold()).thenReturn(20);
+        when(critConfig.getMultiplier()).thenReturn(2.0);
+        when(combatConfig.getDefendAcBonus()).thenReturn(2);
+        when(combatConfig.getCooldownSeconds()).thenReturn(60);
 
         // Mock challenge config
         BattleProperties.ChallengeConfig challengeConfig = mock(BattleProperties.ChallengeConfig.class);
         when(battleProperties.getChallenge()).thenReturn(challengeConfig);
         when(challengeConfig.getExpireSeconds()).thenReturn(300);
-        when(challengeConfig.getCooldownSeconds()).thenReturn(60);
 
         ReplyCallbackAction embedReplyAction = mock(ReplyCallbackAction.class);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(embedReplyAction);
