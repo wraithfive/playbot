@@ -21,7 +21,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_Mage_AbilityBonusesApplied() {
         // Mage with INT 15 (+2), WIS 10 (+0), STR 12 (+1), DEX 14 (+2), CON 12 (+1)
         PlayerCharacter pc = new PlayerCharacter(
-                "u1", "g1", "Mage", "Human",
+                "123456789012345601", "987654321098765432", "Mage", "Human",
                 12, 14, 12, 15, 10, 10
         );
 
@@ -54,7 +54,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_Cleric_UsesWisdomForSpells() {
         // Cleric with INT 8 (-1), WIS 16 (+3)
         PlayerCharacter pc = new PlayerCharacter(
-                "u2", "g1", "Cleric", "Dwarf",
+                "123456789012345602", "987654321098765432", "Cleric", "Dwarf",
                 10, 10, 10, 8, 16, 10
         );
 
@@ -76,7 +76,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_Warrior_BasicStats() {
         // Warrior with STR 16 (+3), DEX 14 (+2), CON 14 (+2)
         PlayerCharacter pc = new PlayerCharacter(
-                "u3", "g1", "Warrior", "Human",
+                "123456789012345603", "987654321098765432", "Warrior", "Human",
                 16, 14, 14, 10, 10, 10
         );
 
@@ -102,7 +102,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_Rogue_BasicStats() {
         // Rogue with DEX 18 (+4), STR 10 (+0), CON 12 (+1)
         PlayerCharacter pc = new PlayerCharacter(
-                "u4", "g1", "Rogue", "Halfling",
+                "123456789012345604", "987654321098765432", "Rogue", "Halfling",
                 10, 18, 12, 12, 10, 14
         );
 
@@ -126,7 +126,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_EmptyAbilityList() {
         // Character with no learned abilities
         PlayerCharacter pc = new PlayerCharacter(
-                "u5", "g1", "Mage", "Elf",
+                "123456789012345605", "987654321098765432", "Mage", "Elf",
                 10, 12, 10, 14, 10, 10
         );
 
@@ -150,7 +150,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_NegativeModifiers() {
         // Character with penalties: AC-1, DAMAGE-2
         PlayerCharacter pc = new PlayerCharacter(
-                "u6", "g1", "Warrior", "Human",
+                "123456789012345606", "987654321098765432", "Warrior", "Human",
                 12, 14, 12, 10, 10, 10
         );
 
@@ -172,7 +172,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_MinimumHpConstraint() {
         // Character with very low CON and negative MAX_HP modifier
         PlayerCharacter pc = new PlayerCharacter(
-                "u7", "g1", "Mage", "Human",
+                "123456789012345607", "987654321098765432", "Mage", "Human",
                 10, 10, 6, 10, 10, 10 // CON 6 = -2 modifier
         );
 
@@ -192,7 +192,7 @@ public class CharacterStatsCalculatorTest {
     void testCalculateStats_AbilityScoreBonuses() {
         // Test that ability score bonuses (STR+2, DEX+1, CON+2) are correctly applied
         PlayerCharacter pc = new PlayerCharacter(
-                "u8", "g1", "Warrior", "Human",
+                "123456789012345608", "987654321098765432", "Warrior", "Human",
                 10, 10, 10, 10, 10, 10 // All 10s (+0 modifiers)
         );
 

@@ -56,8 +56,8 @@ class CreateCharacterCommandHandlerTest {
         Guild guild = mock(Guild.class);
         when(event.getUser()).thenReturn(user);
         when(event.getGuild()).thenReturn(guild);
-        when(user.getId()).thenReturn("123456789");
-        when(guild.getId()).thenReturn("987654321");
+        when(user.getId()).thenReturn("123456789012345678");
+        when(guild.getId()).thenReturn("987654321098765432");
 
         // Mock repository to return empty (no existing character) by default
         when(repository.findByUserIdAndGuildId(anyString(), anyString())).thenReturn(Optional.empty());
@@ -117,9 +117,9 @@ class CreateCharacterCommandHandlerTest {
     @Test
     void handle_characterAlreadyExists_returnsError() {
         // Arrange
-        PlayerCharacter existing = new PlayerCharacter("123456789", "987654321", 
+        PlayerCharacter existing = new PlayerCharacter("123456789012345678", "987654321098765432",
             "Warrior", "Human", 15, 14, 13, 12, 10, 8);
-        when(repository.findByUserIdAndGuildId("123456789", "987654321"))
+        when(repository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(existing));
 
         // Act
