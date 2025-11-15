@@ -38,7 +38,7 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
 14. Test Suite Build-Out (Phase 13)
 15. Deployment & Rollout (Phase 14)
 
-### 4.1 Phase status (as of 2025-11-14)
+### 4.1 Phase status (as of 2025-11-15)
 - Phase 0 — Foundation & feature flag: DONE
   - `battle.enabled` flag wired in `application.properties` with sane defaults.
 - Phases 1 / 1a / 1b — Character creation & persistence: CORE IMPLEMENTED (1a/1b enhancements pending)
@@ -262,8 +262,35 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Connection pool: Optimized for H2 characteristics
     - Cache hit rate: Expected 90%+ for characters in active battles
   - **Status:** Core optimizations complete, production-ready
+- Phase 10 — Documentation & Help: COMPLETED
+  - **Comprehensive help system (completed):**
+    - Complete rewrite of /battle-help command with 7 detailed topics
+    - Interactive topic selection via autocomplete (overview, commands, character, combat, abilities, status, progression)
+    - BattleCommandHandler: 6 specialized help methods with rich embeds
+    - Coverage: All commands, combat mechanics, 12 status effects, progression (chat XP + battle XP), ELO formula, classes
+  - **Help topics:**
+    - **Overview:** Quick start guide, core features, help topic navigation
+    - **Commands:** Complete command list (character, combat, stats, help) with usage examples
+    - **Character:** Point-buy system, ability scores, 4 classes (Warrior/Rogue/Mage/Cleric), derived stats
+    - **Combat:** Turn-based flow, attack mechanics (d20 + proficiency + modifier), defend action, timeouts, victory conditions
+    - **Abilities:** 4 ability types (TALENT/SKILL/SPELL/FEAT), spell resources (slots/cooldowns/charges), learning process
+    - **Status:** 12 effects categorized (DoT: burn/poison/bleed, defensive: shield/protection/regen, offensive: strength/weakness/vulnerability, control: stun/haste/slow)
+    - **Progression:** Chat XP (primary, 10-15 XP/msg, 60s cooldown), battle XP (bonus), leveling (1-20), ELO ranking formula, leaderboards
+  - **Autocomplete integration:**
+    - CharacterAutocompleteHandler extended with handleBattleHelpAutocomplete()
+    - 7 descriptive topic choices displayed in autocomplete
+    - SlashCommandHandler wired to handle battle-help autocomplete events
+  - **Command registration:**
+    - CommandRegistrar updated with topic option (autocomplete enabled)
+    - Battle-help appears in slash command list when battle system enabled
+  - **User experience:**
+    - Ephemeral responses (private help, no channel spam)
+    - Clear organized embeds with emoji icons
+    - Cross-topic navigation via footer hints
+    - Step-by-step quick start guide
+  - **Status:** Phase 10 complete, comprehensive documentation ready
 
-### 4.2 Recent progress (2025-11-14)
+### 4.2 Recent progress (2025-11-15)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
   - **Initial Implementation (commit 537519a):**
     - Database: `battle_turn_log` table (migration 021) with full audit trail
