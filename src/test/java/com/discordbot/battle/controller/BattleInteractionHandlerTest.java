@@ -7,7 +7,9 @@ import com.discordbot.battle.service.StatusEffectService;
 import com.discordbot.battle.util.CharacterCreationUIBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackAction;
@@ -84,9 +86,10 @@ class BattleInteractionHandlerTest {
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.reply(any(MessageCreateData.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
-        // editMessageEmbeds can take varargs MessageEmbed[] - match any args
-        when(event.editMessageEmbeds(any())).thenReturn(editAction);
-        when(editAction.setComponents(any())).thenReturn(editAction);
+        // Use doAnswer().when() with explicit array matchers to handle varargs overloads
+        doAnswer(inv -> editAction).when(event).editMessageEmbeds(any(MessageEmbed[].class));
+        doAnswer(inv -> editAction).when(editAction).setComponents(any(MessageTopLevelComponent[].class));
+        doAnswer(inv -> editAction).when(editAction).setComponents();
 
         // Mock battle
         when(battle.getId()).thenReturn("battle-123");
@@ -182,7 +185,7 @@ class BattleInteractionHandlerTest {
 
         handler.onButtonInteraction(event);
 
-        verify(event).reply("❌ Invalid action type.");
+        verify(event).reply("❌ Invalid battle component.");
         verify(replyAction).setEphemeral(true);
     }
 
@@ -257,7 +260,7 @@ class BattleInteractionHandlerTest {
         handler.onButtonInteraction(event);
 
         verify(battleService).acceptChallenge("battle-123", "876543210987654321");
-        verify(editAction).setComponents(any());
+        verify(editAction, atLeastOnce()).setComponents(any(MessageTopLevelComponent[].class));
         verify(editAction).queue();
     }
 
