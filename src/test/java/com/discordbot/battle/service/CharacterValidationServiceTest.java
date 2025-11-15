@@ -24,8 +24,8 @@ class CharacterValidationServiceTest {
         // Set up battle properties with standard D&D 5e point-buy rules
         battleProperties = new BattleProperties();
 
-        var character = new BattleProperties.CharacterProperties();
-        var pointBuy = new BattleProperties.PointBuyProperties();
+        var character = new BattleProperties.CharacterConfig();
+        var pointBuy = new BattleProperties.PointBuyConfig();
         pointBuy.setTotalPoints(27);
         pointBuy.setMinScore(8);
         pointBuy.setMaxScore(15);
