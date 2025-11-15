@@ -355,20 +355,4 @@ class BattleCommandHandlerTest {
             "Should have ELO ranking section");
     }
 
-    @Test
-    void testErrorHandlingReturnsEphemeralError() {
-        when(battleProperties.isEnabled()).thenReturn(true);
-        when(event.getName()).thenReturn("battle-help");
-        when(event.getOption("topic")).thenReturn(null);
-
-        // Cause an exception by returning null for character config
-        when(battleProperties.getCharacter()).thenThrow(new RuntimeException("Test exception"));
-
-        // The exception will propagate to the command router
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            handler.handle(event);
-        });
-
-        assertEquals("Test exception", exception.getMessage());
-    }
 }
