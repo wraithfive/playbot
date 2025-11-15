@@ -18,25 +18,17 @@
     <changeSet id="023-add-mage-status-effect-spells" author="claude">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="ability"/>
-            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key = 'fireball'</sqlCheck>
         </preConditions>
 
-        <!-- Fireball - Burn effect (skip if already exists from migration 016) -->
-        <insert tableName="ability">
-            <column name="ability_key" value="fireball"/>
-            <column name="name" value="Fireball"/>
-            <column name="type" value="SPELL"/>
-            <column name="class_restriction" value="Mage"/>
-            <column name="required_level" value="1"/>
-            <column name="prerequisites" value=""/>
+        <!-- Fireball - Upgrade existing to add Burn effect (already exists from migration 016) -->
+        <update tableName="ability">
             <column name="effect" value="DAMAGE+12,APPLY_STATUS:BURN:3:1:3"/>
             <column name="description" value="Hurl a ball of fire dealing 12 damage and applying Burn (3 damage per turn for 3 turns)."/>
             <column name="spell_slot_level" valueNumeric="3"/>
-            <column name="cooldown_seconds" valueNumeric="0"/>
             <column name="rest_type" value="LONG_REST"/>
-            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
-        </insert>
+            <where>ability_key = 'fireball'</where>
+        </update>
 
         <!-- Shocking Grasp - Stun effect -->
         <insert tableName="ability">
