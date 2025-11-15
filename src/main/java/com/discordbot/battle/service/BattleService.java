@@ -219,11 +219,11 @@ public class BattleService {
         if (!hasCharacter(battle.getGuildId(), battle.getOpponentId())) {
             throw new IllegalStateException("You need to create a character first with /create-character before accepting.");
         }
-        // Check if either participant is busy in another battle
-        if (isUserBusy(acceptingUserId)) {
+        // Check if either participant is busy in another battle (excluding this one)
+        if (isUserBusyExcluding(acceptingUserId, battleId)) {
             throw new IllegalStateException("You're already in another battle.");
         }
-        if (isUserBusy(battle.getChallengerId())) {
+        if (isUserBusyExcluding(battle.getChallengerId(), battleId)) {
             throw new IllegalStateException("The challenger is now in another battle.");
         }
         int challengerHp = computeStartingHp(battle.getGuildId(), battle.getChallengerId());
@@ -614,6 +614,13 @@ public class BattleService {
     public boolean isUserBusy(String userId) {
         return battles.asMap().values().stream()
             .anyMatch(b -> !b.isEnded() && (Objects.equals(userId, b.getChallengerId()) || Objects.equals(userId, b.getOpponentId())));
+    }
+
+    /** Returns true if the user is in any non-ended battle (pending or active), excluding the specified battle ID. */
+    private boolean isUserBusyExcluding(String userId, String excludeBattleId) {
+        return battles.asMap().values().stream()
+            .anyMatch(b -> !Objects.equals(b.getId(), excludeBattleId) && !b.isEnded() &&
+                          (Objects.equals(userId, b.getChallengerId()) || Objects.equals(userId, b.getOpponentId())));
     }
 
     /** Removes or ends challenges that have exceeded the pending expiration threshold. */

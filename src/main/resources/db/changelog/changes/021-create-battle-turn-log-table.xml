@@ -42,7 +42,7 @@
             <column name="defender_ac" type="INT"/>
             <column name="hp_actor_after" type="INT"/>
             <column name="hp_target_after" type="INT"/>
-            <column name="status_effects_applied" type="TEXT"/>
+            <column name="status_effects_applied" type="VARCHAR(1000)"/>
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
