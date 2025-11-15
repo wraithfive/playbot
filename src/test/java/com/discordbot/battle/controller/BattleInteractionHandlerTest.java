@@ -8,7 +8,7 @@ import com.discordbot.battle.util.CharacterCreationUIBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
@@ -254,7 +254,7 @@ class BattleInteractionHandlerTest {
         handler.onButtonInteraction(event);
 
         verify(battleService).acceptChallenge("battle-123", "876543210987654321");
-        verify(editAction).setComponents(any());
+        verify(editAction).setComponents(any(ActionRow.class));
         verify(editAction).queue();
     }
 
