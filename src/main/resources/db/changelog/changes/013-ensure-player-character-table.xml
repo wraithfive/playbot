@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Safety net to ensure 'player_character' table exists for existing file-based H2 databases
+      that may have drifted or had the previous changeset marked as ran.
+    -->
+    <changeSet id="013-ensure-player-character-table" author="copilot">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <not>
+                <tableExists tableName="player_character"/>
+            </not>
+        </preConditions>
+
+        <comment>Ensure player_character table exists (creates if missing)</comment>
+
+        <createTable tableName="player_character">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <!-- Discord identity -->
+            <column name="user_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="guild_id" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Character attributes -->
+            <column name="character_class" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="race" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- D&D 5e ability scores -->
+            <column name="strength" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="dexterity" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="constitution" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="intelligence" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wisdom" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="charisma" type="int">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Metadata -->
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint 
+            tableName="player_character" 
+            columnNames="user_id,guild_id" 
+            constraintName="uk_player_character_user_guild"/>
+
+        <createIndex indexName="idx_player_character_guild" tableName="player_character">
+            <column name="guild_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

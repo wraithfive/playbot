@@ -30,7 +30,7 @@ package com.discordbot.web.dto;
  * @param position The role's position in the guild's role hierarchy (higher = more privilege)
  *
  * @since 1.0.0
- * @see com.discordbot.ColorGachaHandler
+ * @see com.discordbot.SlashCommandHandler
  * @see <a href="https://discord.com/developers/docs/topics/permissions#role-object">Discord Role Object</a>
  */
 public record GachaRoleInfo(

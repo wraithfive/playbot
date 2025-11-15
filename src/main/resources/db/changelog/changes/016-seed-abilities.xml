@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="016-seed-warrior-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key LIKE 'warrior-%' OR ability_key IN ('power-strike', 'cleave', 'whirlwind')</sqlCheck>
+        </preConditions>
+        <comment>Seed initial Warrior abilities</comment>
+        
+        <!-- Warrior Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="warrior-toughness"/>
+            <column name="name" value="Warrior's Toughness"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="MAX_HP+5"/>
+            <column name="description" value="Your warrior training grants you increased resilience. +5 Max HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="battle-hardened"/>
+            <column name="name" value="Battle Hardened"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="warrior-toughness"/>
+            <column name="effect" value="MAX_HP+3,CRIT_RESISTANCE+5"/>
+            <column name="description" value="Years of combat have toughened you. +3 Max HP, +5% Crit Resistance."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Warrior Skills -->
+        <insert tableName="ability">
+            <column name="ability_key" value="power-strike"/>
+            <column name="name" value="Power Strike"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+3"/>
+            <column name="description" value="A devastating melee attack. +3 Damage on all attacks."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="cleave"/>
+            <column name="name" value="Cleave"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="power-strike"/>
+            <column name="effect" value="DAMAGE+2,CRIT_DAMAGE+10"/>
+            <column name="description" value="A sweeping strike that cuts deep. +2 Damage, +10% Crit Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="whirlwind"/>
+            <column name="name" value="Whirlwind"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Warrior"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="cleave"/>
+            <column name="effect" value="DAMAGE+4"/>
+            <column name="description" value="Spin in a deadly circle, striking with immense force. +4 Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="016-seed-rogue-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key LIKE 'rogue-%' OR ability_key IN ('backstab', 'assassinate', 'nimble', 'shadow-training')</sqlCheck>
+        </preConditions>
+        <comment>Seed initial Rogue abilities</comment>
+        
+        <!-- Rogue Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="nimble"/>
+            <column name="name" value="Nimble"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CRIT_CHANCE+5"/>
+            <column name="description" value="Your agility allows you to strike at weak points. +5% Crit Chance."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="shadow-training"/>
+            <column name="name" value="Shadow Training"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="nimble"/>
+            <column name="effect" value="CRIT_CHANCE+3,CRIT_DAMAGE+5"/>
+            <column name="description" value="Training in the shadows hones your precision. +3% Crit Chance, +5% Crit Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Rogue Skills -->
+        <insert tableName="ability">
+            <column name="ability_key" value="backstab"/>
+            <column name="name" value="Backstab"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CRIT_DAMAGE+15"/>
+            <column name="description" value="Strike from the shadows for devastating damage. +15% Crit Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="assassinate"/>
+            <column name="name" value="Assassinate"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction" value="Rogue"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="backstab"/>
+            <column name="effect" value="CRIT_CHANCE+5,CRIT_DAMAGE+10"/>
+            <column name="description" value="A lethal strike aimed at vital areas. +5% Crit Chance, +10% Crit Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="016-seed-mage-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key LIKE 'mage-%' OR ability_key IN ('arcane-focus', 'mana-shield', 'fireball', 'lightning-bolt', 'meteor-storm')</sqlCheck>
+        </preConditions>
+        <comment>Seed initial Mage abilities</comment>
+        
+        <!-- Mage Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="arcane-focus"/>
+            <column name="name" value="Arcane Focus"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+2"/>
+            <column name="description" value="Your magical studies enhance your spell power. +2 Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="mana-shield"/>
+            <column name="name" value="Mana Shield"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="MAX_HP+3"/>
+            <column name="description" value="You can channel mana into a protective barrier. +3 Max HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Mage Spells -->
+        <insert tableName="ability">
+            <column name="ability_key" value="fireball"/>
+            <column name="name" value="Fireball"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+4"/>
+            <column name="description" value="Hurl a ball of fire at your enemy. +4 Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="lightning-bolt"/>
+            <column name="name" value="Lightning Bolt"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+3,CRIT_CHANCE+5"/>
+            <column name="description" value="Strike with a bolt of lightning. +3 Damage, +5% Crit Chance."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="meteor-storm"/>
+            <column name="name" value="Meteor Storm"/>
+            <column name="type" value="SPELL"/>
+            <column name="class_restriction" value="Mage"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value="fireball,lightning-bolt"/>
+            <column name="effect" value="DAMAGE+6"/>
+            <column name="description" value="Call down a devastating meteor storm. +6 Damage. Requires Fireball and Lightning Bolt."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="016-seed-universal-abilities" author="copilot">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM ability WHERE ability_key IN ('combat-reflexes', 'iron-will', 'precise-strike', 'brutal-strike')</sqlCheck>
+        </preConditions>
+        <comment>Seed universal abilities available to all classes</comment>
+        
+        <!-- Universal Talents -->
+        <insert tableName="ability">
+            <column name="ability_key" value="combat-reflexes"/>
+            <column name="name" value="Combat Reflexes"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CRIT_RESISTANCE+10"/>
+            <column name="description" value="Your quick reflexes help you avoid critical hits. +10% Crit Resistance."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="iron-will"/>
+            <column name="name" value="Iron Will"/>
+            <column name="type" value="TALENT"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="MAX_HP+4"/>
+            <column name="description" value="Your determination increases your endurance. +4 Max HP."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <!-- Universal Skills -->
+        <insert tableName="ability">
+            <column name="ability_key" value="precise-strike"/>
+            <column name="name" value="Precise Strike"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="CRIT_CHANCE+3"/>
+            <column name="description" value="Aim for vulnerable spots. +3% Crit Chance."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+        
+        <insert tableName="ability">
+            <column name="ability_key" value="brutal-strike"/>
+            <column name="name" value="Brutal Strike"/>
+            <column name="type" value="SKILL"/>
+            <column name="class_restriction"/>
+            <column name="required_level" value="1"/>
+            <column name="prerequisites" value=""/>
+            <column name="effect" value="DAMAGE+2"/>
+            <column name="description" value="A forceful attack. +2 Damage."/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueDate="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

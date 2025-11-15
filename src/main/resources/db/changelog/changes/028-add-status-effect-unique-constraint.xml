@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Phase 9: Performance & Optimization (Part 2)
+        Add unique constraint to prevent race condition in status effect application
+    -->
+    <changeSet id="028-add-status-effect-unique-constraint" author="claude">
+        <comment>
+            Add unique constraint to prevent duplicate status effects from race conditions.
+            Constraint: (battle_id, affected_user_id, effect_type) must be unique.
+            This ensures only one instance of each effect type can exist per user per battle.
+        </comment>
+
+        <addUniqueConstraint
+            tableName="battle_status_effect"
+            columnNames="battle_id, affected_user_id, effect_type"
+            constraintName="uk_status_effect_battle_user_type"/>
+
+        <rollback>
+            <dropUniqueConstraint
+                tableName="battle_status_effect"
+                constraintName="uk_status_effect_battle_user_type"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

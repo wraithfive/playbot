@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="021-create-battle-turn-log-table" author="wraithfive">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="battle_turn_log"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="battle_turn_log">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="battle_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="guild_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="turn_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="target_user_id" type="VARCHAR(255)"/>
+            <column name="ability_id" type="BIGINT"/>
+            <column name="damage_dealt" type="INT" defaultValueNumeric="0"/>
+            <column name="healing_done" type="INT" defaultValueNumeric="0"/>
+            <column name="crit" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="hit" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="raw_roll" type="INT"/>
+            <column name="total_roll" type="INT"/>
+            <column name="defender_ac" type="INT"/>
+            <column name="hp_actor_after" type="INT"/>
+            <column name="hp_target_after" type="INT"/>
+            <column name="status_effects_applied" type="VARCHAR(1000)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="battle_turn_log" indexName="idx_battle_turn_log_battle_id">
+            <column name="battle_id"/>
+        </createIndex>
+
+        <createIndex tableName="battle_turn_log" indexName="idx_battle_turn_log_battle_turn">
+            <column name="battle_id"/>
+            <column name="turn_number"/>
+        </createIndex>
+
+        <createIndex tableName="battle_turn_log" indexName="idx_battle_turn_log_guild_id">
+            <column name="guild_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

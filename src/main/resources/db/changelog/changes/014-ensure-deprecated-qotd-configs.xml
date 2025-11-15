@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Ensure legacy table 'qotd_configs_deprecated' exists for backward compatibility -->
+    <changeSet id="014-ensure-qotd-configs-deprecated" author="copilot">
+        <preConditions onFail="MARK_RAN" onError="HALT">
+            <not>
+                <tableExists tableName="qotd_configs_deprecated"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="qotd_configs_deprecated">
+            <column name="guild_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_cron" type="VARCHAR(255)"/>
+            <column name="timezone" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="randomize" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="auto_approve" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_posted_at" type="TIMESTAMP"/>
+            <column name="next_index" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="qotd_configs_deprecated" columnNames="guild_id,channel_id" constraintName="pk_qotd_configs_deprecated"/>
+    </changeSet>
+
+</databaseChangeLog>

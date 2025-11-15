@@ -10,13 +10,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableJpaRepositories(basePackages = "com.discordbot.repository")
+@EnableJpaRepositories(basePackages = {"com.discordbot.repository", "com.discordbot.battle.repository"})
+@EntityScan(basePackages = {"com.discordbot.entity", "com.discordbot.battle.entity"})
+/**
+ * Main Spring Boot application entry point.
+ *
+ * Profile behavior:
+ * - We intentionally avoid a class-level @Profile("!repository-test").
+ *   Only the Discord JDA bean is gated with @Profile("!repository-test").
+ *   This lets repository/JPA slice tests that use the "repository-test" profile
+ *   bootstrap entities, repositories, and Liquibase without attempting to start JDA.
+ */
 public class Bot {
 
     private static final Logger logger = LoggerFactory.getLogger(Bot.class);
@@ -46,7 +58,13 @@ public class Bot {
     }
 
     @Bean
-    public JDA jda(SlashCommandHandler slashCommandHandler) throws InterruptedException {
+    @Profile("!repository-test")
+    public JDA jda(com.discordbot.command.CommandRouter commandRouter,
+                   com.discordbot.command.CommandRegistrar commandRegistrar,
+                   com.discordbot.battle.controller.CharacterCreationInteractionHandler characterCreationInteractionHandler,
+                   com.discordbot.battle.controller.BattleInteractionHandler battleInteractionHandler,
+                   com.discordbot.battle.controller.AbilityInteractionHandler abilityInteractionHandler,
+                   com.discordbot.battle.listener.ChatXpListener chatXpListener) throws InterruptedException {
         logger.info("=== Playbot Starting ===");
 
         // Get token from system properties (loaded in main())
@@ -73,12 +91,21 @@ public class Bot {
 
             // Set bot status and activity
             builder.setStatus(OnlineStatus.ONLINE);
-            builder.setActivity(Activity.playing("/roll for colors | /help"));
-            logger.info("Bot status set to ONLINE with activity: /roll for colors | /help");
+            builder.setActivity(Activity.playing("/roll for colors | /battle-help"));
+            logger.info("Bot status set to ONLINE with activity: /roll for colors | /battle-help");
 
-            // Register event listeners (injected from Spring)
-            builder.addEventListeners(slashCommandHandler);
-            logger.info("Event listener registered: SlashCommandHandler (with database persistence)");
+            // Register event listeners
+            // CommandRouter handles all slash command interactions
+            // CommandRegistrar handles command registration on guild events
+            // CharacterCreationInteractionHandler handles character creation button/select menu interactions
+            // ChatXpListener awards XP for chat messages (primary progression system)
+            builder.addEventListeners(commandRouter);
+            builder.addEventListeners(commandRegistrar);
+            builder.addEventListeners(characterCreationInteractionHandler);
+            builder.addEventListeners(battleInteractionHandler);
+            builder.addEventListeners(abilityInteractionHandler);
+            builder.addEventListeners(chatXpListener);
+            logger.info("Event listeners registered: CommandRouter, CommandRegistrar, CharacterCreationInteractionHandler, BattleInteractionHandler, AbilityInteractionHandler, ChatXpListener");
 
             // Build and start the bot
             JDA jda = builder.build();
