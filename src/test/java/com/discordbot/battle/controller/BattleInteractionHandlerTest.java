@@ -8,7 +8,8 @@ import com.discordbot.battle.util.CharacterCreationUIBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.interactions.components.ActionComponent;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,9 @@ class BattleInteractionHandlerTest {
     private StatusEffectService statusEffectService;
 
     @Mock
+    private MessageCreateData mockMessageData;
+
+    @Mock
     private ButtonInteractionEvent event;
 
     @Mock
@@ -75,9 +79,10 @@ class BattleInteractionHandlerTest {
 
         // Mock reply/edit actions
         when(event.reply(anyString())).thenReturn(replyAction);
+        when(event.reply(any(MessageCreateData.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
-        when(event.editMessageEmbeds(any())).thenReturn(editAction);
-        when(editAction.setComponents(any(ActionComponent.class))).thenReturn(editAction);
+        when(event.editMessageEmbeds(anyCollection())).thenReturn(editAction);
+        when(editAction.setComponents(any(ActionRow.class))).thenReturn(editAction);
         when(editAction.setComponents()).thenReturn(editAction);
 
         // Mock battle
@@ -396,7 +401,7 @@ class BattleInteractionHandlerTest {
         when(user.getId()).thenReturn("876543210987654321"); // Opponent
         when(battle.getOpponentId()).thenReturn("876543210987654321");
         when(battleService.hasCharacter(anyString(), anyString())).thenReturn(false);
-        when(uiBuilder.buildCharacterCreationMessage(anyString(), anyBoolean())).thenReturn("Character creation UI");
+        when(uiBuilder.buildCharacterCreationMessage(anyString(), anyBoolean())).thenReturn(mockMessageData);
 
         handler.onButtonInteraction(event);
 
