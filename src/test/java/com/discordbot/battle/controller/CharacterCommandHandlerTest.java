@@ -93,8 +93,8 @@ class CharacterCommandHandlerTest {
         when(event.getGuild()).thenReturn(guild);
         when(event.getUser()).thenReturn(commandUser);
         when(event.getJDA()).thenReturn(jda);
-        when(commandUser.getId()).thenReturn("user1");
-        when(guild.getId()).thenReturn("guild1");
+        when(commandUser.getId()).thenReturn("111111111111111111"); // Valid Discord snowflake
+        when(guild.getId()).thenReturn("222222222222222222"); // Valid Discord snowflake
         when(guild.getName()).thenReturn("Test Server");
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
@@ -135,11 +135,11 @@ class CharacterCommandHandlerTest {
     @Test
     void handle_viewsOwnCharacter_whenNoUserOptionProvided() {
         // Given: User has character, no target user specified
-        PlayerCharacter character = createTestCharacter("user1");
+        PlayerCharacter character = createTestCharacter("111111111111111111");
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -158,14 +158,14 @@ class CharacterCommandHandlerTest {
     @Test
     void handle_viewsOtherUsersCharacter_whenUserOptionProvided() {
         // Given: Target user has character
-        PlayerCharacter character = createTestCharacter("user2");
+        PlayerCharacter character = createTestCharacter("333333333333333333");
         OptionMapping userOption = mock(OptionMapping.class);
         when(userOption.getAsUser()).thenReturn(targetUser);
-        when(targetUser.getId()).thenReturn("user2");
+        when(targetUser.getId()).thenReturn("333333333333333333");
         when(event.getOption("user")).thenReturn(userOption);
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("333333333333333333", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user2")).thenReturn(member);
+        when(guild.getMemberById("333333333333333333")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TargetUser");
 
         // When: Handle command
@@ -183,7 +183,7 @@ class CharacterCommandHandlerTest {
     void handle_handlesNoCharacter_forSelf() {
         // Given: User doesn't have character
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.empty());
 
         // When: Handle command
@@ -199,10 +199,10 @@ class CharacterCommandHandlerTest {
         // Given: Target user doesn't have character
         OptionMapping userOption = mock(OptionMapping.class);
         when(userOption.getAsUser()).thenReturn(targetUser);
-        when(targetUser.getId()).thenReturn("user2");
+        when(targetUser.getId()).thenReturn("444444444444444444");
         when(targetUser.getName()).thenReturn("SomeUser");
         when(event.getOption("user")).thenReturn(userOption);
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("444444444444444444", "222222222222222222"))
             .thenReturn(Optional.empty());
 
         // When: Handle command
@@ -216,11 +216,11 @@ class CharacterCommandHandlerTest {
     @Test
     void handle_resolvesDisplayName_fromMemberInCache() {
         // Given: Member is in cache
-        PlayerCharacter character = createTestCharacter("user1");
+        PlayerCharacter character = createTestCharacter("111111111111111111");
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("NicknameUser");
 
         // When: Handle command
@@ -238,12 +238,12 @@ class CharacterCommandHandlerTest {
     @Test
     void handle_resolvesDisplayName_fromUserApi_whenMemberNotInCache() {
         // Given: Member not in cache, fetch from API
-        PlayerCharacter character = createTestCharacter("user1");
+        PlayerCharacter character = createTestCharacter("111111111111111111");
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(null); // Not in cache
-        when(jda.retrieveUserById("user1")).thenReturn(userRestAction);
+        when(guild.getMemberById("111111111111111111")).thenReturn(null); // Not in cache
+        when(jda.retrieveUserById("111111111111111111")).thenReturn(userRestAction);
         when(userRestAction.complete()).thenReturn(targetUser);
         when(targetUser.getName()).thenReturn("ApiUser");
 
@@ -256,18 +256,18 @@ class CharacterCommandHandlerTest {
 
         MessageEmbed embed = embedCaptor.getValue();
         assertEquals("🧙 Character Sheet — ApiUser", embed.getTitle());
-        verify(jda).retrieveUserById("user1");
+        verify(jda).retrieveUserById("111111111111111111");
     }
 
     @Test
     void handle_resolvesDisplayName_fallsBackToUnknownUser_onApiError() {
         // Given: Member not in cache, API fetch fails
-        PlayerCharacter character = createTestCharacter("user1");
+        PlayerCharacter character = createTestCharacter("111111111111111111");
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(null); // Not in cache
-        when(jda.retrieveUserById("user1")).thenReturn(userRestAction);
+        when(guild.getMemberById("111111111111111111")).thenReturn(null); // Not in cache
+        when(jda.retrieveUserById("111111111111111111")).thenReturn(userRestAction);
         when(userRestAction.complete()).thenThrow(new RuntimeException("API error"));
 
         // When: Handle command
@@ -285,15 +285,15 @@ class CharacterCommandHandlerTest {
     void handle_displaysDerivedStats_hpAndAc() {
         // Given: Character with specific stats (CON 14, DEX 16)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "222222222222222222", "Warrior", "Human",
             12, 16, 14, 10, 10, 10 // DEX 16, CON 14
         );
         // Note: Multi-level HP calculation is future work (Phase 6)
         // Current implementation only does D&D 5e Level 1: baseHp + CON mod
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -316,13 +316,13 @@ class CharacterCommandHandlerTest {
     void handle_displaysAbilityScores_withPositiveModifiers() {
         // Given: Character with high stats (18 STR = +4, 16 DEX = +3)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "222222222222222222", "Warrior", "Human",
             18, 16, 14, 12, 10, 8
         );
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -346,13 +346,13 @@ class CharacterCommandHandlerTest {
     void handle_displaysAbilityScores_withNegativeModifiers() {
         // Given: Character with low stats (6 STR = -2, 8 DEX = -1)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Wizard", "Human",
+            "111111111111111111", "222222222222222222", "Wizard", "Human",
             6, 8, 10, 16, 14, 12
         );
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -374,13 +374,13 @@ class CharacterCommandHandlerTest {
     void handle_displaysAbilityScores_withZeroModifiers() {
         // Given: Character with average stats (10-11 = +0)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "222222222222222222", "Warrior", "Human",
             10, 11, 10, 11, 10, 11
         );
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -401,11 +401,11 @@ class CharacterCommandHandlerTest {
     @Test
     void handle_displaysFooterWithCreationDate() {
         // Given: Character created at specific time
-        PlayerCharacter character = createTestCharacter("user1");
+        PlayerCharacter character = createTestCharacter("111111111111111111");
         when(event.getOption("user")).thenReturn(null);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "222222222222222222"))
             .thenReturn(Optional.of(character));
-        when(guild.getMemberById("user1")).thenReturn(member);
+        when(guild.getMemberById("111111111111111111")).thenReturn(member);
         when(member.getEffectiveName()).thenReturn("TestUser");
 
         // When: Handle command
@@ -443,7 +443,7 @@ class CharacterCommandHandlerTest {
      */
     private PlayerCharacter createTestCharacter(String userId) {
         return PlayerCharacterTestFactory.create(
-            userId, "guild1", "Warrior", "Human",
+            userId, "222222222222222222", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
     }
