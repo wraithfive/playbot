@@ -57,7 +57,7 @@ class LeaderboardCommandHandlerTest {
 
         // Default mocks
         when(event.getGuild()).thenReturn(guild);
-        when(guild.getId()).thenReturn("guild1");
+        when(guild.getId()).thenReturn("222222222222222222");
         when(guild.getName()).thenReturn("Test Server");
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
@@ -99,7 +99,7 @@ class LeaderboardCommandHandlerTest {
     void handle_displaysEloLeaderboard_byDefault() {
         // Given: Top ELO players
         List<PlayerCharacter> topPlayers = createMockPlayers(3);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
         when(event.getOption("type")).thenReturn(null); // Default to ELO
         when(event.getOption("limit")).thenReturn(null); // Default limit
@@ -114,14 +114,14 @@ class LeaderboardCommandHandlerTest {
         MessageEmbed embed = embedCaptor.getValue();
         assertEquals("👑 ELO Leaderboard", embed.getTitle());
         assertTrue(embed.getDescription().contains("Test Server"));
-        verify(characterRepository).findTopByElo(eq("guild1"), eq(PageRequest.of(0, 10)));
+        verify(characterRepository).findTopByElo(eq("222222222222222222"), eq(PageRequest.of(0, 10)));
     }
 
     @Test
     void handle_displaysWinsLeaderboard() {
         // Given: Top players by wins
         List<PlayerCharacter> topPlayers = createMockPlayers(3);
-        when(characterRepository.findTopByWins(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByWins(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
 
         OptionMapping typeOption = mock(OptionMapping.class);
@@ -138,14 +138,14 @@ class LeaderboardCommandHandlerTest {
 
         MessageEmbed embed = embedCaptor.getValue();
         assertEquals("🏆 Top Warriors (by Wins)", embed.getTitle());
-        verify(characterRepository).findTopByWins(eq("guild1"), eq(PageRequest.of(0, 10)));
+        verify(characterRepository).findTopByWins(eq("222222222222222222"), eq(PageRequest.of(0, 10)));
     }
 
     @Test
     void handle_displaysLevelLeaderboard() {
         // Given: Top players by level
         List<PlayerCharacter> topPlayers = createMockPlayers(3);
-        when(characterRepository.findTopByLevel(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByLevel(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
 
         OptionMapping typeOption = mock(OptionMapping.class);
@@ -162,14 +162,14 @@ class LeaderboardCommandHandlerTest {
 
         MessageEmbed embed = embedCaptor.getValue();
         assertEquals("⭐ Top Levels", embed.getTitle());
-        verify(characterRepository).findTopByLevel(eq("guild1"), eq(PageRequest.of(0, 10)));
+        verify(characterRepository).findTopByLevel(eq("222222222222222222"), eq(PageRequest.of(0, 10)));
     }
 
     @Test
     void handle_displaysActivityLeaderboard() {
         // Given: Most active players
         List<PlayerCharacter> topPlayers = createMockPlayers(3);
-        when(characterRepository.findTopByActivity(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByActivity(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
 
         OptionMapping typeOption = mock(OptionMapping.class);
@@ -186,14 +186,14 @@ class LeaderboardCommandHandlerTest {
 
         MessageEmbed embed = embedCaptor.getValue();
         assertEquals("⚔️ Most Active Battlers", embed.getTitle());
-        verify(characterRepository).findTopByActivity(eq("guild1"), eq(PageRequest.of(0, 10)));
+        verify(characterRepository).findTopByActivity(eq("222222222222222222"), eq(PageRequest.of(0, 10)));
     }
 
     @Test
     void handle_respectsCustomLimit() {
         // Given: Custom limit of 5
         List<PlayerCharacter> topPlayers = createMockPlayers(5);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
 
         OptionMapping limitOption = mock(OptionMapping.class);
@@ -205,14 +205,14 @@ class LeaderboardCommandHandlerTest {
         handler.handle(event);
 
         // Then: Uses custom limit
-        verify(characterRepository).findTopByElo(eq("guild1"), eq(PageRequest.of(0, 5)));
+        verify(characterRepository).findTopByElo(eq("222222222222222222"), eq(PageRequest.of(0, 5)));
     }
 
     @Test
     void handle_capsLimitAtMaximum() {
         // Given: Requested limit of 100 (exceeds max of 25)
         List<PlayerCharacter> topPlayers = createMockPlayers(25);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
 
         OptionMapping limitOption = mock(OptionMapping.class);
@@ -224,13 +224,13 @@ class LeaderboardCommandHandlerTest {
         handler.handle(event);
 
         // Then: Caps at 25
-        verify(characterRepository).findTopByElo(eq("guild1"), eq(PageRequest.of(0, 25)));
+        verify(characterRepository).findTopByElo(eq("222222222222222222"), eq(PageRequest.of(0, 25)));
     }
 
     @Test
     void handle_handlesEmptyLeaderboard() {
         // Given: No characters in guild
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(List.of());
         when(event.getOption("type")).thenReturn(null);
         when(event.getOption("limit")).thenReturn(null);
@@ -263,7 +263,7 @@ class LeaderboardCommandHandlerTest {
     void handle_includesMedalEmojisForTopThree() {
         // Given: Top 5 players
         List<PlayerCharacter> topPlayers = createMockPlayers(5);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(topPlayers);
         when(event.getOption("type")).thenReturn(null);
         when(event.getOption("limit")).thenReturn(null);
@@ -289,8 +289,8 @@ class LeaderboardCommandHandlerTest {
     @Test
     void handle_displaysCorrectStatsForEloLeaderboard() {
         // Given: Player with specific stats
-        PlayerCharacter player = createPlayerWithStats("user1", 10, 5, 2, 1500);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        PlayerCharacter player = createPlayerWithStats("111111111111111111", 10, 5, 2, 1500);
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(List.of(player));
         when(event.getOption("type")).thenReturn(null);
         when(event.getOption("limit")).thenReturn(null);
@@ -316,8 +316,8 @@ class LeaderboardCommandHandlerTest {
     @Test
     void handle_handlesZeroBattlesWinRate() {
         // Given: Player with no battles
-        PlayerCharacter player = createPlayerWithStats("user1", 0, 0, 0, 1000);
-        when(characterRepository.findTopByElo(eq("guild1"), any(PageRequest.class)))
+        PlayerCharacter player = createPlayerWithStats("111111111111111111", 0, 0, 0, 1000);
+        when(characterRepository.findTopByElo(eq("222222222222222222"), any(PageRequest.class)))
             .thenReturn(List.of(player));
         when(event.getOption("type")).thenReturn(null);
         when(event.getOption("limit")).thenReturn(null);
@@ -343,7 +343,7 @@ class LeaderboardCommandHandlerTest {
         List<PlayerCharacter> players = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             PlayerCharacter player = PlayerCharacterTestFactory.create(
-                "user" + (i + 1), "guild1", "Warrior", "Human",
+                "111111111111111" + String.format("%03d", i + 1), "222222222222222222", "Warrior", "Human",
                 12, 12, 12, 12, 12, 12
             );
             player.setElo(1500 - (i * 100)); // Decreasing ELO
@@ -360,7 +360,7 @@ class LeaderboardCommandHandlerTest {
      */
     private PlayerCharacter createPlayerWithStats(String userId, int wins, int losses, int draws, int elo) {
         PlayerCharacter player = PlayerCharacterTestFactory.create(
-            userId, "guild1", "Warrior", "Human",
+            userId, "222222222222222222", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         player.setWins(wins);

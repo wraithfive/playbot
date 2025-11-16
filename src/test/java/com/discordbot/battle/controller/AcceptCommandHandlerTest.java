@@ -63,9 +63,9 @@ class AcceptCommandHandlerTest {
         // Default mocks
         when(event.getGuild()).thenReturn(guild);
         when(event.getUser()).thenReturn(user);
-        when(user.getId()).thenReturn("user2");
+        when(user.getId()).thenReturn("222222222222222222");
         when(user.getName()).thenReturn("Opponent");
-        when(guild.getId()).thenReturn("guild1");
+        when(guild.getId()).thenReturn("333333333333333333");
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
@@ -107,7 +107,7 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_rejectsWhenNoPendingBattle() {
         // Given: No pending battle for user
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.empty());
 
         // When: Handle command
@@ -122,9 +122,9 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_rejectsWhenBattleInDifferentGuild() {
         // Given: Pending battle exists but in different guild
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild2"); // Different guild
+        when(activeBattle.getGuildId()).thenReturn("444444444444444444"); // Different guild
 
         // When: Handle command
         handler.handle(event);
@@ -138,10 +138,10 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_rejectsWhenOpponentHasNoCharacter() {
         // Given: Pending battle exists but opponent has no character
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(false);
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(false);
 
         // When: Handle command
         handler.handle(event);
@@ -155,23 +155,23 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_acceptsChallenge_andStartsBattle() {
         // Given: Valid pending battle
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(activeBattle.getChallengerId()).thenReturn("user1");
-        when(activeBattle.getOpponentId()).thenReturn("user2");
+        when(activeBattle.getChallengerId()).thenReturn("111111111111111111");
+        when(activeBattle.getOpponentId()).thenReturn("222222222222222222");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
         when(activeBattle.getStatus()).thenReturn(ActiveBattle.BattleStatus.ACTIVE);
-        when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
+        when(activeBattle.getCurrentTurnUserId()).thenReturn("111111111111111111");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
 
         // When: Handle command
         handler.handle(event);
 
         // Then: Accepts challenge and shows battle start
-        verify(battleService).acceptChallenge("battle123", "user2");
+        verify(battleService).acceptChallenge("battle123", "222222222222222222");
 
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         ArgumentCaptor<ActionRow> actionRowCaptor = ArgumentCaptor.forClass(ActionRow.class);
@@ -212,17 +212,17 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_displaysCorrectHpValues() {
         // Given: Battle with specific HP values
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(activeBattle.getChallengerId()).thenReturn("user1");
-        when(activeBattle.getOpponentId()).thenReturn("user2");
+        when(activeBattle.getChallengerId()).thenReturn("111111111111111111");
+        when(activeBattle.getOpponentId()).thenReturn("222222222222222222");
         when(activeBattle.getChallengerHp()).thenReturn(85);
         when(activeBattle.getOpponentHp()).thenReturn(92);
         when(activeBattle.getStatus()).thenReturn(ActiveBattle.BattleStatus.ACTIVE);
-        when(activeBattle.getCurrentTurnUserId()).thenReturn("user2");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
+        when(activeBattle.getCurrentTurnUserId()).thenReturn("222222222222222222");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
 
         // When: Handle command
         handler.handle(event);
@@ -241,17 +241,17 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_displaysCurrentTurn() {
         // Given: Valid battle
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(activeBattle.getChallengerId()).thenReturn("user1");
-        when(activeBattle.getOpponentId()).thenReturn("user2");
+        when(activeBattle.getChallengerId()).thenReturn("111111111111111111");
+        when(activeBattle.getOpponentId()).thenReturn("222222222222222222");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
         when(activeBattle.getStatus()).thenReturn(ActiveBattle.BattleStatus.ACTIVE);
-        when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
+        when(activeBattle.getCurrentTurnUserId()).thenReturn("111111111111111111");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
 
         // When: Handle command
         handler.handle(event);
@@ -268,17 +268,17 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_addsActionButtons() {
         // Given: Valid battle
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle456");
-        when(activeBattle.getChallengerId()).thenReturn("user1");
-        when(activeBattle.getOpponentId()).thenReturn("user2");
+        when(activeBattle.getChallengerId()).thenReturn("111111111111111111");
+        when(activeBattle.getOpponentId()).thenReturn("222222222222222222");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
         when(activeBattle.getStatus()).thenReturn(ActiveBattle.BattleStatus.ACTIVE);
-        when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
+        when(activeBattle.getCurrentTurnUserId()).thenReturn("111111111111111111");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
 
         // When: Handle command
         handler.handle(event);
@@ -294,12 +294,12 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_handlesIllegalStateException() {
         // Given: Battle can't be accepted (business logic error)
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
-        when(battleService.acceptChallenge("battle123", "user2"))
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
+        when(battleService.acceptChallenge("battle123", "222222222222222222"))
             .thenThrow(new IllegalStateException("Battle is no longer pending"));
 
         // When: Handle command
@@ -313,12 +313,12 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_handlesGenericException() {
         // Given: Service throws unexpected exception
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
-        when(battleService.acceptChallenge("battle123", "user2"))
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
+        when(battleService.acceptChallenge("battle123", "222222222222222222"))
             .thenThrow(new RuntimeException("Database error"));
 
         // When: Handle command
@@ -332,24 +332,24 @@ class AcceptCommandHandlerTest {
     @Test
     void handle_verifiesFullAcceptanceFlow() {
         // Given: Valid pending battle
-        when(battleService.findPendingBattleForOpponent("user2"))
+        when(battleService.findPendingBattleForOpponent("222222222222222222"))
             .thenReturn(Optional.of(activeBattle));
-        when(activeBattle.getGuildId()).thenReturn("guild1");
+        when(activeBattle.getGuildId()).thenReturn("333333333333333333");
         when(activeBattle.getId()).thenReturn("battle123");
-        when(activeBattle.getChallengerId()).thenReturn("user1");
-        when(activeBattle.getOpponentId()).thenReturn("user2");
+        when(activeBattle.getChallengerId()).thenReturn("111111111111111111");
+        when(activeBattle.getOpponentId()).thenReturn("222222222222222222");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
         when(activeBattle.getStatus()).thenReturn(ActiveBattle.BattleStatus.ACTIVE);
-        when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
-        when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
+        when(activeBattle.getCurrentTurnUserId()).thenReturn("111111111111111111");
+        when(battleService.hasCharacter("333333333333333333", "222222222222222222")).thenReturn(true);
 
         // When: Handle command
         handler.handle(event);
 
         // Then: Full acceptance flow executes
-        verify(battleService).findPendingBattleForOpponent("user2");
-        verify(battleService).hasCharacter("guild1", "user2");
-        verify(battleService).acceptChallenge("battle123", "user2");
+        verify(battleService).findPendingBattleForOpponent("222222222222222222");
+        verify(battleService).hasCharacter("333333333333333333", "222222222222222222");
+        verify(battleService).acceptChallenge("battle123", "222222222222222222");
     }
 }
