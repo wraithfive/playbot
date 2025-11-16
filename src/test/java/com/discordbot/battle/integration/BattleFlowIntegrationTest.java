@@ -123,7 +123,7 @@ class BattleFlowIntegrationTest {
         assertTrue(activeBattle.getOpponentHp() > 0);
 
         // When: Execute turns until battle ends
-        int maxTurns = 100; // Safety limit
+        int maxTurns = 300; // Safety limit (increased to accommodate combat mechanics like miss rates and damage reduction)
         int turnCount = 0;
         while (activeBattle.isActive() && turnCount < maxTurns) {
             String currentPlayer = activeBattle.getCurrentTurnUserId();
