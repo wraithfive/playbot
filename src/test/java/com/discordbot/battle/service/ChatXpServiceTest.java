@@ -101,18 +101,18 @@ class ChatXpServiceTest {
     void awardChatXp_detectsLevelUp() {
         // Given: Character near level-up threshold (level 1 -> 2 at 300 XP)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setXp(290); // 10-15 XP will trigger level up
         character.setLastChatXpAt(null);
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Award chat XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: Level up is detected
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
@@ -127,7 +127,7 @@ class ChatXpServiceTest {
         when(battleProperties.isEnabled()).thenReturn(false);
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: Returns disabled status
         assertEquals(ChatXpService.XpAwardStatus.DISABLED, result.status());
@@ -145,7 +145,7 @@ class ChatXpServiceTest {
         when(chatXpConfig.isEnabled()).thenReturn(false);
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: Returns disabled status
         assertEquals(ChatXpService.XpAwardStatus.DISABLED, result.status());
@@ -156,11 +156,11 @@ class ChatXpServiceTest {
     void awardChatXp_returnsNoCharacter_whenCharacterMissingAndAutoCreateDisabled() {
         // Given: No character exists and auto-create is disabled
         when(chatXpConfig.isAutoCreateCharacter()).thenReturn(false);
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.empty());
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: Returns no character status
         assertEquals(ChatXpService.XpAwardStatus.NO_CHARACTER, result.status());
@@ -209,16 +209,16 @@ class ChatXpServiceTest {
     void awardChatXp_returnsOnCooldown_whenRecentlyAwarded() {
         // Given: Character received XP 30 seconds ago (cooldown is 60 seconds)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setLastChatXpAt(LocalDateTime.now().minusSeconds(30));
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: Returns on cooldown status
         assertEquals(ChatXpService.XpAwardStatus.ON_COOLDOWN, result.status());
@@ -232,17 +232,17 @@ class ChatXpServiceTest {
     void awardChatXp_allowsAward_whenCooldownExpired() {
         // Given: Character received XP 61 seconds ago (cooldown is 60 seconds)
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setLastChatXpAt(LocalDateTime.now().minusSeconds(61));
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: XP is awarded
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
@@ -253,17 +253,17 @@ class ChatXpServiceTest {
     void awardChatXp_allowsAward_whenNeverAwarded() {
         // Given: Character has never received chat XP
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setLastChatXpAt(null);
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: XP is awarded (no cooldown for first award)
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
@@ -277,17 +277,17 @@ class ChatXpServiceTest {
         when(chatXpConfig.getBonusXpMax()).thenReturn(10);
 
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setLastChatXpAt(null);
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Award chat XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: XP awarded respects config (20-30 range)
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
