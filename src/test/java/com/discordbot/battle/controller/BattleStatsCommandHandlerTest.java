@@ -54,8 +54,8 @@ class BattleStatsCommandHandlerTest {
         // Default mocks
         when(event.getGuild()).thenReturn(guild);
         when(event.getUser()).thenReturn(user);
-        when(user.getId()).thenReturn("user1");
-        when(guild.getId()).thenReturn("guild1");
+        when(user.getId()).thenReturn("111111111111111111");
+        when(guild.getId()).thenReturn("222222222222222222");
         when(guild.getName()).thenReturn("Test Server");
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);

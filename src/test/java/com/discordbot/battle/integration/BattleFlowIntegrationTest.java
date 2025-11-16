@@ -105,28 +105,28 @@ class BattleFlowIntegrationTest {
     void completeBattleFlowFromChallengeToVictory() {
         // Given: Two characters
         PlayerCharacter challenger = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             18, 10, 16, 10, 10, 10 // High STR and CON
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Mage", "Elf",
+            "222222222222222222", "999999999999999999", "Mage", "Elf",
             6, 8, 1, 10, 10, 10 // Minimal stats (very weak) to ensure battle ends quickly
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(challenger));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
         // When: Create challenge
-        ActiveBattle battle = battleService.createChallenge("guild1", "user1", "user2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
         assertNotNull(battle);
         assertTrue(battle.isPending());
-        assertEquals("user1", battle.getChallengerId());
-        assertEquals("user2", battle.getOpponentId());
+        assertEquals("111111111111111111", battle.getChallengerId());
+        assertEquals("222222222222222222", battle.getOpponentId());
 
         // When: Accept challenge
-        ActiveBattle activeBattle = battleService.acceptChallenge(battle.getId(), "user2");
+        ActiveBattle activeBattle = battleService.acceptChallenge(battle.getId(), "222222222222222222");
         assertNotNull(activeBattle);
         assertTrue(activeBattle.isActive());
         assertTrue(activeBattle.getChallengerHp() > 0);
@@ -172,29 +172,29 @@ class BattleFlowIntegrationTest {
     void battleForfeitFlow() {
         // Given: Active battle
         PlayerCharacter challenger = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Rogue", "Halfling",
+            "222222222222222222", "999999999999999999", "Rogue", "Halfling",
             12, 16, 12, 10, 14, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(challenger));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
-        ActiveBattle battle = battleService.createChallenge("guild1", "user1", "user2");
-        battleService.acceptChallenge(battle.getId(), "user2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
+        battleService.acceptChallenge(battle.getId(), "222222222222222222");
 
         // When: Challenger forfeits
-        ActiveBattle forfeitedBattle = battleService.forfeit(battle.getId(), "user1");
+        ActiveBattle forfeitedBattle = battleService.forfeit(battle.getId(), "111111111111111111");
 
         // Then: Battle should be ended with opponent as winner
         assertNotNull(forfeitedBattle);
         assertTrue(forfeitedBattle.isEnded(), "Battle should be ended");
-        assertEquals("user2", forfeitedBattle.getWinnerUserId(),
+        assertEquals("222222222222222222", forfeitedBattle.getWinnerUserId(),
             "Opponent should be the winner after challenger forfeits");
     }
 
@@ -205,21 +205,21 @@ class BattleFlowIntegrationTest {
     void defendActionFlow() {
         // Given: Active battle
         PlayerCharacter challenger = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Cleric", "Dwarf",
+            "222222222222222222", "999999999999999999", "Cleric", "Dwarf",
             14, 10, 16, 10, 16, 12
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(challenger));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
-        ActiveBattle battle = battleService.createChallenge("guild1", "user1", "user2");
-        battle = battleService.acceptChallenge(battle.getId(), "user2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
+        battle = battleService.acceptChallenge(battle.getId(), "222222222222222222");
 
         String currentPlayer = battle.getCurrentTurnUserId();
         int initialTempAcBonus = battle.getTempAcBonus();
@@ -246,22 +246,22 @@ class BattleFlowIntegrationTest {
     void characterCreationToBattleToProgression() {
         // Given: Two new characters
         PlayerCharacter newChar1 = PlayerCharacterTestFactory.create(
-            "newuser1", "guild1", "Warrior", "Human",
+            "444444444444444444", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter newChar2 = PlayerCharacterTestFactory.create(
-            "newuser2", "guild1", "Rogue", "Elf",
+            "555555555555555555", "999999999999999999", "Rogue", "Elf",
             12, 16, 12, 10, 14, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("newuser1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("444444444444444444", "999999999999999999"))
             .thenReturn(Optional.of(newChar1));
-        when(characterRepository.findByUserIdAndGuildId("newuser2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("555555555555555555", "999999999999999999"))
             .thenReturn(Optional.of(newChar2));
 
         // When: Characters battle
-        ActiveBattle battle = battleService.createChallenge("guild1", "newuser1", "newuser2");
-        battle = battleService.acceptChallenge(battle.getId(), "newuser2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "444444444444444444", "555555555555555555");
+        battle = battleService.acceptChallenge(battle.getId(), "555555555555555555");
 
         // Execute a few turns
         for (int i = 0; i < 5 && battle.isActive(); i++) {
@@ -290,20 +290,20 @@ class BattleFlowIntegrationTest {
     void battleChallengeCannotBeAcceptedAfterCancellation() {
         // Given: Characters and a pending challenge
         PlayerCharacter challenger = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Mage", "Elf",
+            "222222222222222222", "999999999999999999", "Mage", "Elf",
             8, 14, 10, 18, 12, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(challenger));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
-        ActiveBattle battle = battleService.createChallenge("guild1", "user1", "user2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
 
         // When: Challenge is manually ended/removed from cache
         // (In real scenario, this would be done by cleanup scheduler or manual cancellation)
@@ -312,7 +312,7 @@ class BattleFlowIntegrationTest {
         // Then: Accepting should fail
         String nonExistentBattleId = "non-existent-battle-id";
         assertThrows(IllegalStateException.class, () ->
-            battleService.acceptChallenge(nonExistentBattleId, "user2"),
+            battleService.acceptChallenge(nonExistentBattleId, "222222222222222222"),
             "Accepting non-existent battle should throw exception"
         );
     }
@@ -324,31 +324,31 @@ class BattleFlowIntegrationTest {
     void cannotCreateChallengeWhileAlreadyInBattle() {
         // Given: Two active battles
         PlayerCharacter user1 = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter user2 = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Rogue", "Elf",
+            "222222222222222222", "999999999999999999", "Rogue", "Elf",
             12, 16, 12, 10, 14, 10
         );
         PlayerCharacter user3 = PlayerCharacterTestFactory.create(
-            "user3", "guild1", "Mage", "Human",
+            "333333333333333333", "999999999999999999", "Mage", "Human",
             8, 14, 10, 18, 12, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(user1));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(user2));
-        when(characterRepository.findByUserIdAndGuildId("user3", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("333333333333333333", "999999999999999999"))
             .thenReturn(Optional.of(user3));
 
         // When: user1 challenges user2
-        ActiveBattle battle1 = battleService.createChallenge("guild1", "user1", "user2");
+        ActiveBattle battle1 = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
 
         // Then: user1 cannot challenge user3 (busy with pending challenge to user2)
         assertThrows(IllegalStateException.class, () ->
-            battleService.createChallenge("guild1", "user1", "user3"),
+            battleService.createChallenge("999999999999999999", "111111111111111111", "333333333333333333"),
             "Cannot create challenge while already in pending battle"
         );
     }
@@ -360,25 +360,25 @@ class BattleFlowIntegrationTest {
     void battleStateRemainsConsistentAfterMultipleOperations() {
         // Given: Characters
         PlayerCharacter challenger = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "111111111111111111", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
-            "user2", "guild1", "Rogue", "Elf",
+            "222222222222222222", "999999999999999999", "Rogue", "Elf",
             12, 16, 12, 10, 14, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("111111111111111111", "999999999999999999"))
             .thenReturn(Optional.of(challenger));
-        when(characterRepository.findByUserIdAndGuildId("user2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
         // When: Perform multiple operations
-        ActiveBattle battle = battleService.createChallenge("guild1", "user1", "user2");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
         String battleId = battle.getId();
 
         // Accept
-        battle = battleService.acceptChallenge(battleId, "user2");
+        battle = battleService.acceptChallenge(battleId, "222222222222222222");
         assertTrue(battle.isActive(), "Battle should be active after accept");
 
         int operationsPerformed = 0;
@@ -436,21 +436,21 @@ class BattleFlowIntegrationTest {
     void battlesShouldCompleteInReasonableTurnCount() {
         // Scenario 1: Huge stat difference - should end very quickly (within 10 turns)
         PlayerCharacter strongWarrior = PlayerCharacterTestFactory.create(
-            "strong", "guild1", "Warrior", "Human",
+            "666666666666666666", "999999999999999999", "Warrior", "Human",
             18, 10, 16, 10, 10, 10 // High STR and CON
         );
         PlayerCharacter weakMage = PlayerCharacterTestFactory.create(
-            "weak", "guild1", "Mage", "Elf",
+            "777777777777777777", "999999999999999999", "Mage", "Elf",
             6, 8, 1, 10, 10, 10 // Very weak stats
         );
 
-        when(characterRepository.findByUserIdAndGuildId("strong", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("666666666666666666", "999999999999999999"))
             .thenReturn(Optional.of(strongWarrior));
-        when(characterRepository.findByUserIdAndGuildId("weak", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("777777777777777777", "999999999999999999"))
             .thenReturn(Optional.of(weakMage));
 
-        ActiveBattle mismatchedBattle = battleService.createChallenge("guild1", "strong", "weak");
-        mismatchedBattle = battleService.acceptChallenge(mismatchedBattle.getId(), "weak");
+        ActiveBattle mismatchedBattle = battleService.createChallenge("999999999999999999", "666666666666666666", "777777777777777777");
+        mismatchedBattle = battleService.acceptChallenge(mismatchedBattle.getId(), "777777777777777777");
 
         int turnCount = 0;
         while (mismatchedBattle.isActive() && turnCount < 100) {
@@ -470,21 +470,21 @@ class BattleFlowIntegrationTest {
 
         // Scenario 2: Balanced characters - should complete within 20 turns
         PlayerCharacter warrior1 = PlayerCharacterTestFactory.create(
-            "warrior1", "guild1", "Warrior", "Human",
+            "101010101010101010", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
         PlayerCharacter warrior2 = PlayerCharacterTestFactory.create(
-            "warrior2", "guild1", "Warrior", "Human",
+            "202020202020202020", "999999999999999999", "Warrior", "Human",
             15, 10, 14, 10, 10, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("warrior1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("101010101010101010", "999999999999999999"))
             .thenReturn(Optional.of(warrior1));
-        when(characterRepository.findByUserIdAndGuildId("warrior2", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("202020202020202020", "999999999999999999"))
             .thenReturn(Optional.of(warrior2));
 
-        ActiveBattle balancedBattle = battleService.createChallenge("guild1", "warrior1", "warrior2");
-        balancedBattle = battleService.acceptChallenge(balancedBattle.getId(), "warrior2");
+        ActiveBattle balancedBattle = battleService.createChallenge("999999999999999999", "101010101010101010", "202020202020202020");
+        balancedBattle = battleService.acceptChallenge(balancedBattle.getId(), "202020202020202020");
 
         int balancedTurnCount = 0;
         while (balancedBattle.isActive() && balancedTurnCount < 100) {
@@ -505,21 +505,21 @@ class BattleFlowIntegrationTest {
         // Scenario 3: ANY battle configuration should never exceed 50 turns
         // (This is a hard limit - if exceeded, combat system needs rebalancing)
         PlayerCharacter tankWarrior = PlayerCharacterTestFactory.create(
-            "tank", "guild1", "Warrior", "Dwarf",
+            "303030303030303030", "999999999999999999", "Warrior", "Dwarf",
             10, 8, 15, 10, 10, 10 // High CON, low damage
         );
         PlayerCharacter tankCleric = PlayerCharacterTestFactory.create(
-            "cleric", "guild1", "Cleric", "Dwarf",
+            "404040404040404040", "999999999999999999", "Cleric", "Dwarf",
             10, 8, 15, 10, 12, 10 // High CON, low damage
         );
 
-        when(characterRepository.findByUserIdAndGuildId("tank", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("303030303030303030", "999999999999999999"))
             .thenReturn(Optional.of(tankWarrior));
-        when(characterRepository.findByUserIdAndGuildId("cleric", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("404040404040404040", "999999999999999999"))
             .thenReturn(Optional.of(tankCleric));
 
-        ActiveBattle tankBattle = battleService.createChallenge("guild1", "tank", "cleric");
-        tankBattle = battleService.acceptChallenge(tankBattle.getId(), "cleric");
+        ActiveBattle tankBattle = battleService.createChallenge("999999999999999999", "303030303030303030", "404040404040404040");
+        tankBattle = battleService.acceptChallenge(tankBattle.getId(), "404040404040404040");
 
         int maxTurnCount = 0;
         while (tankBattle.isActive() && maxTurnCount < 100) {
@@ -546,17 +546,17 @@ class BattleFlowIntegrationTest {
     void spellCastingIntegrationFlow() {
         // Given: Two characters, one with a spell ability
         PlayerCharacter wizard = PlayerCharacterTestFactory.create(
-            "wizard", "guild1", "Wizard", "Human",
+            "505050505050505050", "999999999999999999", "Wizard", "Human",
             10, 10, 10, 16, 10, 10 // High INT for spell power
         );
         PlayerCharacter fighter = PlayerCharacterTestFactory.create(
-            "fighter", "guild1", "Fighter", "Human",
+            "606060606060606060", "999999999999999999", "Fighter", "Human",
             15, 10, 14, 10, 10, 10
         );
 
-        when(characterRepository.findByUserIdAndGuildId("wizard", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("505050505050505050", "999999999999999999"))
             .thenReturn(Optional.of(wizard));
-        when(characterRepository.findByUserIdAndGuildId("fighter", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("606060606060606060", "999999999999999999"))
             .thenReturn(Optional.of(fighter));
 
         // Mock spell resource availability (wizard has spell slots)
@@ -588,16 +588,16 @@ class BattleFlowIntegrationTest {
             .thenReturn(java.util.List.of(wizardKnowsFireball));
 
         // When: Create and start battle
-        ActiveBattle battle = battleService.createChallenge("guild1", "wizard", "fighter");
-        battle = battleService.acceptChallenge(battle.getId(), "fighter");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "505050505050505050", "606060606060606060");
+        battle = battleService.acceptChallenge(battle.getId(), "606060606060606060");
 
         int initialFighterHp = battle.getOpponentHp();
 
         // Wizard casts Fireball on their turn (if wizard goes first)
-        if (battle.getCurrentTurnUserId().equals("wizard")) {
+        if (battle.getCurrentTurnUserId().equals("505050505050505050")) {
             BattleService.SpellResult spellResult = battleService.performSpell(
                 battle.getId(),
-                "wizard",
+                "505050505050505050",
                 1L
             );
 
@@ -639,7 +639,7 @@ class BattleFlowIntegrationTest {
     void battleCompletionAwardsXpAndElo() {
         // Given: Two characters with specific starting XP and ELO
         PlayerCharacter attacker = PlayerCharacterTestFactory.create(
-            "attacker", "guild1", "Warrior", "Human",
+            "707070707070707070", "999999999999999999", "Warrior", "Human",
             18, 10, 14, 10, 10, 10 // High STR for quick victory
         );
         attacker.setXp(1000);
@@ -647,16 +647,16 @@ class BattleFlowIntegrationTest {
         attacker.setLevel(5);
 
         PlayerCharacter defender = PlayerCharacterTestFactory.create(
-            "defender", "guild1", "Rogue", "Elf",
+            "808080808080808080", "999999999999999999", "Rogue", "Elf",
             10, 12, 10, 10, 10, 10 // Lower stats, likely to lose
         );
         defender.setXp(500);
         defender.setElo(1100);
         defender.setLevel(3);
 
-        when(characterRepository.findByUserIdAndGuildId("attacker", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("707070707070707070", "999999999999999999"))
             .thenReturn(Optional.of(attacker));
-        when(characterRepository.findByUserIdAndGuildId("defender", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("808080808080808080", "999999999999999999"))
             .thenReturn(Optional.of(defender));
 
         long attackerStartXp = attacker.getXp();
@@ -665,8 +665,8 @@ class BattleFlowIntegrationTest {
         long defenderStartElo = defender.getElo();
 
         // When: Complete a full battle
-        ActiveBattle battle = battleService.createChallenge("guild1", "attacker", "defender");
-        battle = battleService.acceptChallenge(battle.getId(), "defender");
+        ActiveBattle battle = battleService.createChallenge("999999999999999999", "707070707070707070", "808080808080808080");
+        battle = battleService.acceptChallenge(battle.getId(), "808080808080808080");
 
         // Fight until battle ends
         int turnCount = 0;
@@ -685,11 +685,11 @@ class BattleFlowIntegrationTest {
         assertNotNull(battle.getWinnerUserId(), "Battle should have a winner");
 
         // Reload characters to get updated stats
-        PlayerCharacter winnerChar = battle.getWinnerUserId().equals("attacker") ? attacker : defender;
-        PlayerCharacter loserChar = battle.getWinnerUserId().equals("attacker") ? defender : attacker;
+        PlayerCharacter winnerChar = battle.getWinnerUserId().equals("707070707070707070") ? attacker : defender;
+        PlayerCharacter loserChar = battle.getWinnerUserId().equals("707070707070707070") ? defender : attacker;
 
         // Winner should gain XP and ELO
-        if (battle.getWinnerUserId().equals("attacker")) {
+        if (battle.getWinnerUserId().equals("707070707070707070")) {
             assertTrue(attacker.getXp() >= attackerStartXp,
                 "Winner should gain XP (or at minimum not lose XP)");
             // Note: ELO can decrease if fighting much lower rated opponent, so we just verify it changed
