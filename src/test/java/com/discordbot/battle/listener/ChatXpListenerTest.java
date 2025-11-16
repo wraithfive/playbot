@@ -130,7 +130,7 @@ class ChatXpListenerTest {
         when(chatXpService.awardChatXp("user1", "guild1"))
             .thenReturn(ChatXpService.XpAwardResult.awarded(15, 1, 2, true));
         when(message.addReaction(any(Emoji.class))).thenReturn(reactionAction);
-        when(reactionAction.queue(any(), any())).thenReturn(null);
+        // Note: queue() returns void, no need to mock return value
 
         // When: Message received
         listener.onMessageReceived(event);
