@@ -297,18 +297,18 @@ class ChatXpServiceTest {
 
     @Test
     void awardChatXp_handlesMultipleLevelUps() {
-        // Given: Character with enough XP to skip multiple levels
+        // Given: Character with enough XP to level up
         String userId = "333333333333333333"; // Valid Discord snowflake
         String guildId = "444444444444444444"; // Valid Discord snowflake
         PlayerCharacter character = PlayerCharacterTestFactory.create(
             userId, guildId, "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
-        // Set XP to just below level 3 threshold (900 XP)
-        // With max XP award (15), could potentially hit level 3 in one award if very close
-        // But more realistically, test single level up. For multiple levels, would need massive XP award
-        // Let's test going from level 1 to 2 as a realistic scenario
-        character.setXp(285); // Close to 300 (level 2)
+        // Set XP to 290 so that even with minimum award (10) we reach level 2 threshold (300)
+        // Level thresholds: 0, 300, 900, ...
+        // baseXp=10, bonusXpMax=5, so award is 10-15
+        // 290 + 10 = 300 (level 2) - guaranteed level up
+        character.setXp(290);
         character.setLastChatXpAt(null);
 
         when(characterRepository.findByUserIdAndGuildId(userId, guildId))
@@ -320,7 +320,8 @@ class ChatXpServiceTest {
 
         // Then: Level up is detected
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
-        assertTrue(result.leveledUp());
+        assertTrue(result.leveledUp(), "Character should level up from 1 to 2");
+        assertEquals(1, result.oldLevel());
         assertEquals(2, result.newLevel());
     }
 
