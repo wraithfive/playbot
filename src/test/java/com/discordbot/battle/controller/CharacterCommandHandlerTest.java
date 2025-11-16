@@ -1,6 +1,7 @@
 package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
+import com.discordbot.battle.config.ClassStats;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.entity.PlayerCharacterTestFactory;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
@@ -42,6 +43,9 @@ class CharacterCommandHandlerTest {
     private BattleProperties.ProgressionConfig.XpConfig xpConfig;
 
     @Mock
+    private BattleProperties.ClassConfig classConfig;
+
+    @Mock
     private PlayerCharacterRepository characterRepository;
 
     @Mock
@@ -77,7 +81,17 @@ class CharacterCommandHandlerTest {
         when(battleProperties.isEnabled()).thenReturn(true);
         when(battleProperties.getProgression()).thenReturn(progressionConfig);
         when(progressionConfig.getXp()).thenReturn(xpConfig);
-        // Note: HP config is not used by CharacterCommandHandler, removed incorrect mock setup
+
+        // Mock class config for HP calculation (D&D 5e hit die maximums)
+        when(battleProperties.getClassConfig()).thenReturn(classConfig);
+        ClassStats warriorStats = new ClassStats(10); // d10
+        ClassStats rogueStats = new ClassStats(8);    // d8
+        ClassStats mageStats = new ClassStats(6);     // d6
+        ClassStats clericStats = new ClassStats(8);   // d8
+        when(classConfig.getWarrior()).thenReturn(warriorStats);
+        when(classConfig.getRogue()).thenReturn(rogueStats);
+        when(classConfig.getMage()).thenReturn(mageStats);
+        when(classConfig.getCleric()).thenReturn(clericStats);
 
         handler = new CharacterCommandHandler(battleProperties, characterRepository);
 
@@ -280,7 +294,8 @@ class CharacterCommandHandlerTest {
             "user1", "guild1", "Warrior", "Human",
             12, 16, 14, 10, 10, 10 // DEX 16, CON 14
         );
-        character.setLevel(3); // Level 3
+        // Note: Multi-level HP calculation is future work (Phase 6)
+        // Current implementation only does D&D 5e Level 1: baseHp + CON mod
         when(event.getOption("user")).thenReturn(null);
         when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
             .thenReturn(Optional.of(character));
@@ -291,15 +306,14 @@ class CharacterCommandHandlerTest {
         handler.handle(event);
 
         // Then: HP and AC are displayed
-        // HP = baseHp + (conMod * level) + (hpPerLevel * (level-1))
-        // HP = 20 + (2 * 3) + (5 * 2) = 20 + 6 + 10 = 36
-        // AC = 10 + dexMod = 10 + 3 = 13
+        // HP = baseHp + conMod = 10 (Warrior d10) + 2 (CON 14 mod) = 12
+        // AC = 10 + dexMod = 10 + 3 (DEX 16 mod) = 13
         ArgumentCaptor<MessageEmbed> embedCaptor = ArgumentCaptor.forClass(MessageEmbed.class);
         verify(event).replyEmbeds(embedCaptor.capture());
 
         MessageEmbed embed = embedCaptor.getValue();
-        assertTrue(embed.getDescription().contains("HP: **36**"),
-            "Should show HP 36, got: " + embed.getDescription());
+        assertTrue(embed.getDescription().contains("HP: **12**"),
+            "Should show HP 12, got: " + embed.getDescription());
         assertTrue(embed.getDescription().contains("AC: **13**"),
             "Should show AC 13, got: " + embed.getDescription());
     }
