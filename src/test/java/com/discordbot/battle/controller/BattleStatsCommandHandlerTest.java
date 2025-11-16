@@ -171,12 +171,18 @@ class BattleStatsCommandHandlerTest {
     @Test
     void handle_displaysBattleOutcomesWithTotal() {
         // Given: Specific battle outcome stats
+        // Parameter order: challengesCreated, challengesAccepted, challengesDeclined,
+        //                  battlesCompleted, battlesForfeit, battlesTimeout, battlesAborted,
+        //                  turnsPlayed, attacksPerformed, defendsPerformed, spellsCast, criticalHits,
+        //                  activeBattles, pendingChallenges, avgTurnDurationMs, avgBattleDurationMs
         BattleMetricsService.BattleStats stats = new BattleMetricsService.BattleStats(
-            100, 75, 20, 5,
-            40, 8, 3, 2, // completed=40, forfeit=8, timeout=3, aborted=2 (total=53)
-            5, 5,
-            500, 200, 50, 75,
-            150.5, 30000.0
+            100, 75, 20, // challenges: created, accepted, declined
+            40, 8, 3, 2, // battles: completed=40, forfeit=8, timeout=3, aborted=2 (total=53)
+            100, // turnsPlayed
+            5, 5, // attacks, defends
+            500, 200, // spells, crits
+            50, 75, // active, pending
+            150.5, 30000.0 // avg turn ms, avg battle ms
         );
         when(metricsService.getStats()).thenReturn(stats);
 
@@ -204,12 +210,18 @@ class BattleStatsCommandHandlerTest {
     @Test
     void handle_displaysCurrentActivity() {
         // Given: Stats with current activity
+        // Parameter order: challengesCreated, challengesAccepted, challengesDeclined,
+        //                  battlesCompleted, battlesForfeit, battlesTimeout, battlesAborted,
+        //                  turnsPlayed, attacksPerformed, defendsPerformed, spellsCast, criticalHits,
+        //                  activeBattles, pendingChallenges, avgTurnDurationMs, avgBattleDurationMs
         BattleMetricsService.BattleStats stats = new BattleMetricsService.BattleStats(
-            100, 75, 20, 5,
-            50, 10, 3, 2,
+            100, 75, 20, // challenges
+            5, 50, 10, 3, // battles
+            2, // turns
+            100, 200, // attacks, defends
+            500, 200, // spells, crits
             12, 7, // active=12, pending=7
-            500, 200, 50, 75,
-            150.5, 30000.0
+            150.5, 30000.0 // avg turn ms, avg battle ms
         );
         when(metricsService.getStats()).thenReturn(stats);
 
@@ -234,12 +246,17 @@ class BattleStatsCommandHandlerTest {
     @Test
     void handle_displaysCombatActions() {
         // Given: Stats with combat actions
+        // Parameter order: challengesCreated, challengesAccepted, challengesDeclined,
+        //                  battlesCompleted, battlesForfeit, battlesTimeout, battlesAborted,
+        //                  turnsPlayed, attacksPerformed, defendsPerformed, spellsCast, criticalHits,
+        //                  activeBattles, pendingChallenges, avgTurnDurationMs, avgBattleDurationMs
         BattleMetricsService.BattleStats stats = new BattleMetricsService.BattleStats(
-            100, 75, 20, 5,
-            50, 10, 3, 2,
-            5, 5,
+            100, 75, 20, // challenges
+            5, 50, 10, 3, // battles
+            2, // turns
             1500, 600, 250, 180, // attacks=1500, defends=600, spells=250, crits=180
-            150.5, 30000.0
+            12, 7, // active, pending
+            150.5, 30000.0 // avg turn ms, avg battle ms
         );
         when(metricsService.getStats()).thenReturn(stats);
 
