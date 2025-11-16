@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -568,6 +569,15 @@ class BattleFlowIntegrationTest {
             "", "1d6 fire damage", "A ball of fire"
         );
         fireball.setSpellSlotLevel(1);
+
+        // Set ID via reflection for testing (ID is auto-generated in production)
+        try {
+            Field idField = com.discordbot.battle.entity.Ability.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(fireball, 1L);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set ability ID for testing", e);
+        }
 
         when(abilityRepository.findById(1L)).thenReturn(Optional.of(fireball));
 
