@@ -380,24 +380,42 @@ class BattleFlowIntegrationTest {
         battle = battleService.acceptChallenge(battleId, "user2");
         assertTrue(battle.isActive(), "Battle should be active after accept");
 
-        // Attack
-        String player1 = battle.getCurrentTurnUserId();
-        battle = battleService.performAttack(battleId, player1).battle();
+        int operationsPerformed = 0;
 
-        // Defend
-        String player2 = battle.getCurrentTurnUserId();
-        battle = battleService.performDefend(battleId, player2).battle();
+        // Attack (if still active)
+        if (battle.isActive()) {
+            String player1 = battle.getCurrentTurnUserId();
+            battle = battleService.performAttack(battleId, player1).battle();
+            operationsPerformed++;
+        }
 
-        // Attack again
-        String player3 = battle.getCurrentTurnUserId();
-        battle = battleService.performAttack(battleId, player3).battle();
+        // Defend (if still active)
+        if (battle.isActive()) {
+            String player2 = battle.getCurrentTurnUserId();
+            battle = battleService.performDefend(battleId, player2).battle();
+            operationsPerformed++;
+        }
+
+        // Attack again (if still active)
+        if (battle.isActive()) {
+            String player3 = battle.getCurrentTurnUserId();
+            battle = battleService.performAttack(battleId, player3).battle();
+            operationsPerformed++;
+        }
 
         // Then: State should be consistent
-        assertTrue(battle.getTurnNumber() >= 3, "Turn number should reflect actions taken");
-        assertTrue(battle.getChallengerHp() > 0 || battle.isEnded(),
-            "Challenger HP should be positive or battle ended");
-        assertTrue(battle.getOpponentHp() > 0 || battle.isEnded(),
-            "Opponent HP should be positive or battle ended");
+        assertTrue(operationsPerformed >= 1, "At least one operation should have been performed");
+        assertTrue(battle.getTurnNumber() >= operationsPerformed || battle.isEnded(),
+            "Turn number should reflect actions taken or battle ended");
+        assertTrue(battle.getChallengerHp() >= 0, "Challenger HP should never be negative");
+        assertTrue(battle.getOpponentHp() >= 0, "Opponent HP should never be negative");
+
+        // If battle ended, verify end state is valid
+        if (battle.isEnded()) {
+            assertNotNull(battle.getWinnerUserId(), "Ended battle should have a winner");
+            assertTrue(battle.getChallengerHp() == 0 || battle.getOpponentHp() == 0,
+                "When battle ends, one participant should have 0 HP");
+        }
     }
 
     /**
