@@ -365,7 +365,7 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Competitive focus: Battle XP primary, PvP emphasis
     - Casual focus: Chat XP primary, battles optional
   - **Status:** Phase 12 complete, configuration system production-ready
-- Phase 13 — Test Suite Build-Out: COMPLETED
+- Phase 13 — Test Suite Build-Out: COMPLETED (with critical improvements 2025-11-16)
   - **Property-based damage tests (completed):**
     - DamageCalculationPropertyTest: 10 test methods with 100+ parameterized test cases
     - Verifies damage invariants across all possible inputs:
@@ -389,8 +389,8 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Uses ExecutorService with CountDownLatch for proper concurrency testing
     - Verifies battle state consistency under concurrent access
     - @RepeatedTest(10) for flaky test detection
-  - **Integration tests (completed):**
-    - BattleFlowIntegrationTest: 8 end-to-end scenario tests
+  - **Integration tests (completed + improved 2025-11-16):**
+    - BattleFlowIntegrationTest: 9 end-to-end scenario tests
     - Complete flows tested:
       - Challenge → Accept → Attacks → Victory (full battle)
       - Forfeit flow with winner determination
@@ -398,7 +398,21 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
       - Character creation → Battle → Progression
       - Challenge expiration and cleanup
       - Busy state validation (cannot challenge while in battle)
-      - State consistency after multiple operations
+      - State consistency after multiple operations (handles early battle endings)
+      - **NEW: Battle duration quality gate (3 scenarios)**
+    - **Critical improvements (commits 8ebbf71, d0cc6d8, c64448e):**
+      - **Fixed missing mock stubs:** Added proper stubs for characterAbilityRepository and StatusEffectService methods
+        - Previous: Mocks returned null, breaking combat stats calculation
+        - Fixed: Return empty lists and neutral values (no abilities, no status effects)
+      - **Added battle duration enforcement test:** Prevents regression to 100+ turn battles
+        - Mismatched battles (strong vs weak): Must complete within 10 turns
+        - Balanced battles (equal stats): Must complete within 20 turns
+        - Hard limit: NO battle can exceed 50 turns (rebalancing needed if violated)
+        - Validates combat system provides good player experience (D&D 5e typical: 3-5 rounds = 6-10 turns)
+      - **Made tests resilient to realistic combat:** State consistency test now handles battles ending early (2-3 hits)
+        - Previous: Assumed 3 operations always complete, failed when battle ended quickly
+        - Fixed: Check battle.isActive() before each operation, validate end state properly
+      - **Root cause identified:** Tests were passing but combat was broken due to null returns from unstubbed mocks
     - Verifies HP bounds, turn advancement, winner determination
     - Tests real battle mechanics without excessive mocking
   - **Comprehensive test documentation (completed):**
@@ -413,18 +427,42 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Best practices: 10 key testing principles
   - **Test statistics:**
     - Total battle system tests: 300+ tests across 30+ test files
-    - New tests in Phase 13: 24 tests
+    - Phase 13 tests: 27 tests (3 new duration tests + 24 original)
       - Property-based: 10 tests (100+ parameterized cases)
       - Concurrency: 6 tests
-      - Integration: 8 tests
+      - Integration: 9 tests (was 8, added 1 duration test)
+      - Battle duration: 3 scenarios in 1 test method
     - Test success rate: 100% passing
-    - Coverage: High coverage across all components
+    - Coverage: High coverage across core battle mechanics
   - **Test categories:**
     - Unit tests: ~85% (260+ tests) - Individual component testing
-    - Integration tests: ~3% (8 tests) - End-to-end flows
+    - Integration tests: ~3% (9 tests) - End-to-end flows
     - Property-based tests: ~10% (30+ tests) - Invariant verification
     - Concurrency tests: ~2% (6 tests) - Thread-safety
-  - **Status:** Phase 13 complete, comprehensive test suite production-ready
+  - **Known test coverage gaps (documented for future phases):**
+    - **Services needing tests:**
+      - BattleRecoveryService (Phase 7 recovery logic)
+      - BattleMetricsService (Phase 8 metrics)
+      - ChatXpService (chat XP awards)
+      - AbilityService (if exists)
+    - **Handlers needing tests:**
+      - LeaderboardCommandHandler (Phase 6)
+      - BattleStatsCommandHandler (Phase 8)
+      - CharacterCommandHandler (character viewing)
+      - DuelCommandHandler (challenge creation)
+      - AcceptCommandHandler (challenge acceptance)
+      - ForfeitCommandHandler (battle forfeit)
+    - **Listeners needing tests:**
+      - ChatXpListener (chat XP event handling)
+    - **Integration scenarios needing tests:**
+      - Spell casting end-to-end (performSpell flow)
+      - Progression/XP/ELO award calculations
+      - Leaderboard queries and ranking
+      - Recovery service startup behavior
+      - Timeout scheduler integration
+      - Chat XP integration
+    - **Note:** These gaps are non-blocking for current production use as core battle mechanics (attack/defend/forfeit) are thoroughly tested. Spell/progression features have unit test coverage but lack integration tests.
+  - **Status:** Phase 13 complete with critical improvements, core test suite production-ready, gaps documented for future enhancement
 
 ### 4.2 Recent progress (2025-11-15)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
