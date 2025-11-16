@@ -330,6 +330,41 @@ Introduce a self-contained turn-based battle subsystem (duels first, optionally 
     - Self-duel prevention: Cannot duel yourself
     - Character validation: Checks character existence before battles
   - **Status:** Phase 11 complete, admin controls and permission checks operational
+- Phase 12 — Config & Tuning: COMPLETED
+  - **Comprehensive configuration documentation (completed):**
+    - BATTLE_CONFIG.md: Complete guide to all battle.* properties
+    - Detailed property documentation with defaults, ranges, and effects
+    - Tuning guidelines for different server sizes (small/medium/large/huge)
+    - Server profile templates (competitive, casual, social focus)
+    - Troubleshooting guide for common configuration issues
+    - Configuration validation and health check documentation
+  - **Runtime configuration validation (completed):**
+    - BattleConfigValidator: Startup validation service
+    - @PostConstruct validation with detailed warnings and info messages
+    - Validates point-buy settings, combat settings, progression balance
+    - Warns about suboptimal configurations (e.g., battle grinding, spam potential)
+    - Logs configuration health status at bot startup
+  - **Configuration health reporting (completed):**
+    - generateHealthReport() method for runtime config inspection
+    - Summary report of all critical configuration values
+    - Integration with /battle-config-reload admin command
+  - **Test coverage (completed):**
+    - BattleConfigValidatorTest: 6 tests covering validation scenarios
+    - Tests for disabled system, default config, health reports
+    - Validates all configuration sections are reported correctly
+  - **Existing configuration (verified):**
+    - 50+ battle.* properties in application.properties
+    - All properties documented with inline comments
+    - D&D 5e standard defaults for balanced gameplay
+    - Production-ready defaults with safe limits
+  - **Tuning profiles:**
+    - Small servers (<100 members): Fast-paced, 30s cooldown
+    - Medium servers (100-500): Balanced defaults
+    - Large servers (500-5000): Moderate pace, 120s cooldown
+    - Huge servers (5000+): Resource-optimized, chat XP primary
+    - Competitive focus: Battle XP primary, PvP emphasis
+    - Casual focus: Chat XP primary, battles optional
+  - **Status:** Phase 12 complete, configuration system production-ready
 
 ### 4.2 Recent progress (2025-11-15)
 - **Phase 3 — Duel combat MVP: COMPLETED + CRITICAL FIXES APPLIED**
