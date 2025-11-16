@@ -100,7 +100,7 @@ class BattleFlowIntegrationTest {
         );
         PlayerCharacter opponent = PlayerCharacterTestFactory.create(
             "user2", "guild1", "Mage", "Elf",
-            8, 14, 3, 18, 12, 10 // Very low STR and CON (much weaker), high DEX and INT
+            6, 8, 1, 10, 10, 10 // Minimal stats (very weak) to ensure battle ends quickly
         );
 
         when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
