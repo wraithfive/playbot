@@ -11,7 +11,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
-import net.dv8tion.jda.api.requests.RestAction;
+import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,7 +63,7 @@ class CharacterCommandHandlerTest {
     private JDA jda;
 
     @Mock
-    private RestAction<User> userRestAction;
+    private CacheRestAction<User> userRestAction;
 
     @Mock
     private ReplyCallbackAction replyAction;
@@ -77,8 +77,7 @@ class CharacterCommandHandlerTest {
         when(battleProperties.isEnabled()).thenReturn(true);
         when(battleProperties.getProgression()).thenReturn(progressionConfig);
         when(progressionConfig.getXp()).thenReturn(xpConfig);
-        when(xpConfig.getBaseHp()).thenReturn(20);
-        when(xpConfig.getHpPerLevel()).thenReturn(5);
+        // Note: HP config is not used by CharacterCommandHandler, removed incorrect mock setup
 
         handler = new CharacterCommandHandler(battleProperties, characterRepository);
 
@@ -92,7 +91,6 @@ class CharacterCommandHandlerTest {
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
-        when(replyAction.queue()).thenReturn(null);
     }
 
     @Test

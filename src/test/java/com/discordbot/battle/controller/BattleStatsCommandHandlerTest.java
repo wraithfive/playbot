@@ -60,7 +60,6 @@ class BattleStatsCommandHandlerTest {
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
         when(replyAction.setEphemeral(anyBoolean())).thenReturn(replyAction);
-        when(replyAction.queue()).thenReturn(null);
     }
 
     @Test

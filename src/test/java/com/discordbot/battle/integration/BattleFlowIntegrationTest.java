@@ -559,18 +559,15 @@ class BattleFlowIntegrationTest {
             .thenReturn(Optional.of(fighter));
 
         // Mock spell resource availability (wizard has spell slots)
-        when(spellResourceService.hasResourcesForAbility("wizard", "guild1", 1L))
+        when(spellResourceService.hasAvailableSpellSlot(wizard, 1))
             .thenReturn(true);
 
-        // Mock ability lookup (Fireball spell)
-        com.discordbot.battle.entity.Ability fireball = new com.discordbot.battle.entity.Ability();
-        fireball.setId(1L);
-        fireball.setName("Fireball");
-        fireball.setAbilityType(com.discordbot.battle.entity.Ability.AbilityType.DAMAGE);
-        fireball.setTargetType(com.discordbot.battle.entity.Ability.TargetType.ENEMY);
-        fireball.setResourceType(com.discordbot.battle.entity.Ability.ResourceType.SPELL_SLOT);
-        fireball.setResourceCost(1);
-        fireball.setLevel(1);
+        // Mock ability lookup (Fireball spell) - using public constructor
+        com.discordbot.battle.entity.Ability fireball = new com.discordbot.battle.entity.Ability(
+            "fireball", "Fireball", "SPELL", "Wizard", 1,
+            "", "1d6 fire damage", "A ball of fire"
+        );
+        fireball.setSpellSlotLevel(1);
 
         when(abilityRepository.findById(1L)).thenReturn(Optional.of(fireball));
 
@@ -597,11 +594,11 @@ class BattleFlowIntegrationTest {
             battle = spellResult.battle();
 
             // Then: Spell should be cast successfully
-            assertTrue(spellResult.success(), "Spell should cast successfully");
-            assertNotNull(spellResult.description(), "Spell should have description");
+            assertTrue(spellResult.hit(), "Spell should cast successfully");
+            assertNotNull(spellResult.statusEffectMessages(), "Spell should have status messages");
 
             // Verify spell resource was consumed
-            verify(spellResourceService).consumeAbilityResource("wizard", "guild1", fireball);
+            verify(spellResourceService).consumeSpellSlot(wizard, 1);
 
             // Fighter should have taken damage (or battle should progress normally)
             assertTrue(battle.getTurnNumber() > 1 || battle.getOpponentHp() < initialFighterHp,
@@ -652,10 +649,10 @@ class BattleFlowIntegrationTest {
         when(characterRepository.findByUserIdAndGuildId("defender", "guild1"))
             .thenReturn(Optional.of(defender));
 
-        int attackerStartXp = attacker.getXp();
-        int attackerStartElo = attacker.getElo();
-        int defenderStartXp = defender.getXp();
-        int defenderStartElo = defender.getElo();
+        long attackerStartXp = attacker.getXp();
+        long attackerStartElo = attacker.getElo();
+        long defenderStartXp = defender.getXp();
+        long defenderStartElo = defender.getElo();
 
         // When: Complete a full battle
         ActiveBattle battle = battleService.createChallenge("guild1", "attacker", "defender");
