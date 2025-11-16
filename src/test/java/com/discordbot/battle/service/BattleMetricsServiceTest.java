@@ -245,9 +245,16 @@ class BattleMetricsServiceTest {
         metricsService.recordChallengeAccepted();
         metricsService.recordChallengeDeclined();
 
+        // Accept 2 more challenges to balance the 3 battle endings
+        metricsService.recordChallengeCreated();
+        metricsService.recordChallengeAccepted();
+        metricsService.recordChallengeCreated();
+        metricsService.recordChallengeAccepted();
+
         metricsService.recordBattleCompleted(30000);
         metricsService.recordBattleForfeit(15000);
         metricsService.recordBattleTimeout(90000);
+        // Note: recordBattleAborted() does NOT decrement activeBattles
         metricsService.recordBattleAborted();
 
         metricsService.recordTurnPlayed(100);
@@ -259,8 +266,8 @@ class BattleMetricsServiceTest {
         BattleMetricsService.BattleStats stats = metricsService.getStats();
 
         // Then: All metrics are present
-        assertEquals(2, stats.challengesCreated());
-        assertEquals(1, stats.challengesAccepted());
+        assertEquals(4, stats.challengesCreated());
+        assertEquals(3, stats.challengesAccepted());
         assertEquals(1, stats.challengesDeclined());
         assertEquals(1, stats.battlesCompleted());
         assertEquals(1, stats.battlesForfeit());
@@ -271,8 +278,8 @@ class BattleMetricsServiceTest {
         assertEquals(1, stats.defendsPerformed());
         assertEquals(1, stats.spellsCast());
         assertEquals(1, stats.criticalHits());
-        assertEquals(0, stats.activeBattles()); // 1 accepted - 3 ended
-        assertEquals(1, stats.pendingChallenges()); // 2 created - 1 accepted - 1 declined
+        assertEquals(0, stats.activeBattles()); // 3 accepted - 3 ended (completed/forfeit/timeout)
+        assertEquals(0, stats.pendingChallenges()); // 4 created - 3 accepted - 1 declined
     }
 
     @Test

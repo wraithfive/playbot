@@ -306,7 +306,7 @@ class LeaderboardCommandHandlerTest {
         MessageEmbed.Field rankingsField = embed.getFields().get(0);
         String rankings = rankingsField.getValue();
 
-        assertTrue(rankings.contains("1500 ELO"), "Should show ELO");
+        assertTrue(rankings.contains("**1500** ELO"), "Should show ELO");
         assertTrue(rankings.contains("10-5-2"), "Should show W-L-D record");
         // Win rate: 10 / (10+5+2) = 10/17 ≈ 58.8%
         assertTrue(rankings.contains("58.8% WR") || rankings.contains("58.9% WR"),

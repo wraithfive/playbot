@@ -559,7 +559,7 @@ class BattleFlowIntegrationTest {
         when(characterRepository.findByUserIdAndGuildId("606060606060606060", "999999999999999999"))
             .thenReturn(Optional.of(fighter));
 
-        // Mock spell resource availability (wizard has spell slots)
+        // Mock spell resource availability (wizard has spell slots and no cooldown)
         when(spellResourceService.hasAvailableSpellSlot(wizard, 1))
             .thenReturn(true);
 
@@ -580,6 +580,10 @@ class BattleFlowIntegrationTest {
         }
 
         when(abilityRepository.findById(1L)).thenReturn(Optional.of(fireball));
+
+        // Mock ability cooldown check - ability is available (not on cooldown)
+        when(spellResourceService.isAbilityAvailable(wizard, fireball))
+            .thenReturn(true);
 
         // Mock character knows the spell
         com.discordbot.battle.entity.CharacterAbility wizardKnowsFireball =

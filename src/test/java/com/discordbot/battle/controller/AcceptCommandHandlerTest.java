@@ -190,7 +190,7 @@ class AcceptCommandHandlerTest {
 
         // Should have status field
         assertTrue(embed.getFields().stream()
-            .anyMatch(f -> f.getName().equals("Status") && f.getValue().equals("IN_PROGRESS")));
+            .anyMatch(f -> f.getName().equals("Status") && f.getValue().equals("ACTIVE")));
 
         // Should have turn field
         assertTrue(embed.getFields().stream()
