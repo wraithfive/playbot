@@ -286,21 +286,18 @@ class BattleRecoveryServiceTest {
     }
 
     /**
-     * Helper: Create a battle session for testing
+     * Helper: Create a battle session for testing using public constructor
      */
     private BattleSession createBattleSession(String id, BattleSession.BattleStatus status) {
-        BattleSession battle = new BattleSession();
-        battle.setId(id);
-        battle.setGuildId("guild1");
-        battle.setChallengerId("user1");
-        battle.setOpponentId("user2");
-        battle.setStatus(status);
+        // Use public constructor: BattleSession(id, guildId, challengerId, opponentId, status)
+        BattleSession battle = new BattleSession(id, "guild1", "user1", "user2", status);
+        // Set mutable fields via setters (createdAt is set automatically via @PrePersist, but for tests we can use setters that exist)
         battle.setChallengerHp(50);
         battle.setOpponentHp(50);
         battle.setCurrentTurnUserId("user1");
         battle.setTurnNumber(1);
-        battle.setCreatedAt(LocalDateTime.now().minusMinutes(5));
         battle.setLastActionAt(LocalDateTime.now().minusMinutes(2));
+        // Note: createdAt and id cannot be set via setters (no setters exist). createdAt is auto-set in constructor to LocalDateTime.now()
         return battle;
     }
 }

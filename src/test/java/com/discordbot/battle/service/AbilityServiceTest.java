@@ -236,8 +236,7 @@ class AbilityServiceTest {
     void learnAbility_throwsWhenPrerequisitesMissing() {
         // Given: Ability requires prerequisite that character doesn't have
         PlayerCharacter warrior = createWarrior("user1");
-        Ability greatCleave = createAbility(2L, "great_cleave", "Great Cleave", "Warrior");
-        greatCleave.setPrerequisites("power_attack,cleave"); // Requires both
+        Ability greatCleave = createAbilityWithPrerequisites("great_cleave", "Great Cleave", "Warrior", "power_attack,cleave");
 
         when(playerCharacterRepository.findByUserIdAndGuildId("user1", "guild1"))
             .thenReturn(Optional.of(warrior));
@@ -262,8 +261,7 @@ class AbilityServiceTest {
 
         Ability powerAttack = createAbility(1L, "power_attack", "Power Attack", "Warrior");
         Ability cleave = createAbility(2L, "cleave", "Cleave", "Warrior");
-        Ability greatCleave = createAbility(3L, "great_cleave", "Great Cleave", "Warrior");
-        greatCleave.setPrerequisites("power_attack,cleave");
+        Ability greatCleave = createAbilityWithPrerequisites("great_cleave", "Great Cleave", "Warrior", "power_attack,cleave");
 
         CharacterAbility hasPowerAttack = new CharacterAbility(warrior, powerAttack);
         CharacterAbility hasCleave = new CharacterAbility(warrior, cleave);
@@ -286,10 +284,9 @@ class AbilityServiceTest {
 
     @Test
     void learnAbility_successWhenNoPrerequisites() {
-        // Given: Ability with null prerequisites
+        // Given: Ability with empty prerequisites (empty string means none)
         PlayerCharacter warrior = createWarrior("user1");
         Ability basicStrike = createAbility(1L, "basic_strike", "Basic Strike", null);
-        basicStrike.setPrerequisites(null);
 
         when(playerCharacterRepository.findByUserIdAndGuildId("user1", "guild1"))
             .thenReturn(Optional.of(warrior));
@@ -310,8 +307,7 @@ class AbilityServiceTest {
     void learnAbility_successWhenEmptyPrerequisites() {
         // Given: Ability with blank prerequisites string
         PlayerCharacter warrior = createWarrior("user1");
-        Ability basicStrike = createAbility(1L, "basic_strike", "Basic Strike", null);
-        basicStrike.setPrerequisites("  "); // Blank
+        Ability basicStrike = createAbilityWithPrerequisites("basic_strike", "Basic Strike", null, "  ");
 
         when(playerCharacterRepository.findByUserIdAndGuildId("user1", "guild1"))
             .thenReturn(Optional.of(warrior));
@@ -334,8 +330,7 @@ class AbilityServiceTest {
         PlayerCharacter warrior = createWarrior("user1");
 
         Ability powerAttack = createAbility(1L, "power_attack", "Power Attack", "Warrior");
-        Ability improvedPowerAttack = createAbility(2L, "improved_power_attack", "Improved Power Attack", "Warrior");
-        improvedPowerAttack.setPrerequisites("power_attack");
+        Ability improvedPowerAttack = createAbilityWithPrerequisites("improved_power_attack", "Improved Power Attack", "Warrior", "power_attack");
 
         CharacterAbility hasPowerAttack = new CharacterAbility(warrior, powerAttack);
 
@@ -361,8 +356,7 @@ class AbilityServiceTest {
 
         Ability powerAttack = createAbility(1L, "power_attack", "Power Attack", "Warrior");
         Ability cleave = createAbility(2L, "cleave", "Cleave", "Warrior");
-        Ability greatCleave = createAbility(3L, "great_cleave", "Great Cleave", "Warrior");
-        greatCleave.setPrerequisites("power_attack,cleave");
+        Ability greatCleave = createAbilityWithPrerequisites("great_cleave", "Great Cleave", "Warrior", "power_attack,cleave");
 
         CharacterAbility hasPowerAttack = new CharacterAbility(warrior, powerAttack);
         // Missing cleave
@@ -391,8 +385,7 @@ class AbilityServiceTest {
 
         Ability prereq1 = createAbility(1L, "prereq1", "Prereq 1", "Warrior");
         Ability prereq2 = createAbility(2L, "prereq2", "Prereq 2", "Warrior");
-        Ability advanced = createAbility(3L, "advanced", "Advanced", "Warrior");
-        advanced.setPrerequisites("  prereq1  ,  prereq2  "); // Whitespace
+        Ability advanced = createAbilityWithPrerequisites("advanced", "Advanced", "Warrior", "  prereq1  ,  prereq2  ");
 
         CharacterAbility has1 = new CharacterAbility(warrior, prereq1);
         CharacterAbility has2 = new CharacterAbility(warrior, prereq2);
@@ -423,14 +416,18 @@ class AbilityServiceTest {
     }
 
     /**
-     * Helper: Create an Ability
+     * Helper: Create an Ability using the public constructor
      */
     private Ability createAbility(Long id, String key, String name, String classRestriction) {
-        Ability ability = new Ability();
-        ability.setId(id);
-        ability.setKey(key);
-        ability.setName(name);
-        ability.setClassRestriction(classRestriction);
-        return ability;
+        // Use public constructor: Ability(key, name, type, classRestriction, requiredLevel, prerequisites, effect, description)
+        return new Ability(key, name, "TALENT", classRestriction, 1, "", "Test effect", "Test description");
+        // Note: ID cannot be set directly - it's auto-generated by JPA. For tests with mocking, the ID doesn't matter.
+    }
+
+    /**
+     * Helper: Create an Ability with specific prerequisites
+     */
+    private Ability createAbilityWithPrerequisites(String key, String name, String classRestriction, String prerequisites) {
+        return new Ability(key, name, "TALENT", classRestriction, 1, prerequisites, "Test effect", "Test description");
     }
 }

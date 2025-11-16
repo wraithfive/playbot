@@ -8,8 +8,8 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.interactions.components.ActionRow;
-import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -164,7 +164,7 @@ class AcceptCommandHandlerTest {
         when(activeBattle.getOpponentId()).thenReturn("user2");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
-        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.IN_PROGRESS);
+        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.ACTIVE);
         when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
         when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
 
@@ -221,7 +221,7 @@ class AcceptCommandHandlerTest {
         when(activeBattle.getOpponentId()).thenReturn("user2");
         when(activeBattle.getChallengerHp()).thenReturn(85);
         when(activeBattle.getOpponentHp()).thenReturn(92);
-        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.IN_PROGRESS);
+        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.ACTIVE);
         when(activeBattle.getCurrentTurnUserId()).thenReturn("user2");
         when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
 
@@ -250,7 +250,7 @@ class AcceptCommandHandlerTest {
         when(activeBattle.getOpponentId()).thenReturn("user2");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
-        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.IN_PROGRESS);
+        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.ACTIVE);
         when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
         when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
 
@@ -277,7 +277,7 @@ class AcceptCommandHandlerTest {
         when(activeBattle.getOpponentId()).thenReturn("user2");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
-        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.IN_PROGRESS);
+        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.ACTIVE);
         when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
         when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
 
@@ -350,7 +350,7 @@ class AcceptCommandHandlerTest {
         when(activeBattle.getOpponentId()).thenReturn("user2");
         when(activeBattle.getChallengerHp()).thenReturn(100);
         when(activeBattle.getOpponentHp()).thenReturn(100);
-        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.IN_PROGRESS);
+        when(activeBattle.getStatus()).thenReturn(BattleSession.BattleStatus.ACTIVE);
         when(activeBattle.getCurrentTurnUserId()).thenReturn("user1");
         when(battleService.hasCharacter("guild1", "user2")).thenReturn(true);
 
