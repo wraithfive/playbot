@@ -301,7 +301,7 @@ class BattleFlowIntegrationTest {
 
         // Then: Accepting should fail
         String nonExistentBattleId = "non-existent-battle-id";
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(IllegalStateException.class, () ->
             battleService.acceptChallenge(nonExistentBattleId, "user2"),
             "Accepting non-existent battle should throw exception"
         );

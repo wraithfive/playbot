@@ -581,6 +581,12 @@ public class BattleService {
      */
     private List<CharacterAbility> getCharacterAbilities(PlayerCharacter character) {
         Long characterId = character.getId();
+
+        // Skip cache for unpersisted characters (e.g., in tests)
+        if (characterId == null) {
+            return characterAbilityRepository.findByCharacter(character);
+        }
+
         List<CharacterAbility> cached = characterAbilitiesCache.getIfPresent(characterId);
         if (cached != null) {
             return cached;
@@ -618,7 +624,9 @@ public class BattleService {
     private void invalidateCharacterCache(PlayerCharacter character) {
         String cacheKey = character.getGuildId() + ":" + character.getUserId();
         characterCache.invalidate(cacheKey);
-        characterAbilitiesCache.invalidate(character.getId());
+        if (character.getId() != null) {
+            characterAbilitiesCache.invalidate(character.getId());
+        }
     }
 
     /** Ensure challenger has a character. */
