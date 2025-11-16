@@ -43,9 +43,6 @@ class CharacterCommandHandlerTest {
     private BattleProperties.ProgressionConfig.XpConfig xpConfig;
 
     @Mock
-    private BattleProperties.ClassConfig classConfig;
-
-    @Mock
     private PlayerCharacterRepository characterRepository;
 
     @Mock
@@ -82,16 +79,13 @@ class CharacterCommandHandlerTest {
         when(battleProperties.getProgression()).thenReturn(progressionConfig);
         when(progressionConfig.getXp()).thenReturn(xpConfig);
 
-        // Mock class config for HP calculation (D&D 5e hit die maximums)
-        when(battleProperties.getClassConfig()).thenReturn(classConfig);
-        ClassStats warriorStats = new ClassStats(10); // d10
-        ClassStats rogueStats = new ClassStats(8);    // d8
-        ClassStats mageStats = new ClassStats(6);     // d6
-        ClassStats clericStats = new ClassStats(8);   // d8
-        when(classConfig.getWarrior()).thenReturn(warriorStats);
-        when(classConfig.getRogue()).thenReturn(rogueStats);
-        when(classConfig.getMage()).thenReturn(mageStats);
-        when(classConfig.getCleric()).thenReturn(clericStats);
+        // Create real ClassConfig with real ClassStats for HP calculation (D&D 5e hit die maximums)
+        BattleProperties.ClassConfig realClassConfig = new BattleProperties.ClassConfig();
+        realClassConfig.setWarrior(new ClassStats(10)); // d10
+        realClassConfig.setRogue(new ClassStats(8));    // d8
+        realClassConfig.setMage(new ClassStats(6));     // d6
+        realClassConfig.setCleric(new ClassStats(8));   // d8
+        when(battleProperties.getClassConfig()).thenReturn(realClassConfig);
 
         handler = new CharacterCommandHandler(battleProperties, characterRepository);
 

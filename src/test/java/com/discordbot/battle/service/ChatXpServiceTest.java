@@ -71,17 +71,17 @@ class ChatXpServiceTest {
     void awardChatXp_successfullyAwardsXp() {
         // Given: Existing character with no recent chat XP
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            "123456789012345678", "987654321098765432", "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         character.setLastChatXpAt(null); // No previous award
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId("123456789012345678", "987654321098765432"))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Award chat XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("123456789012345678", "987654321098765432");
 
         // Then: XP is awarded
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
@@ -173,14 +173,16 @@ class ChatXpServiceTest {
     @Test
     void awardChatXp_autoCreatesCharacter_whenEnabled() {
         // Given: No character exists and auto-create is enabled
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        String userId = "111111111111111111"; // Valid Discord snowflake
+        String guildId = "222222222222222222"; // Valid Discord snowflake
+        when(characterRepository.findByUserIdAndGuildId(userId, guildId))
             .thenReturn(Optional.empty());
 
         ArgumentCaptor<PlayerCharacter> characterCaptor = ArgumentCaptor.forClass(PlayerCharacter.class);
         when(characterRepository.save(characterCaptor.capture())).thenAnswer(i -> i.getArgument(0));
 
         // When: Attempt to award XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp(userId, guildId);
 
         // Then: Character is created and XP is awarded
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
@@ -188,8 +190,8 @@ class ChatXpServiceTest {
 
         // Verify character was created with correct defaults
         PlayerCharacter createdCharacter = characterCaptor.getAllValues().get(0);
-        assertEquals("user1", createdCharacter.getUserId());
-        assertEquals("guild1", createdCharacter.getGuildId());
+        assertEquals(userId, createdCharacter.getUserId());
+        assertEquals(guildId, createdCharacter.getGuildId());
         assertEquals("Warrior", createdCharacter.getCharacterClass());
         assertEquals("Human", createdCharacter.getRace());
         assertEquals(12, createdCharacter.getStrength());
@@ -296,8 +298,10 @@ class ChatXpServiceTest {
     @Test
     void awardChatXp_handlesMultipleLevelUps() {
         // Given: Character with enough XP to skip multiple levels
+        String userId = "333333333333333333"; // Valid Discord snowflake
+        String guildId = "444444444444444444"; // Valid Discord snowflake
         PlayerCharacter character = PlayerCharacterTestFactory.create(
-            "user1", "guild1", "Warrior", "Human",
+            userId, guildId, "Warrior", "Human",
             12, 12, 12, 12, 12, 12
         );
         // Set XP to just below level 3 threshold (900 XP)
@@ -307,12 +311,12 @@ class ChatXpServiceTest {
         character.setXp(285); // Close to 300 (level 2)
         character.setLastChatXpAt(null);
 
-        when(characterRepository.findByUserIdAndGuildId("user1", "guild1"))
+        when(characterRepository.findByUserIdAndGuildId(userId, guildId))
             .thenReturn(Optional.of(character));
         when(characterRepository.save(any())).thenReturn(character);
 
         // When: Award chat XP
-        ChatXpService.XpAwardResult result = chatXpService.awardChatXp("user1", "guild1");
+        ChatXpService.XpAwardResult result = chatXpService.awardChatXp(userId, guildId);
 
         // Then: Level up is detected
         assertEquals(ChatXpService.XpAwardStatus.AWARDED, result.status());
