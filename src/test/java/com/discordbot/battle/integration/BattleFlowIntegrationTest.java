@@ -399,4 +399,123 @@ class BattleFlowIntegrationTest {
         assertTrue(battle.getOpponentHp() > 0 || battle.isEnded(),
             "Opponent HP should be positive or battle ended");
     }
+
+    /**
+     * Integration Test: Battles should complete within reasonable turn counts
+     *
+     * This test ensures the combat system provides a good player experience by:
+     * - Preventing infinitely long battles
+     * - Ensuring mismatched battles end quickly
+     * - Verifying balanced battles complete in reasonable time
+     *
+     * Expected turn counts based on D&D 5e combat design:
+     * - Typical combat: 3-5 rounds (6-10 turns for 1v1)
+     * - Extended combat: 5-10 rounds (10-20 turns for 1v1)
+     * - Maximum acceptable: 25 rounds (50 turns for 1v1)
+     */
+    @Test
+    void battlesShouldCompleteInReasonableTurnCount() {
+        // Scenario 1: Huge stat difference - should end very quickly (within 10 turns)
+        PlayerCharacter strongWarrior = PlayerCharacterTestFactory.create(
+            "strong", "guild1", "Warrior", "Human",
+            18, 10, 16, 10, 10, 10 // High STR and CON
+        );
+        PlayerCharacter weakMage = PlayerCharacterTestFactory.create(
+            "weak", "guild1", "Mage", "Elf",
+            6, 8, 1, 10, 10, 10 // Very weak stats
+        );
+
+        when(characterRepository.findByUserIdAndGuildId("strong", "guild1"))
+            .thenReturn(Optional.of(strongWarrior));
+        when(characterRepository.findByUserIdAndGuildId("weak", "guild1"))
+            .thenReturn(Optional.of(weakMage));
+
+        ActiveBattle mismatchedBattle = battleService.createChallenge("guild1", "strong", "weak");
+        mismatchedBattle = battleService.acceptChallenge(mismatchedBattle.getId(), "weak");
+
+        int turnCount = 0;
+        while (mismatchedBattle.isActive() && turnCount < 100) {
+            String currentPlayer = mismatchedBattle.getCurrentTurnUserId();
+            BattleService.AttackResult result = battleService.performAttack(
+                mismatchedBattle.getId(),
+                currentPlayer
+            );
+            mismatchedBattle = result.battle();
+            turnCount++;
+        }
+
+        assertTrue(mismatchedBattle.isEnded(),
+            "Mismatched battle should end (strong vs weak)");
+        assertTrue(turnCount <= 10,
+            String.format("Mismatched battle should end within 10 turns (took %d turns)", turnCount));
+
+        // Scenario 2: Balanced characters - should complete within 20 turns
+        PlayerCharacter warrior1 = PlayerCharacterTestFactory.create(
+            "warrior1", "guild1", "Warrior", "Human",
+            15, 10, 14, 10, 10, 10
+        );
+        PlayerCharacter warrior2 = PlayerCharacterTestFactory.create(
+            "warrior2", "guild1", "Warrior", "Human",
+            15, 10, 14, 10, 10, 10
+        );
+
+        when(characterRepository.findByUserIdAndGuildId("warrior1", "guild1"))
+            .thenReturn(Optional.of(warrior1));
+        when(characterRepository.findByUserIdAndGuildId("warrior2", "guild1"))
+            .thenReturn(Optional.of(warrior2));
+
+        ActiveBattle balancedBattle = battleService.createChallenge("guild1", "warrior1", "warrior2");
+        balancedBattle = battleService.acceptChallenge(balancedBattle.getId(), "warrior2");
+
+        int balancedTurnCount = 0;
+        while (balancedBattle.isActive() && balancedTurnCount < 100) {
+            String currentPlayer = balancedBattle.getCurrentTurnUserId();
+            BattleService.AttackResult result = battleService.performAttack(
+                balancedBattle.getId(),
+                currentPlayer
+            );
+            balancedBattle = result.battle();
+            balancedTurnCount++;
+        }
+
+        assertTrue(balancedBattle.isEnded(),
+            "Balanced battle should end within reasonable time");
+        assertTrue(balancedTurnCount <= 20,
+            String.format("Balanced battle should end within 20 turns (took %d turns)", balancedTurnCount));
+
+        // Scenario 3: ANY battle configuration should never exceed 50 turns
+        // (This is a hard limit - if exceeded, combat system needs rebalancing)
+        PlayerCharacter tankWarrior = PlayerCharacterTestFactory.create(
+            "tank", "guild1", "Warrior", "Dwarf",
+            10, 8, 15, 10, 10, 10 // High CON, low damage
+        );
+        PlayerCharacter tankCleric = PlayerCharacterTestFactory.create(
+            "cleric", "guild1", "Cleric", "Dwarf",
+            10, 8, 15, 10, 12, 10 // High CON, low damage
+        );
+
+        when(characterRepository.findByUserIdAndGuildId("tank", "guild1"))
+            .thenReturn(Optional.of(tankWarrior));
+        when(characterRepository.findByUserIdAndGuildId("cleric", "guild1"))
+            .thenReturn(Optional.of(tankCleric));
+
+        ActiveBattle tankBattle = battleService.createChallenge("guild1", "tank", "cleric");
+        tankBattle = battleService.acceptChallenge(tankBattle.getId(), "cleric");
+
+        int maxTurnCount = 0;
+        while (tankBattle.isActive() && maxTurnCount < 100) {
+            String currentPlayer = tankBattle.getCurrentTurnUserId();
+            BattleService.AttackResult result = battleService.performAttack(
+                tankBattle.getId(),
+                currentPlayer
+            );
+            tankBattle = result.battle();
+            maxTurnCount++;
+        }
+
+        assertTrue(tankBattle.isEnded(),
+            "Even tanky battle should end within maximum turn limit");
+        assertTrue(maxTurnCount <= 50,
+            String.format("NO battle should exceed 50 turns - combat system needs rebalancing if this fails (took %d turns)", maxTurnCount));
+    }
 }
