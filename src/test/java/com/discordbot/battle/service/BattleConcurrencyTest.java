@@ -122,7 +122,9 @@ class BattleConcurrencyTest {
         // Refresh battle reference
         battle = battleService.getBattleOrThrow(battle.getId());
 
-        String currentTurnUserId = battle.getCurrentTurnUserId();
+        // Store final references for lambda
+        final String battleId = battle.getId();
+        final String currentTurnUserId = battle.getCurrentTurnUserId();
         int initialTurnNumber = battle.getTurnNumber();
 
         // Simulate 3 concurrent button presses from the current turn player
@@ -134,7 +136,7 @@ class BattleConcurrencyTest {
         for (int i = 0; i < 3; i++) {
             executor.submit(() -> {
                 try {
-                    battleService.performAttack(battle.getId(), currentTurnUserId);
+                    battleService.performAttack(battleId, currentTurnUserId);
                     successCount.incrementAndGet();
                 } catch (IllegalStateException e) {
                     // Expected for concurrent attempts - "Not your turn" or similar
@@ -150,7 +152,7 @@ class BattleConcurrencyTest {
 
         // Verify: Only ONE attack should have succeeded
         // The battle should have advanced exactly one turn
-        ActiveBattle finalBattle = battleService.getBattleOrThrow(battle.getId());
+        ActiveBattle finalBattle = battleService.getBattleOrThrow(battleId);
         int finalTurnNumber = finalBattle.getTurnNumber();
 
         assertTrue(successCount.get() <= 2,
