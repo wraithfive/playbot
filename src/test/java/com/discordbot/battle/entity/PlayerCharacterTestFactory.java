@@ -1,5 +1,8 @@
 package com.discordbot.battle.entity;
 
+import java.lang.reflect.Method;
+import java.time.LocalDateTime;
+
 /**
  * Test factory for creating PlayerCharacter instances without Discord snowflake validation.
  * This allows tests to use simple IDs like "user123" instead of valid 18-digit Discord snowflakes.
@@ -27,9 +30,21 @@ public class PlayerCharacterTestFactory {
                                         int strength, int dexterity, int constitution,
                                         int intelligence, int wisdom, int charisma) {
         // Use package-private constructor with validateIds=false
-        return new PlayerCharacter(userId, guildId, characterClass, race,
-                                   strength, dexterity, constitution,
-                                   intelligence, wisdom, charisma,
-                                   false); // Skip Discord snowflake validation for tests
+        PlayerCharacter character = new PlayerCharacter(userId, guildId, characterClass, race,
+                                                        strength, dexterity, constitution,
+                                                        intelligence, wisdom, charisma,
+                                                        false); // Skip Discord snowflake validation for tests
+
+        // Initialize timestamp fields that would normally be set by @PrePersist
+        // Call the protected onCreate() method using reflection
+        try {
+            Method onCreateMethod = PlayerCharacter.class.getDeclaredMethod("onCreate");
+            onCreateMethod.setAccessible(true);
+            onCreateMethod.invoke(character);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize PlayerCharacter timestamps for testing", e);
+        }
+
+        return character;
     }
 }
