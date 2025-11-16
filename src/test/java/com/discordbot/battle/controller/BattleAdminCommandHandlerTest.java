@@ -127,7 +127,7 @@ class BattleAdminCommandHandlerTest {
         when(battleIdOption.getAsString()).thenReturn("battle123");
         when(event.getOption("battle_id")).thenReturn(battleIdOption);
 
-        ActiveBattle battle = new ActiveBattle("battle123", "guild123", "challenger123", "opponent123");
+        ActiveBattle battle = ActiveBattle.createPending("guild123", "challenger123", "opponent123");
         when(battleService.adminCancelBattle("battle123", "admin123")).thenReturn(battle);
 
         ReplyCallbackAction embedReplyAction = mock(ReplyCallbackAction.class);
