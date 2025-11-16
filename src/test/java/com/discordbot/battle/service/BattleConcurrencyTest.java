@@ -9,7 +9,7 @@ import com.discordbot.battle.repository.BattleSessionRepository;
 import com.discordbot.battle.repository.BattleTurnRepository;
 import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
-import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
@@ -62,9 +62,6 @@ class BattleConcurrencyTest {
     @Mock
     private AbilityRepository abilityRepository;
 
-    @Mock
-    private MeterRegistry meterRegistry;
-
     private BattleProperties battleProperties;
     private BattleService battleService;
 
@@ -76,7 +73,7 @@ class BattleConcurrencyTest {
         battleProperties = new BattleProperties();
         battleProperties.setEnabled(true);
 
-        // Create service with all required dependencies
+        // Create service with all required dependencies (use real SimpleMeterRegistry for cache metrics)
         battleService = new BattleService(
             characterRepository,
             characterAbilityRepository,
@@ -87,7 +84,7 @@ class BattleConcurrencyTest {
             statusEffectService,
             sessionRepository,
             metricsService,
-            meterRegistry
+            new SimpleMeterRegistry()
         );
 
         // Mock default status effect behavior (no damage, no healing, no messages, not stunned)
