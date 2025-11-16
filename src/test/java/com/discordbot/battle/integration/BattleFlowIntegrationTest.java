@@ -86,6 +86,15 @@ class BattleFlowIntegrationTest {
         // Mock default status effect behavior (no damage, no healing, no messages, not stunned)
         when(statusEffectService.processTurnStartEffects(any(), anyString()))
             .thenReturn(new StatusEffectService.TurnStartEffectResult(0, 0, "", false));
+        when(statusEffectService.getAttackModifier(anyString(), anyString())).thenReturn(0);
+        when(statusEffectService.getAcModifier(anyString(), anyString())).thenReturn(0);
+        when(statusEffectService.getDamageModifierPercent(anyString(), anyString())).thenReturn(100);
+        when(statusEffectService.getIncomingDamageModifierPercent(anyString(), anyString())).thenReturn(100);
+        when(statusEffectService.getShieldValue(anyString(), anyString())).thenReturn(0);
+
+        // Mock ability repositories to return empty lists (no learned abilities in basic tests)
+        when(characterAbilityRepository.findByCharacter(any()))
+            .thenReturn(java.util.List.of());
     }
 
     /**
@@ -123,7 +132,7 @@ class BattleFlowIntegrationTest {
         assertTrue(activeBattle.getOpponentHp() > 0);
 
         // When: Execute turns until battle ends
-        int maxTurns = 300; // Safety limit (increased to accommodate combat mechanics like miss rates and damage reduction)
+        int maxTurns = 100; // Safety limit
         int turnCount = 0;
         while (activeBattle.isActive() && turnCount < maxTurns) {
             String currentPlayer = activeBattle.getCurrentTurnUserId();
