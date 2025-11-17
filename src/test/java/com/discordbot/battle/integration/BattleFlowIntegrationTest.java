@@ -591,9 +591,16 @@ class BattleFlowIntegrationTest {
         when(characterAbilityRepository.findByCharacter(wizard))
             .thenReturn(java.util.List.of(wizardKnowsFireball));
 
+        // Mock fighter has no special abilities (empty list)
+        when(characterAbilityRepository.findByCharacter(fighter))
+            .thenReturn(java.util.List.of());
+
         // When: Create and start battle
         ActiveBattle battle = battleService.createChallenge("999999999999999999", "505050505050505050", "606060606060606060");
         battle = battleService.acceptChallenge(battle.getId(), "606060606060606060");
+
+        // Set test dice suppliers for deterministic spell attack (d20=15 guarantees hit, d6=4 for moderate damage)
+        battle.setTestDiceSuppliers(() -> 15, () -> 4);
 
         int initialFighterHp = battle.getOpponentHp();
 
