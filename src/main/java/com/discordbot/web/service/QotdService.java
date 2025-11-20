@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@SuppressWarnings("deprecation") // Uses legacy QotdConfig and QotdBanner for backward compatibility
 public class QotdService {
     private static final Logger logger = LoggerFactory.getLogger(QotdService.class);
     private final QotdQuestionRepository questionRepo;

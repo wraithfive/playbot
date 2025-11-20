@@ -27,6 +27,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for QotdService - CSV parsing, scheduling, and configuration
  */
+@SuppressWarnings("deprecation") // Tests legacy QotdConfig functionality
 class QotdServiceTest {
 
     private QotdService service;
