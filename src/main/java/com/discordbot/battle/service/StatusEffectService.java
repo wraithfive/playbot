@@ -147,6 +147,10 @@ public class StatusEffectService {
                     messages.append(String.format("😵 %s is stunned and cannot act!\n",
                         mention(userId)));
                 }
+                default -> {
+                    // Other status effects (HASTE, WEAKNESS, SHIELD, SLOW, PROTECTION, STRENGTH, VULNERABILITY)
+                    // are handled in different places (e.g., getAttackModifier, getDefenseModifier)
+                }
             }
         }
 
@@ -264,6 +268,7 @@ public class StatusEffectService {
             switch (effect.getEffectType()) {
                 case HASTE -> modifier += effect.getMagnitude();  // Positive AC bonus
                 case SLOW -> modifier -= effect.getMagnitude();    // Negative AC penalty
+                default -> {} // Other effects don't affect AC
             }
         }
 
@@ -281,6 +286,7 @@ public class StatusEffectService {
             switch (effect.getEffectType()) {
                 case HASTE -> modifier += effect.getMagnitude();  // Attack bonus
                 case SLOW -> modifier -= effect.getMagnitude();    // Attack penalty
+                default -> {} // Other effects don't affect attack rolls
             }
         }
 
@@ -299,6 +305,7 @@ public class StatusEffectService {
             switch (effect.getEffectType()) {
                 case STRENGTH -> percent += effect.getMagnitude();      // Increase damage
                 case WEAKNESS -> percent -= effect.getMagnitude();      // Decrease damage
+                default -> {} // Other effects don't affect outgoing damage
             }
         }
 
@@ -316,6 +323,7 @@ public class StatusEffectService {
             switch (effect.getEffectType()) {
                 case PROTECTION -> percent -= effect.getMagnitude();      // Reduce damage taken
                 case VULNERABILITY -> percent += effect.getMagnitude();   // Increase damage taken
+                default -> {} // Other effects don't affect incoming damage
             }
         }
 
