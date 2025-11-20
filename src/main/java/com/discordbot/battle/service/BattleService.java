@@ -819,7 +819,6 @@ public class BattleService {
         String opponentId = battle.getOpponentId();
 
         battle.addLog("Battle cancelled by administrator {USER:" + adminUserId + "}");
-        long battleDuration = System.currentTimeMillis() - battle.getCreatedAt();
 
         // Mark as ended with no winner
         battle.end(null); // No winner for admin-cancelled battles

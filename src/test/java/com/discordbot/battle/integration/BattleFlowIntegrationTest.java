@@ -304,11 +304,7 @@ class BattleFlowIntegrationTest {
         when(characterRepository.findByUserIdAndGuildId("222222222222222222", "999999999999999999"))
             .thenReturn(Optional.of(opponent));
 
-        ActiveBattle battle = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
-
-        // When: Challenge is manually ended/removed from cache
-        // (In real scenario, this would be done by cleanup scheduler or manual cancellation)
-        // Simulate by trying to accept a non-existent battle
+        // When: Trying to accept a non-existent battle
 
         // Then: Accepting should fail
         String nonExistentBattleId = "non-existent-battle-id";
@@ -345,7 +341,7 @@ class BattleFlowIntegrationTest {
             .thenReturn(Optional.of(user3));
 
         // When: user1 challenges user2
-        ActiveBattle battle1 = battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
+        battleService.createChallenge("999999999999999999", "111111111111111111", "222222222222222222");
 
         // Then: user1 cannot challenge user3 (busy with pending challenge to user2)
         assertThrows(IllegalStateException.class, () ->
@@ -672,9 +668,7 @@ class BattleFlowIntegrationTest {
             .thenReturn(Optional.of(defender));
 
         long attackerStartXp = attacker.getXp();
-        long attackerStartElo = attacker.getElo();
         long defenderStartXp = defender.getXp();
-        long defenderStartElo = defender.getElo();
 
         // When: Complete a full battle
         ActiveBattle battle = battleService.createChallenge("999999999999999999", "707070707070707070", "808080808080808080");

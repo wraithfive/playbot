@@ -14,27 +14,6 @@ import java.util.List;
 @Component
 public class CharacterAutocompleteHandler {
 
-    // Available help topics
-    private static final List<String> HELP_TOPICS = List.of(
-        "overview",
-        "commands",
-        "character",
-        "combat",
-        "abilities",
-        "status",
-        "progression"
-    );
-
-    private static final List<String> HELP_TOPIC_DESCRIPTIONS = List.of(
-        "Overview - Quick start & feature summary",
-        "Commands - All available slash commands",
-        "Character - Stats, classes & character creation",
-        "Combat - Battle mechanics & duels",
-        "Abilities - Spells, skills & feats",
-        "Status - Status effects explained",
-        "Progression - XP, levels & leaderboards"
-    );
-
     /**
      * Handles autocomplete for the create-character command.
      *
