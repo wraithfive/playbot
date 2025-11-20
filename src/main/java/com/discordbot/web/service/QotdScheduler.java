@@ -19,6 +19,7 @@ import java.util.List;
  * Now supports both legacy configs (deprecated) and new stream-based scheduling.
  */
 @Component
+@SuppressWarnings("deprecation") // Uses legacy QotdConfig for backward compatibility during migration
 public class QotdScheduler {
     private static final Logger logger = LoggerFactory.getLogger(QotdScheduler.class);
 

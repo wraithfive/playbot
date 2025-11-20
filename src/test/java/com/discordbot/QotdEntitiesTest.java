@@ -9,6 +9,7 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("deprecation") // Tests deprecated QotdConfig entity
 class QotdEntitiesTest {
 
     @Test
