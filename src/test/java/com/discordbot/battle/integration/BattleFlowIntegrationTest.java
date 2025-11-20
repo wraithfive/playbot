@@ -69,6 +69,7 @@ class BattleFlowIntegrationTest {
         // Create real config
         battleProperties = new BattleProperties();
         battleProperties.setEnabled(true);
+        battleProperties.getCombat().setCooldownSeconds(0); // Disable cooldowns for tests
 
         // Create service with all required dependencies (use real SimpleMeterRegistry for cache metrics)
         battleService = new BattleService(
