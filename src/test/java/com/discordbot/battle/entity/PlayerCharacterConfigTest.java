@@ -1,9 +1,8 @@
 package com.discordbot.battle.entity;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
+
 import com.discordbot.battle.config.BattleProperties;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.service.CharacterValidationService;
 import org.junit.jupiter.api.Test;
 

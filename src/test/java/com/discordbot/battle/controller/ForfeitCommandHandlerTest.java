@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for ForfeitCommandHandler.
  * Tests the /forfeit command for battle forfeit.
  */
+@SuppressWarnings("null")
 class ForfeitCommandHandlerTest {
 
     @Mock

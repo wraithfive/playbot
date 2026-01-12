@@ -44,7 +44,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
+@NonNullByDefault
 @Component
 public class SlashCommandHandler extends ListenerAdapter {
 

@@ -3,6 +3,7 @@ package com.discordbot.battle.controller;
 import com.discordbot.battle.entity.CharacterConstants;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -11,6 +12,8 @@ import java.util.List;
  * Handles autocomplete interactions for battle system commands.
  * Provides autocomplete suggestions for character classes, races, and help topics.
  */
+@NonNullByDefault
+@SuppressWarnings("unused")
 @Component
 public class CharacterAutocompleteHandler {
 

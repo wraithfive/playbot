@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
  * Tests for BattlePermissionService
  * Phase 11: Security & Permissions
  */
+@SuppressWarnings("null")
 class BattlePermissionServiceTest {
 
     private BattlePermissionService permissionService;

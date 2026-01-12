@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /** Additional branch coverage for ColorGachaHandler. */
+@SuppressWarnings({"removal"})
 class ColorGachaHandlerMoreTest {
 
     private ColorGachaHandler handler;

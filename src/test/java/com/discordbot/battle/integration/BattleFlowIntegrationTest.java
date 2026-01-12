@@ -33,6 +33,7 @@ import static org.mockito.Mockito.*;
  * - Draw scenarios
  * - Status effect application across turns
  */
+@SuppressWarnings("unused")
 class BattleFlowIntegrationTest {
 
     @Mock

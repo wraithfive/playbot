@@ -1,7 +1,6 @@
 package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
-import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
 import com.discordbot.battle.service.CharacterValidationService;
 import net.dv8tion.jda.api.entities.Guild;
@@ -14,7 +13,6 @@ import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackA
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 
@@ -25,6 +23,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for CharacterCreationInteractionHandler (button and select menu interactions).
  */
+@SuppressWarnings("null")
 class CharacterCreationInteractionHandlerTest {
 
     private CharacterCreationInteractionHandler handler;

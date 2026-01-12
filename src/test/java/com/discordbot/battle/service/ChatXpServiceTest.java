@@ -22,6 +22,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for ChatXpService.
  * Tests the primary progression system (chat-based XP awards).
  */
+@SuppressWarnings("null")
 class ChatXpServiceTest {
 
     @Mock

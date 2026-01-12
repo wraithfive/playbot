@@ -1,6 +1,5 @@
 package com.discordbot.battle.service;
 
-import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.entity.PlayerCharacterTestFactory;
 import org.junit.jupiter.api.RepeatedTest;
@@ -24,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * - Critical hits are always >= normal hits
  * - HP never goes below 0
  */
+@SuppressWarnings("unused")
 class DamageCalculationPropertyTest {
 
     /**

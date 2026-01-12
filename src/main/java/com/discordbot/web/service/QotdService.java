@@ -17,7 +17,10 @@ import java.time.*;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
+@NonNullByDefault
+@SuppressWarnings({"deprecation"})
 @Service
 public class QotdService {
     private static final Logger logger = LoggerFactory.getLogger(QotdService.class);

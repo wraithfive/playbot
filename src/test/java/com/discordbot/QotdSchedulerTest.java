@@ -16,6 +16,7 @@ import java.util.List;
 
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings({"deprecation", "null"})
 class QotdSchedulerTest {
 
     private QotdConfigRepository repo;

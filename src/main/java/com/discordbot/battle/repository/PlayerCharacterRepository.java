@@ -58,6 +58,7 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
      * @return List of characters ordered by ELO descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.elo DESC, c.wins DESC")
+    @SuppressWarnings("deprecation")
     @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByElo(@Param("guildId") String guildId, Pageable pageable);
 
@@ -71,6 +72,7 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
      * @return List of characters ordered by wins descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.wins DESC, c.elo DESC")
+    @SuppressWarnings("deprecation")
     @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByWins(@Param("guildId") String guildId, Pageable pageable);
 
@@ -84,6 +86,7 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
      * @return List of characters ordered by level descending, then XP
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY c.level DESC, c.xp DESC")
+    @SuppressWarnings("deprecation")
     @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByLevel(@Param("guildId") String guildId, Pageable pageable);
 
@@ -97,6 +100,7 @@ public interface PlayerCharacterRepository extends JpaRepository<PlayerCharacter
      * @return List of characters ordered by total battles descending
      */
     @Query("SELECT c FROM PlayerCharacter c WHERE c.guildId = :guildId ORDER BY (c.wins + c.losses + c.draws) DESC")
+    @SuppressWarnings("deprecation")
     @QueryHints(@QueryHint(name = org.hibernate.annotations.QueryHints.READ_ONLY, value = "true"))
     List<PlayerCharacter> findTopByActivity(@Param("guildId") String guildId, Pageable pageable);
 }

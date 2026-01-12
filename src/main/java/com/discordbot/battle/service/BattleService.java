@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * <p>This refactoring would improve testability, maintainability, and adherence to SOLID principles.</p>
  */
+@SuppressWarnings({"unused"})
 @Service
 public class BattleService {
 

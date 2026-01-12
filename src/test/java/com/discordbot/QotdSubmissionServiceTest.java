@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for QotdSubmissionService - focusing on rate limiting and submission workflow
  */
+@SuppressWarnings("null")
 class QotdSubmissionServiceTest {
 
     private QotdSubmissionService service;
