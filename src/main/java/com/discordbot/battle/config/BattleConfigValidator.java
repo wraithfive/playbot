@@ -1,5 +1,7 @@
 package com.discordbot.battle.config;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,12 @@ public class BattleConfigValidator {
         }
 
         logger.info("Battle system is ENABLED - validating configuration...");
+
+        // Apply debug logging if battle.debug=true
+        if (config.isDebug()) {
+            enableDebugLogging();
+            logger.debug("Battle debug mode ENABLED - verbose logging activated");
+        }
 
         List<String> warnings = new ArrayList<>();
         List<String> info = new ArrayList<>();
@@ -225,5 +233,19 @@ public class BattleConfigValidator {
             chatXp.getCooldownSeconds()));
 
         return report.toString();
+    }
+    
+    /**
+     * Enables DEBUG logging for all battle system packages when battle.debug=true.
+     * This allows logger.debug() calls to be visible without manually changing application.properties.
+     */
+    private void enableDebugLogging() {
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        
+        // Set DEBUG level for all battle packages
+        ch.qos.logback.classic.Logger battleLogger = loggerContext.getLogger("com.discordbot.battle");
+        battleLogger.setLevel(Level.DEBUG);
+        
+        logger.info("Battle debug logging enabled - set com.discordbot.battle to DEBUG level");
     }
 }
