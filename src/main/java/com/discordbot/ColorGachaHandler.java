@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
  * Legacy handler for text-based gacha commands (!roll, !mycolor, etc.).
@@ -34,6 +35,7 @@ import java.util.*;
  * @since 1.0.0
  */
 @Deprecated(since = "1.3.0", forRemoval = true)
+@NonNullByDefault
 public class ColorGachaHandler extends ListenerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(ColorGachaHandler.class);

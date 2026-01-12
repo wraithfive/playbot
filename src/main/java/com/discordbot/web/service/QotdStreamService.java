@@ -21,11 +21,13 @@ import java.io.InputStreamReader;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
  * Service for managing QOTD streams.
  * Each stream represents an independent QOTD configuration within a channel.
  */
+@NonNullByDefault
 @Service
 public class QotdStreamService {
     private static final Logger log = LoggerFactory.getLogger(QotdStreamService.class);

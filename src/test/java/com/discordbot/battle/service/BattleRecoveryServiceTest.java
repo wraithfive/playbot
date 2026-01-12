@@ -11,7 +11,6 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,6 +21,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for BattleRecoveryService.
  * Tests startup recovery logic and stale battle cleanup.
  */
+@SuppressWarnings({"null", "unused"})
 class BattleRecoveryServiceTest {
 
     @Mock

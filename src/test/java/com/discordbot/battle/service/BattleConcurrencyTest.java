@@ -36,6 +36,7 @@ import static org.mockito.Mockito.*;
  * - Only one turn can be processed at a time per battle
  * - Battle state remains consistent under concurrent access
  */
+@SuppressWarnings("unused")
 class BattleConcurrencyTest {
 
     @Mock

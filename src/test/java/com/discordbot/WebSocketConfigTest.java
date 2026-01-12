@@ -10,6 +10,7 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("null")
 class WebSocketConfigTest {
 
     @Test

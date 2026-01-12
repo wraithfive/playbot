@@ -1,9 +1,8 @@
 package com.discordbot.battle.controller;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
+
 import com.discordbot.battle.config.BattleProperties;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
@@ -27,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+@SuppressWarnings("null")
 class AbilitiesCommandHandlerTest {
 
     private AbilitiesCommandHandler handler;

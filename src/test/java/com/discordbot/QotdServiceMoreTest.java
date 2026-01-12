@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 /**
  * Additional targeted tests to lift QotdService coverage for corner branches.
  */
+@SuppressWarnings({"deprecation", "null"})
 class QotdServiceMoreTest {
 
     private QotdService service;

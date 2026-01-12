@@ -2,7 +2,6 @@ package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
-import com.discordbot.battle.entity.BattleSession;
 import com.discordbot.battle.service.BattleService;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for AcceptCommandHandler.
  * Tests the /accept command for accepting battle challenges.
  */
+@SuppressWarnings("null")
 class AcceptCommandHandlerTest {
 
     @Mock

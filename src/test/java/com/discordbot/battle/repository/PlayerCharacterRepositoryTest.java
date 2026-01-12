@@ -1,9 +1,7 @@
 package com.discordbot.battle.repository;
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.config.BattleProperties;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.service.CharacterValidationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * TDD tests for PlayerCharacterRepository.
  * Tests repository persistence layer for character CRUD operations.
  */
+@SuppressWarnings("null")
 @DataJpaTest
 @TestPropertySource(properties = {
     "spring.jpa.hibernate.ddl-auto=create-drop",

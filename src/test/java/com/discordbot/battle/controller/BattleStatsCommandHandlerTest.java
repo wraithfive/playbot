@@ -22,6 +22,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for BattleStatsCommandHandler.
  * Tests the /battle-stats command for displaying battle system metrics.
  */
+@SuppressWarnings("null")
 class BattleStatsCommandHandlerTest {
 
     @Mock

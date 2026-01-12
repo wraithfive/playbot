@@ -1,9 +1,8 @@
 package com.discordbot.battle.service;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
+
 import com.discordbot.battle.entity.*;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.repository.CharacterAbilityCooldownRepository;
 import com.discordbot.battle.repository.CharacterSpellSlotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +24,7 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for SpellResourceService.
  */
+@SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 class SpellResourceServiceTest {
 

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
  * Unit tests for AbilityService.
  * Tests ability listing and learning with class restrictions and prerequisites.
  */
+@SuppressWarnings({"null", "unused"})
 class AbilityServiceTest {
 
     @Mock

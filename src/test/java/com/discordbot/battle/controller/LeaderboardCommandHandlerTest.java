@@ -4,7 +4,6 @@ import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.entity.PlayerCharacterTestFactory;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;

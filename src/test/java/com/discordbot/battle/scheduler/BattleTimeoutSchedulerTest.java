@@ -5,10 +5,7 @@ import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.service.BattleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;

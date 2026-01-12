@@ -1,9 +1,8 @@
 package com.discordbot.battle.service;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
+
 import com.discordbot.battle.config.BattleProperties;
-import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 import com.discordbot.battle.entity.ActiveBattle;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.AbilityRepository;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.when;
 import org.mockito.Answers;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
+@SuppressWarnings({"unchecked", "null"})
 class BattleServiceTest {
 
     private PlayerCharacterRepository repo;
@@ -349,7 +349,6 @@ class BattleServiceTest {
         // Verify locks exist via reflection (since userLocks is private)
         var locksField = assertDoesNotThrow(() -> BattleService.class.getDeclaredField("userLocks"));
         locksField.setAccessible(true);
-        @SuppressWarnings("unchecked")
         var locks = assertDoesNotThrow(() -> (java.util.concurrent.ConcurrentHashMap<String, Object>) locksField.get(service));
         
         assertTrue(locks.containsKey(A), "Lock for user A should exist after challenge");
@@ -409,7 +408,6 @@ class BattleServiceTest {
         // Get locks map via reflection
         var locksField = assertDoesNotThrow(() -> BattleService.class.getDeclaredField("userLocks"));
         locksField.setAccessible(true);
-        @SuppressWarnings("unchecked")
         var locks = assertDoesNotThrow(() -> (java.util.concurrent.ConcurrentHashMap<String, Object>) locksField.get(service));
 
         // Run cleanup

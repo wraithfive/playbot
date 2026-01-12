@@ -23,13 +23,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import org.mockito.ArgumentCaptor;
-
 /**
  * Tests for the D20 roll mechanic feature.
  * Tests cover: availability checks, window validation, nat 1/20 outcomes, Epic+ buff application.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "null"})
 class D20MechanicTest {
 
     private SlashCommandHandler handler;
