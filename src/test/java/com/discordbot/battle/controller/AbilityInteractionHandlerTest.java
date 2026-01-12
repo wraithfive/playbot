@@ -254,15 +254,17 @@ class AbilityInteractionHandlerTest {
         when(event.getValues()).thenReturn(List.of("power-strike"));
 
         // Character has already learned Power Strike
-        // Use reflection to set the ability ID since there's no setter
-        ability1 = new Ability("power-strike", "Power Strike", "SKILL", "Warrior", 1, "", "DAMAGE+3", "Deal extra damage");
-        try {
-            var idField = Ability.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(ability1, 1L);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // Use mocking to create ability with ID instead of reflection
+        ability1 = mock(Ability.class);
+        when(ability1.getId()).thenReturn(1L);
+        when(ability1.getKey()).thenReturn("power-strike");
+        when(ability1.getName()).thenReturn("Power Strike");
+        when(ability1.getType()).thenReturn("SKILL");
+        when(ability1.getClassRestriction()).thenReturn("Warrior");
+        when(ability1.getRequiredLevel()).thenReturn(1);
+        when(ability1.getPrerequisites()).thenReturn("");
+        when(ability1.getEffect()).thenReturn("DAMAGE+3");
+        when(ability1.getDescription()).thenReturn("Deal extra damage");
         CharacterAbility link = new CharacterAbility(character, ability1);
         when(characterRepository.findByUserIdAndGuildId("u1", "g1")).thenReturn(Optional.of(character));
         when(abilityRepository.findByKey("power-strike")).thenReturn(Optional.of(ability1));

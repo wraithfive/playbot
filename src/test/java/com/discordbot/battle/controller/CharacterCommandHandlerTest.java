@@ -93,8 +93,8 @@ class CharacterCommandHandlerTest {
         when(event.getGuild()).thenReturn(guild);
         when(event.getUser()).thenReturn(commandUser);
         when(event.getJDA()).thenReturn(jda);
-        when(commandUser.getId()).thenReturn("111111111111111111"); // Valid Discord snowflake
-        when(guild.getId()).thenReturn("222222222222222222"); // Valid Discord snowflake
+        when(commandUser.getId()).thenReturn("111111111111111111"); // Test user ID (valid Discord snowflake format)
+        when(guild.getId()).thenReturn("222222222222222222"); // Test guild ID (valid Discord snowflake format)
         when(guild.getName()).thenReturn("Test Server");
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.replyEmbeds(any(MessageEmbed.class))).thenReturn(replyAction);
