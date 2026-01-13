@@ -18,7 +18,8 @@ class SlashCommandHandlerTest {
         var qotdSubmissionService = mock(QotdSubmissionService.class);
         var apiClient = new com.discordbot.discord.DiscordApiClient();
         var characterAutocompleteHandler = mock(com.discordbot.battle.controller.CharacterAutocompleteHandler.class);
-        var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler);
+        var battleService = mock(com.discordbot.battle.service.BattleService.class);
+        var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler, battleService);
         
         var guild = mock(Guild.class);
         when(guild.getId()).thenReturn("123");

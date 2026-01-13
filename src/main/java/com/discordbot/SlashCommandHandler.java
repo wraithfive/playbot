@@ -66,6 +66,7 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final QotdSubmissionService qotdSubmissionService;
     private final DiscordApiClient discordApiClient;
     private final com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler;
+    private final com.discordbot.battle.service.BattleService battleService;
     private final Random random = new Random();
 
     // (Removed image icon cache - using emoji-only inline in text rendering)
@@ -78,7 +79,8 @@ public class SlashCommandHandler extends ListenerAdapter {
             WebSocketNotificationService webSocketNotificationService,
             QotdSubmissionService qotdSubmissionService,
             DiscordApiClient discordApiClient,
-            com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler) {
+            com.discordbot.battle.controller.CharacterAutocompleteHandler characterAutocompleteHandler,
+            com.discordbot.battle.service.BattleService battleService) {
         this.cooldownRepository = cooldownRepository;
         this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
@@ -86,6 +88,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         this.qotdSubmissionService = qotdSubmissionService;
         this.discordApiClient = discordApiClient;
         this.characterAutocompleteHandler = characterAutocompleteHandler;
+        this.battleService = battleService;
         logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
@@ -167,10 +170,44 @@ public class SlashCommandHandler extends ListenerAdapter {
                 .toList();
 
             event.replyChoices(choices).queue();
+        } else if (event.getName().equals("battle-cancel") && event.getFocusedOption().getName().equals("battle_id")) {
+            // Admin autocomplete for active battles in guild
+            if (event.getGuild() == null) {
+                event.replyChoices(List.of()).queue();
+                return;
+            }
+            
+            String guildId = event.getGuild().getId();
+            List<Command.Choice> choices = battleService.getAllActiveBattles().stream()
+                .filter(battle -> battle.getGuildId().equals(guildId))
+                .map(battle -> {
+                    String status = battle.getStatus().name();
+                    String label = String.format("%s vs %s (%s)", 
+                        getUsernameOrId(event, battle.getChallengerId()),
+                        getUsernameOrId(event, battle.getOpponentId()),
+                        status);
+                    return new Command.Choice(label, battle.getId());
+                })
+                .limit(25)  // Discord max
+                .toList();
+            
+            event.replyChoices(choices).queue();
         } else if (event.getName().equals("create-character")) {
             characterAutocompleteHandler.handleCreateCharacterAutocomplete(event);
         } else if (event.getName().equals("battle-help")) {
             characterAutocompleteHandler.handleBattleHelpAutocomplete(event);
+        }
+    }
+    
+    /**
+     * Helper to get username from guild member, fallback to user ID.
+     */
+    private String getUsernameOrId(CommandAutoCompleteInteractionEvent event, String userId) {
+        try {
+            Member member = event.getGuild().retrieveMemberById(userId).complete();
+            return member.getEffectiveName();
+        } catch (Exception e) {
+            return userId;
         }
     }
 
