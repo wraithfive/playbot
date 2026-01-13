@@ -2,14 +2,21 @@ package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.entity.Ability;
+import com.discordbot.battle.entity.CharacterAbility;
+import com.discordbot.battle.entity.PlayerCharacter;
+import com.discordbot.battle.repository.CharacterAbilityRepository;
+import com.discordbot.battle.repository.PlayerCharacterRepository;
 import com.discordbot.battle.service.BattleService;
 import com.discordbot.battle.util.CharacterCreationUIBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,15 +40,21 @@ public class BattleInteractionHandler extends ListenerAdapter {
     private final BattleProperties battleProperties;
     private final CharacterCreationUIBuilder uiBuilder;
     private final com.discordbot.battle.service.StatusEffectService statusEffectService;
+    private final PlayerCharacterRepository characterRepository;
+    private final CharacterAbilityRepository characterAbilityRepository;
 
     public BattleInteractionHandler(BattleService battleService,
                                    BattleProperties battleProperties,
                                    CharacterCreationUIBuilder uiBuilder,
-                                   com.discordbot.battle.service.StatusEffectService statusEffectService) {
+                                   com.discordbot.battle.service.StatusEffectService statusEffectService,
+                                   PlayerCharacterRepository characterRepository,
+                                   CharacterAbilityRepository characterAbilityRepository) {
         this.battleService = battleService;
         this.battleProperties = battleProperties;
         this.uiBuilder = uiBuilder;
         this.statusEffectService = statusEffectService;
+        this.characterRepository = characterRepository;
+        this.characterAbilityRepository = characterAbilityRepository;
     }
 
     @Override
@@ -95,6 +108,7 @@ public class BattleInteractionHandler extends ListenerAdapter {
                 case "decline" -> handleDecline(event, battle, clicker);
                 case "attack" -> handleAttack(event, battle, clicker);
                 case "defend" -> handleDefend(event, battle, clicker);
+                case "ability" -> handleAbilityMenu(event, battle, clicker);
                 case "forfeit" -> handleForfeit(event, battle, clicker);
                 case "createchar" -> handleCreateCharacter(event, battle, clicker);
                 default -> event.reply("❌ Unknown action.").setEphemeral(true).queue();
@@ -161,10 +175,11 @@ public class BattleInteractionHandler extends ListenerAdapter {
 
         Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
         Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+        Button ability = Button.success(componentId(battle.getId(), "ability"), "✨ Ability");
         Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
 
         event.editMessageEmbeds(embed.build())
-            .setComponents(ActionRow.of(attack, defend, forfeit))
+            .setComponents(ActionRow.of(attack, defend, ability, forfeit))
             .queue();
     }
 
@@ -293,8 +308,9 @@ public class BattleInteractionHandler extends ListenerAdapter {
         } else {
             Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
             Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+            Button ability = Button.success(componentId(battle.getId(), "ability"), "✨ Ability");
             Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
-            event.editMessageEmbeds(embed.build()).setComponents(ActionRow.of(attack, defend, forfeit)).queue();
+            event.editMessageEmbeds(embed.build()).setComponents(ActionRow.of(attack, defend, ability, forfeit)).queue();
         }
     }
 
@@ -328,6 +344,167 @@ public class BattleInteractionHandler extends ListenerAdapter {
         embed.setFooter("Better luck next time!");
 
         event.editMessageEmbeds(embed.build()).setComponents().queue();
+    }
+
+    private void handleAbilityMenu(ButtonInteractionEvent event, ActiveBattle battle, User user) {
+        if (!battle.isActive()) {
+            event.reply("❌ Battle not active.").setEphemeral(true).queue();
+            return;
+        }
+        if (!user.getId().equals(battle.getCurrentTurnUserId())) {
+            event.reply("❌ Not your turn.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Get user's character and learned abilities
+        PlayerCharacter character = characterRepository.findByUserIdAndGuildId(user.getId(), battle.getGuildId()).orElse(null);
+        if (character == null) {
+            event.reply("❌ Character not found.").setEphemeral(true).queue();
+            return;
+        }
+
+        List<CharacterAbility> learned = characterAbilityRepository.findByCharacter(character);
+        if (learned.isEmpty()) {
+            event.reply("❌ You haven't learned any abilities yet. Use `/abilities` to learn some!").setEphemeral(true).queue();
+            return;
+        }
+
+        // Build select menu with learned abilities (up to 25)
+        StringSelectMenu.Builder menuBuilder = StringSelectMenu.create("battle-ability:" + battle.getId() + ":" + user.getId())
+            .setPlaceholder("Choose an ability to use");
+
+        learned.stream()
+            .limit(25) // Discord limit
+            .forEach(ca -> {
+                Ability ability = ca.getAbility();
+                String label = ability.getName();
+                String description = ability.getType();
+                if (ability.getSpellSlotLevel() != null && ability.getSpellSlotLevel() > 0) {
+                    description += " (Slot Lvl " + ability.getSpellSlotLevel() + ")";
+                }
+                if (ability.getCooldownSeconds() != null && ability.getCooldownSeconds() > 0) {
+                    description += " (CD: " + ability.getCooldownSeconds() + "s)";
+                }
+                menuBuilder.addOption(label, String.valueOf(ability.getId()), description);
+            });
+
+        event.reply("✨ Choose an ability:")
+            .addActionRow(menuBuilder.build())
+            .setEphemeral(true)
+            .queue();
+    }
+
+    @Override
+    public void onStringSelectInteraction(@NotNull StringSelectInteractionEvent event) {
+        if (!battleProperties.isEnabled()) return;
+        String id = event.getComponentId();
+        if (!id.startsWith("battle-ability:")) return;
+
+        String[] parts = id.split(":");
+        if (parts.length != 3) {
+            event.reply("❌ Invalid ability selection.").setEphemeral(true).queue();
+            return;
+        }
+
+        String battleId = parts[1];
+        String userId = parts[2];
+
+        if (!event.getUser().getId().equals(userId)) {
+            event.reply("❌ This ability menu isn't for you.").setEphemeral(true).queue();
+            return;
+        }
+
+        if (event.getValues().isEmpty()) {
+            event.reply("❌ No ability selected.").setEphemeral(true).queue();
+            return;
+        }
+
+        Long abilityId;
+        try {
+            abilityId = Long.parseLong(event.getValues().get(0));
+        } catch (NumberFormatException e) {
+            event.reply("❌ Invalid ability ID.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Get battle
+        ActiveBattle battle;
+        try {
+            battle = battleService.getBattleOrThrow(battleId);
+        } catch (Exception e) {
+            event.reply("❌ Battle not found or expired.").setEphemeral(true).queue();
+            return;
+        }
+
+        // Execute ability/spell
+        handleAbilityExecution(event, battle, userId, abilityId);
+    }
+
+    private void handleAbilityExecution(StringSelectInteractionEvent event, ActiveBattle battle, String userId, Long abilityId) {
+        try {
+            var result = battleService.performSpell(battle.getId(), userId, abilityId);
+
+            EmbedBuilder embed = buildBattleEmbed(result.battle());
+            embed.setTitle("⚔️ Battle");
+            embed.setColor(Color.MAGENTA);
+
+            // Show status effect messages if any
+            if (result.statusEffectMessages() != null && !result.statusEffectMessages().isBlank()) {
+                embed.addField("💫 Status Effects", result.statusEffectMessages().trim(), false);
+            }
+
+            String outcome;
+            if (!result.hit()) {
+                outcome = "✨ " + mention(userId) + " casts " + result.abilityName() + " but misses! (Roll " + result.rawRoll() + ")";
+            } else if (result.crit()) {
+                outcome = "💥 " + mention(userId) + " casts " + result.abilityName() + " for a CRITICAL " + result.damage() + " damage! (Roll " + result.rawRoll() + ")";
+            } else {
+                outcome = "✨ " + mention(userId) + " casts " + result.abilityName() + " for " + result.damage() + " damage. (Roll " + result.rawRoll() + ")";
+            }
+            embed.addField("Action", outcome, false);
+
+            if (result.winnerUserId() != null) {
+                // Award XP and ELO
+                String winner = result.winnerUserId();
+                String loser = winner.equals(battle.getChallengerId()) ? battle.getOpponentId() : battle.getChallengerId();
+                battleService.awardProgressionRewards(winner, loser, battle.getGuildId(), false);
+
+                embed.setColor(Color.YELLOW);
+                embed.addField("🏆 Winner", mention(result.winnerUserId()), false);
+            } else {
+                embed.addField("Turn", "Next: " + mention(result.battle().getCurrentTurnUserId()), false);
+            }
+
+            // Get the battle message to update
+            if (battle.getChannelId() != null && battle.getMessageId() != null) {
+                try {
+                    var channel = event.getJDA().getTextChannelById(battle.getChannelId());
+                    if (channel != null) {
+                        if (result.winnerUserId() != null) {
+                            channel.editMessageEmbedsById(battle.getMessageId(), embed.build()).setComponents().queue();
+                        } else {
+                            Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
+                            Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+                            Button ability = Button.success(componentId(battle.getId(), "ability"), "✨ Ability");
+                            Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
+                            channel.editMessageEmbedsById(battle.getMessageId(), embed.build())
+                                .setComponents(ActionRow.of(attack, defend, ability, forfeit))
+                                .queue();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to update battle message after ability use", e);
+                }
+            }
+
+            event.reply("✅ Ability used!").setEphemeral(true).queue();
+
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            event.reply("❌ " + e.getMessage()).setEphemeral(true).queue();
+        } catch (Exception e) {
+            logger.error("Error executing ability in battle", e);
+            event.reply("❌ Failed to execute ability. Please try again.").setEphemeral(true).queue();
+        }
     }
 
     private EmbedBuilder buildBattleEmbed(ActiveBattle battle) {

@@ -92,10 +92,11 @@ public class AcceptCommandHandler implements CommandHandler {
 
             Button attack = Button.primary(componentId(battle.getId(), "attack"), "⚔️ Attack");
             Button defend = Button.secondary(componentId(battle.getId(), "defend"), "🛡️ Defend");
+            Button ability = Button.success(componentId(battle.getId(), "ability"), "✨ Ability");
             Button forfeit = Button.danger(componentId(battle.getId(), "forfeit"), "🏳️ Forfeit");
 
             event.replyEmbeds(embed.build())
-                .addComponents(ActionRow.of(attack, defend, forfeit))
+                .addComponents(ActionRow.of(attack, defend, ability, forfeit))
                 .queue(message -> {
                     // Store message/channel IDs for timeout notifications
                     String channelId = event.getChannel().getId();
