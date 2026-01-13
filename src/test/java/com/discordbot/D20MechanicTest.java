@@ -46,7 +46,8 @@ class D20MechanicTest {
         qotdSubmissionService = mock(QotdSubmissionService.class);
     var apiClient = new com.discordbot.discord.DiscordApiClient();
     var characterAutocompleteHandler = mock(com.discordbot.battle.controller.CharacterAutocompleteHandler.class);
-    handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler);
+    var battleService = mock(com.discordbot.battle.service.BattleService.class);
+    handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler, battleService);
     }
 
     @Test
