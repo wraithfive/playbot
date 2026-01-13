@@ -20,6 +20,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -79,6 +82,7 @@ public class BattleService {
     private final StatusEffectService statusEffectService;
     private final BattleSessionRepository sessionRepository; // Phase 7: Persistent battle sessions
     private final BattleMetricsService metricsService; // Phase 8: Monitoring & Logging
+    private final JDA jda; // For sending timeout notifications
 
     // Cache of active/pending battles keyed by battleId with adaptive expiry.
     // Active / pending battles: up to 60 minutes since last access.
@@ -147,7 +151,8 @@ public class BattleService {
                          StatusEffectService statusEffectService,
                          BattleSessionRepository sessionRepository,
                          BattleMetricsService metricsService,
-                         MeterRegistry meterRegistry) {
+                         MeterRegistry meterRegistry,
+                         JDA jda) {
         this.characterRepository = characterRepository;
         this.characterAbilityRepository = characterAbilityRepository;
         this.battleTurnRepository = battleTurnRepository;
@@ -157,6 +162,7 @@ public class BattleService {
         this.statusEffectService = statusEffectService;
         this.sessionRepository = sessionRepository;
         this.metricsService = metricsService;
+        this.jda = jda;
 
         // Phase 9: Register cache metrics for monitoring
         CaffeineCacheMetrics.monitor(meterRegistry, characterCache, "battle.cache.characters");
@@ -261,6 +267,14 @@ public class BattleService {
         new BattleEvent.ChallengeAccepted(battle.getId(), battle.getGuildId(), acceptingUserId).log(logger);
 
         return battle;
+    }
+
+    /** Set battle message reference for timeout notifications. */
+    public void setBattleMessage(String battleId, String channelId, String messageId) {
+        ActiveBattle battle = activeBattles.get(battleId);
+        if (battle != null) {
+            battle.setBattleMessage(channelId, messageId);
+        }
     }
 
     /** Decline a pending challenge. */
@@ -1131,7 +1145,53 @@ public class BattleService {
         // Clean up status effects
         statusEffectService.cleanupBattleEffects(battle.getId());
 
+        // Update Discord message to show timeout
+        updateBattleMessageOnTimeout(battle, timeoutUserId, winner);
+
         return battle;
+    }
+
+    /**
+     * Update the Discord battle message to show timeout.
+     */
+    private void updateBattleMessageOnTimeout(ActiveBattle battle, String timeoutUserId, String winner) {
+        if (battle.getChannelId() == null || battle.getMessageId() == null) {
+            logger.warn("Cannot update battle message on timeout: channel/message ID not set for battleId={}", battle.getId());
+            return;
+        }
+
+        try {
+            TextChannel channel = jda.getTextChannelById(battle.getChannelId());
+            if (channel == null) {
+                logger.warn("Cannot update battle message: channel {} not found", battle.getChannelId());
+                return;
+            }
+
+            EmbedBuilder embed = new EmbedBuilder();
+            embed.setColor(0xFF6B6B); // Red color for timeout
+            embed.setTitle("⏱️ Battle Timed Out");
+            embed.setDescription(String.format(
+                "**%s** vs **%s**\n\n" +
+                "⏱️ <@%s> failed to act within %d minutes.\n" +
+                "🏆 **Winner:** <@%s>",
+                mention(battle.getChallengerId()),
+                mention(battle.getOpponentId()),
+                timeoutUserId,
+                battleProperties.getCombat().getTurn().getTimeoutSeconds() / 60,
+                winner
+            ));
+            embed.setFooter("Battle ID: " + battle.getId() + " • Ended due to timeout");
+
+            channel.editMessageEmbedsById(battle.getMessageId(), embed.build())
+                .setComponents() // Remove buttons
+                .queue(
+                    success -> logger.debug("Updated battle message for timeout: battleId={}", battle.getId()),
+                    error -> logger.warn("Failed to update battle message on timeout: battleId={} error={}", 
+                                       battle.getId(), error.getMessage())
+                );
+        } catch (Exception e) {
+            logger.error("Error updating battle message on timeout: battleId={}", battle.getId(), e);
+        }
     }
 
     /**
@@ -1406,5 +1466,12 @@ public class BattleService {
         } catch (Exception e) {
             logger.error("Failed to mark battle {} as aborted: {}", battleId, e.getMessage(), e);
         }
+    }
+
+    /**
+     * Helper method to create Discord user mention.
+     */
+    private String mention(String userId) {
+        return "<@" + userId + ">";
     }
 }

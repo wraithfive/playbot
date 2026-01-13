@@ -56,6 +56,10 @@ public class ActiveBattle {
     private String tempAcBonusUserId = null;
     /** Last action timestamp in epoch millis (for turn timeout detection). */
     private Long lastActionAt;
+    /** Discord channel ID where battle message was posted (for timeout notifications). */
+    private String channelId;
+    /** Discord message ID of the battle embed (for timeout notifications). */
+    private String messageId;
 
     // Dice suppliers (test seam). Defaults to ThreadLocalRandom but can be overridden in tests.
     private transient IntSupplier d20Supplier = () -> ThreadLocalRandom.current().nextInt(1, 21);
@@ -220,10 +224,18 @@ public class ActiveBattle {
     public int getTempAcBonus() { return tempAcBonus; }
     public String getTempAcBonusUserId() { return tempAcBonusUserId; }
     public Long getLastActionAt() { return lastActionAt; }
+    public String getChannelId() { return channelId; }
+    public String getMessageId() { return messageId; }
 
     // Setters for HP (used by status effects and combat)
     public void setChallengerHp(int hp) { this.challengerHp = Math.max(0, hp); }
     public void setOpponentHp(int hp) { this.opponentHp = Math.max(0, hp); }
+
+    // Setter for battle message reference (used for timeout notifications)
+    public void setBattleMessage(String channelId, String messageId) {
+        this.channelId = channelId;
+        this.messageId = messageId;
+    }
 
     // Convenience checks
     public boolean isPending() { return status == BattleStatus.PENDING; }
