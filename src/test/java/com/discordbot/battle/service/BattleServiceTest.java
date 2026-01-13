@@ -3,7 +3,9 @@ package com.discordbot.battle.service;
 import static com.discordbot.battle.entity.PlayerCharacterTestFactory.create;
 
 import com.discordbot.battle.config.BattleProperties;
+import com.discordbot.battle.entity.Ability;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.entity.PlayerCharacter;
 import com.discordbot.battle.repository.AbilityRepository;
 import com.discordbot.battle.repository.BattleSessionRepository;
@@ -18,12 +20,14 @@ import org.junit.jupiter.api.TestInstance;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.IntSupplier;
+import java.lang.reflect.Field;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyLong;
 import org.mockito.Answers;
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
@@ -130,6 +134,20 @@ class BattleServiceTest {
         var active = service.getBattleOrThrow(battle.getId());
         active.setTestDiceSuppliers(d20, d6);
         return active;
+    }
+
+    private Ability createSpell(long id, String key, String name, int spellSlotLevel, int cooldownSeconds) {
+        Ability ability = new Ability(key, name, "SPELL", null, 1, "", "", "desc");
+        ability.setSpellSlotLevel(spellSlotLevel);
+        ability.setCooldownSeconds(cooldownSeconds);
+        try {
+            Field idField = Ability.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(ability, id);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set ability id", e);
+        }
+        return ability;
     }
 
     @Test
@@ -493,5 +511,79 @@ class BattleServiceTest {
 
         assertFalse(result.hit());
         assertEquals(0, result.damage());
+    }
+
+    @Test
+    void performSpell_populatesAbilityName_and_consumes_resources() {
+        mockChars("Mage", 10, 10, 12, "Warrior", 10, 10, 10);
+
+        Ability spell = createSpell(99L, "fire-bolt", "Fire Bolt", 1, 8);
+        PlayerCharacter attackerChar = repo.findByUserIdAndGuildId(A, GUILD).get();
+        PlayerCharacter defenderChar = repo.findByUserIdAndGuildId(B, GUILD).get();
+
+        CharacterAbility learned = new CharacterAbility(attackerChar, spell);
+        when(abilityRepository.findById(99L)).thenReturn(Optional.of(spell));
+        when(abilityRepo.findByCharacter(attackerChar)).thenReturn(List.of(learned));
+        when(abilityRepo.findByCharacter(defenderChar)).thenReturn(List.of());
+        when(spellResourceService.hasAvailableSpellSlot(attackerChar, 1)).thenReturn(true);
+        when(spellResourceService.isAbilityAvailable(attackerChar, spell)).thenReturn(true);
+
+        ActiveBattle battle = startBattle(() -> 15, () -> 4); // hit, not crit
+
+        var result = service.performSpell(battle.getId(), A, 99L);
+
+        assertEquals("Fire Bolt", result.abilityName());
+        assertTrue(result.hit());
+        verify(spellResourceService).consumeSpellSlot(attackerChar, 1);
+        verify(spellResourceService).startAbilityCooldown(attackerChar, spell);
+    }
+
+    @Test
+    void performSpell_rejects_when_on_cooldown() {
+        mockChars("Mage", 10, 10, 12, "Warrior", 10, 10, 10);
+
+        Ability spell = createSpell(100L, "ice-lance", "Ice Lance", 0, 12);
+        PlayerCharacter attackerChar = repo.findByUserIdAndGuildId(A, GUILD).get();
+        PlayerCharacter defenderChar = repo.findByUserIdAndGuildId(B, GUILD).get();
+        CharacterAbility learned = new CharacterAbility(attackerChar, spell);
+
+        when(abilityRepository.findById(100L)).thenReturn(Optional.of(spell));
+        when(abilityRepo.findByCharacter(attackerChar)).thenReturn(List.of(learned));
+        when(abilityRepo.findByCharacter(defenderChar)).thenReturn(List.of());
+        when(spellResourceService.isAbilityAvailable(attackerChar, spell)).thenReturn(false);
+
+        ActiveBattle battle = startBattle(() -> 10, () -> 3);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> service.performSpell(battle.getId(), A, 100L));
+        assertTrue(ex.getMessage().toLowerCase().contains("cooldown"));
+        verify(spellResourceService, never()).consumeSpellSlot(any(), anyInt());
+    }
+
+    @Test
+    void setBattleMessage_updates_cached_battle_reference() {
+        mockChars("Warrior", 10, 10, 10, "Mage", 10, 10, 10);
+        var battle = service.createChallenge(GUILD, A, B);
+        service.acceptChallenge(battle.getId(), B);
+
+        service.setBattleMessage(battle.getId(), "channel-123", "message-456");
+
+        ActiveBattle cached = service.getBattleOrThrow(battle.getId());
+        assertEquals("channel-123", cached.getChannelId());
+        assertEquals("message-456", cached.getMessageId());
+    }
+
+    @Test
+    void timeoutTurn_marks_winner_and_records_metrics() {
+        mockChars("Warrior", 10, 10, 10, "Mage", 10, 10, 10);
+        ActiveBattle battle = startBattle(() -> 10, () -> 4);
+
+        ActiveBattle ended = service.timeoutTurn(battle);
+
+        assertTrue(ended.isEnded());
+        assertEquals(B, ended.getWinnerUserId());
+        verify(metricsService).recordBattleTimeout(anyLong());
+        verify(metricsService).recordBattleCompleted(anyLong());
+        verify(statusEffectService).cleanupBattleEffects(battle.getId());
+        verify(turnRepo).save(any());
     }
 }

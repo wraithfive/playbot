@@ -271,7 +271,7 @@ public class BattleService {
 
     /** Set battle message reference for timeout notifications. */
     public void setBattleMessage(String battleId, String channelId, String messageId) {
-        ActiveBattle battle = activeBattles.get(battleId);
+        ActiveBattle battle = battles.getIfPresent(battleId);
         if (battle != null) {
             battle.setBattleMessage(channelId, messageId);
         }
@@ -1093,7 +1093,7 @@ public class BattleService {
             battle.advanceTurn();
         }
 
-        return new SpellResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner, statusEffectMessages.toString());
+        return new SpellResult(battle, attackRoll, totalAttack, armorClass, damage, hit, crit, winner, ability.getName(), statusEffectMessages.toString());
     }
 
     /** Container for spell outcome. */
@@ -1105,6 +1105,7 @@ public class BattleService {
                               boolean hit,
                               boolean crit,
                               String winnerUserId,
+                              String abilityName,
                               String statusEffectMessages) {}
 
     /**
