@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="015-create-ability-tables" author="copilot">
+        <comment>Introduce ability &amp; character_ability tables for talents/skills/spells system.</comment>
+
+        <createTable tableName="ability">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_ability"/>
+            </column>
+            <column name="ability_key" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="class_restriction" type="VARCHAR(50)"/>
+            <column name="required_level" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prerequisites" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effect" type="VARCHAR(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="ability" columnNames="ability_key" constraintName="uk_ability_key"/>
+        <createIndex tableName="ability" indexName="idx_ability_type">
+            <column name="type"/>
+        </createIndex>
+        <createIndex tableName="ability" indexName="idx_ability_class">
+            <column name="class_restriction"/>
+        </createIndex>
+
+        <createTable tableName="character_ability">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="pk_character_ability"/>
+            </column>
+            <column name="character_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ability_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="learned_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="character_ability" columnNames="character_id,ability_id" constraintName="uk_character_ability_unique"/>
+        <createIndex tableName="character_ability" indexName="idx_character_ability_character">
+            <column name="character_id"/>
+        </createIndex>
+        <createIndex tableName="character_ability" indexName="idx_character_ability_ability">
+            <column name="ability_id"/>
+        </createIndex>
+
+        <addForeignKeyConstraint baseTableName="character_ability" baseColumnNames="character_id"
+                                  constraintName="fk_character_ability_character"
+                                  referencedTableName="player_character" referencedColumnNames="id"/>
+        <addForeignKeyConstraint baseTableName="character_ability" baseColumnNames="ability_id"
+                                  constraintName="fk_character_ability_ability"
+                                  referencedTableName="ability" referencedColumnNames="id"/>
+    </changeSet>
+
+</databaseChangeLog>

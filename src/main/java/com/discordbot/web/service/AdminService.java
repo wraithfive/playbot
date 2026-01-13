@@ -28,10 +28,11 @@ import org.springframework.http.ResponseEntity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 
 import static com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET;
  
-
+@NonNullByDefault
 @Service
 public class AdminService {
 

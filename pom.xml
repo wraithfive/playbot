@@ -15,7 +15,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.1</version>
+        <version>3.4.5</version>
         <relativePath/>
     </parent>
 
@@ -24,10 +24,17 @@
         <maven.compiler.target>21</maven.compiler.target>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jda.version>6.1.0</jda.version>
+        <jda.version>6.1.1</jda.version>
     </properties>
 
     <dependencies>
+        <!-- Eclipse JDT Annotations for nullability (IDE analysis only) -->
+        <dependency>
+            <groupId>org.eclipse.jdt</groupId>
+            <artifactId>org.eclipse.jdt.annotation</artifactId>
+            <version>2.3.0</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- JDA (Java Discord API) -->
         <dependency>
             <groupId>net.dv8tion</groupId>
@@ -99,6 +106,18 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Spring Boot Actuator for metrics (Phase 8) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer for metrics collection (Phase 8) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- Jackson for JSON -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -139,19 +158,19 @@
             <artifactId>liquibase-core</artifactId>
         </dependency>
 
-        <!-- JUnit for testing -->
+        <!-- JUnit for testing - Updated to 5.11.4 (latest stable) -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.10.1</version>
+            <version>5.11.4</version>
             <scope>test</scope>
         </dependency>
 
-        <!-- Mockito for unit testing event handlers -->
+        <!-- Mockito for unit testing event handlers - Updated to 5.15.2 (latest stable) -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.2.0</version>
+            <version>5.15.2</version>
             <scope>test</scope>
         </dependency>
 
@@ -215,12 +234,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <repositories>
-        <repository>
-            <id>dv8tion</id>
-            <name>m2-dv8tion</name>
-            <url>https://m2.dv8tion.net/releases</url>
-        </repository>
-    </repositories>
 </project>

@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for ColorGachaHandler - focusing on rarity weighting and role selection
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "removal"})
 class ColorGachaHandlerTest {
 
     private ColorGachaHandler handler;

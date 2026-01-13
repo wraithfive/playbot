@@ -19,6 +19,7 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for the stream-based scheduling logic in QotdScheduler.
  */
+@SuppressWarnings("null")
 class QotdStreamSchedulerTest {
 
     private QotdConfigRepository configRepo;

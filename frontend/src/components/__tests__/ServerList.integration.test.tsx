@@ -37,7 +37,9 @@ describe('ServerList Integration Tests', () => {
       },
     });
     vi.clearAllMocks();
-    windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    windowOpenSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue({ location: { href: '' } } as any); // avoid jsdom navigation errors
   });
 
   afterEach(() => {

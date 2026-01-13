@@ -23,13 +23,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import org.mockito.ArgumentCaptor;
-
 /**
  * Tests for the D20 roll mechanic feature.
  * Tests cover: availability checks, window validation, nat 1/20 outcomes, Epic+ buff application.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "null"})
 class D20MechanicTest {
 
     private SlashCommandHandler handler;
@@ -47,7 +45,9 @@ class D20MechanicTest {
         wsService = mock(WebSocketNotificationService.class);
         qotdSubmissionService = mock(QotdSubmissionService.class);
     var apiClient = new com.discordbot.discord.DiscordApiClient();
-    handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
+    var characterAutocompleteHandler = mock(com.discordbot.battle.controller.CharacterAutocompleteHandler.class);
+    var battleService = mock(com.discordbot.battle.service.BattleService.class);
+    handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient, characterAutocompleteHandler, battleService);
     }
 
     @Test

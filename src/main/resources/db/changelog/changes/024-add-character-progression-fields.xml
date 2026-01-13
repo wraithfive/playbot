@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Phase 6: Progression & Leaderboards
+        Add level, XP, ELO, and battle stats (wins/losses) to player_character table
+    -->
+    <changeSet id="024-add-character-progression-fields" author="claude">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="player_character"/>
+            <not>
+                <columnExists tableName="player_character" columnName="level"/>
+            </not>
+        </preConditions>
+
+        <!-- Character level (1-20 D&D 5e range) -->
+        <addColumn tableName="player_character">
+            <column name="level" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Experience points for leveling -->
+        <addColumn tableName="player_character">
+            <column name="xp" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- ELO rating for competitive ranking (starting at 1000) -->
+        <addColumn tableName="player_character">
+            <column name="elo" type="INT" defaultValueNumeric="1000">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Battle statistics -->
+        <addColumn tableName="player_character">
+            <column name="wins" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="player_character">
+            <column name="losses" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="player_character">
+            <column name="draws" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Index for leaderboard queries (order by ELO DESC) -->
+        <createIndex indexName="idx_player_character_elo" tableName="player_character">
+            <column name="guild_id"/>
+            <column name="elo" descending="true"/>
+        </createIndex>
+
+        <!-- Index for level-based queries -->
+        <createIndex indexName="idx_player_character_level" tableName="player_character">
+            <column name="guild_id"/>
+            <column name="level" descending="true"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex indexName="idx_player_character_level" tableName="player_character"/>
+            <dropIndex indexName="idx_player_character_elo" tableName="player_character"/>
+            <dropColumn tableName="player_character" columnName="draws"/>
+            <dropColumn tableName="player_character" columnName="losses"/>
+            <dropColumn tableName="player_character" columnName="wins"/>
+            <dropColumn tableName="player_character" columnName="elo"/>
+            <dropColumn tableName="player_character" columnName="xp"/>
+            <dropColumn tableName="player_character" columnName="level"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

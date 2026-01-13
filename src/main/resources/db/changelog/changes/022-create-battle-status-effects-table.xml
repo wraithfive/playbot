@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Phase 4: Status Effects System
+        Tracks active status effects (buffs/debuffs) applied to characters during battles.
+        Examples: stun, burn, poison, shield, haste, slow, regeneration
+    -->
+    <changeSet id="022-create-battle-status-effects-table" author="claude">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="battle_status_effect"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="battle_status_effect">
+            <!-- Primary key -->
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+
+            <!-- Battle context -->
+            <column name="battle_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Target of the effect -->
+            <column name="affected_user_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Effect details -->
+            <column name="effect_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Duration in turns (0 = instant/expired, > 0 = active) -->
+            <column name="duration_turns" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Stack count for stackable effects (e.g., poison stacks, burn stacks) -->
+            <column name="stacks" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Magnitude/power of effect (e.g., damage per turn, AC bonus, etc.) -->
+            <column name="magnitude" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+
+            <!-- Source tracking -->
+            <column name="source_user_id" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+
+            <column name="source_ability_key" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+
+            <!-- Metadata -->
+            <column name="applied_at_turn" type="INT">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Index for querying active effects by battle -->
+        <createIndex indexName="idx_status_effect_battle" tableName="battle_status_effect">
+            <column name="battle_id"/>
+        </createIndex>
+
+        <!-- Index for querying effects by battle + affected user -->
+        <createIndex indexName="idx_status_effect_battle_user" tableName="battle_status_effect">
+            <column name="battle_id"/>
+            <column name="affected_user_id"/>
+        </createIndex>
+
+        <!-- Index for querying specific effect types -->
+        <createIndex indexName="idx_status_effect_type" tableName="battle_status_effect">
+            <column name="battle_id"/>
+            <column name="affected_user_id"/>
+            <column name="effect_type"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="battle_status_effect"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
