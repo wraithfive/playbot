@@ -96,7 +96,12 @@ public class AcceptCommandHandler implements CommandHandler {
 
             event.replyEmbeds(embed.build())
                 .addComponents(ActionRow.of(attack, defend, forfeit))
-                .queue();
+                .queue(message -> {
+                    // Store message/channel IDs for timeout notifications
+                    String channelId = event.getChannel().getId();
+                    String messageId = message.retrieveOriginal().complete().getId();
+                    battleService.setBattleMessage(battle.getId(), channelId, messageId);
+                });
 
             logger.info("Battle accepted via command: battleId={} user={}", battle.getId(), userId);
         } catch (IllegalStateException e) {

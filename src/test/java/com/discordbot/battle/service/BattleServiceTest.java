@@ -93,7 +93,8 @@ class BattleServiceTest {
             statusEffectService,
             sessionRepository,
             metricsService,
-            meterRegistry
+            meterRegistry,
+            mock(net.dv8tion.jda.api.JDA.class)
         );
     }
 

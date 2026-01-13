@@ -85,7 +85,8 @@ class BattleConcurrencyTest {
             statusEffectService,
             sessionRepository,
             metricsService,
-            new SimpleMeterRegistry()
+            new SimpleMeterRegistry(),
+            mock(net.dv8tion.jda.api.JDA.class)
         );
 
         // Mock default status effect behavior (no damage, no healing, no messages, not stunned)
