@@ -2,6 +2,8 @@ package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.repository.CharacterAbilityRepository;
+import com.discordbot.battle.repository.PlayerCharacterRepository;
 import com.discordbot.battle.service.BattleService;
 import com.discordbot.battle.service.StatusEffectService;
 import com.discordbot.battle.util.CharacterCreationUIBuilder;
@@ -51,6 +53,12 @@ class BattleInteractionHandlerTest {
     private StatusEffectService statusEffectService;
 
     @Mock
+    private PlayerCharacterRepository characterRepository;
+
+    @Mock
+    private CharacterAbilityRepository characterAbilityRepository;
+
+    @Mock
     private MessageCreateData mockMessageData;
 
     @Mock
@@ -73,7 +81,7 @@ class BattleInteractionHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new BattleInteractionHandler(battleService, battleProperties, uiBuilder, statusEffectService);
+        handler = new BattleInteractionHandler(battleService, battleProperties, uiBuilder, statusEffectService, characterRepository, characterAbilityRepository);
 
         // Default mock behavior
         when(battleProperties.isEnabled()).thenReturn(true);

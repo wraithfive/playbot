@@ -200,13 +200,14 @@ class AcceptCommandHandlerTest {
         assertNotNull(embed.getFooter());
         assertTrue(embed.getFooter().getText().contains("battle123"));
 
-        // Should have 3 action buttons: Attack, Defend, Forfeit
+        // Should have 4 action buttons: Attack, Defend, Ability, Forfeit
         ActionRow actionRow = actionRowCaptor.getValue();
         List<Button> buttons = actionRow.getButtons();
-        assertEquals(3, buttons.size());
+        assertEquals(4, buttons.size());
         assertEquals("⚔️ Attack", buttons.get(0).getLabel());
         assertEquals("🛡️ Defend", buttons.get(1).getLabel());
-        assertEquals("🏳️ Forfeit", buttons.get(2).getLabel());
+        assertEquals("✨ Ability", buttons.get(2).getLabel());
+        assertEquals("🏳️ Forfeit", buttons.get(3).getLabel());
     }
 
     @Test
@@ -283,12 +284,12 @@ class AcceptCommandHandlerTest {
         // When: Handle command
         handler.handle(event);
 
-        // Then: Action row with 3 buttons is added
+        // Then: Action row with 4 buttons is added
         ArgumentCaptor<ActionRow> actionRowCaptor = ArgumentCaptor.forClass(ActionRow.class);
         verify(replyAction).addComponents(actionRowCaptor.capture());
 
         ActionRow actionRow = actionRowCaptor.getValue();
-        assertEquals(3, actionRow.getButtons().size(), "Should have 3 action buttons");
+        assertEquals(4, actionRow.getButtons().size(), "Should have 4 action buttons");
     }
 
     @Test
