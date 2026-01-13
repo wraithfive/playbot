@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -23,9 +24,9 @@ public class CommandRouter extends ListenerAdapter {
 
     private final List<CommandHandler> handlers;
 
-    public CommandRouter(List<CommandHandler> handlers) {
+    public CommandRouter(@Lazy List<CommandHandler> handlers) {
         this.handlers = handlers;
-        logger.info("CommandRouter initialized with {} handler(s)", handlers.size());
+        logger.info("CommandRouter initialized (handlers will be lazily resolved)");
     }
 
     @Override

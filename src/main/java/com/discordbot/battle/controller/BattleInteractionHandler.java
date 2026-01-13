@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.awt.*;
@@ -43,7 +44,7 @@ public class BattleInteractionHandler extends ListenerAdapter {
     private final PlayerCharacterRepository characterRepository;
     private final CharacterAbilityRepository characterAbilityRepository;
 
-    public BattleInteractionHandler(BattleService battleService,
+    public BattleInteractionHandler(@Lazy BattleService battleService,
                                    BattleProperties battleProperties,
                                    CharacterCreationUIBuilder uiBuilder,
                                    com.discordbot.battle.service.StatusEffectService statusEffectService,
@@ -389,7 +390,7 @@ public class BattleInteractionHandler extends ListenerAdapter {
             });
 
         event.reply("✨ Choose an ability:")
-            .addActionRow(menuBuilder.build())
+            .setComponents(ActionRow.of(menuBuilder.build()))
             .setEphemeral(true)
             .queue();
     }

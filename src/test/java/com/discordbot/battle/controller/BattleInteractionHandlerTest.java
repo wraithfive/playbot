@@ -2,6 +2,8 @@ package com.discordbot.battle.controller;
 
 import com.discordbot.battle.config.BattleProperties;
 import com.discordbot.battle.entity.ActiveBattle;
+import com.discordbot.battle.entity.Ability;
+import com.discordbot.battle.entity.CharacterAbility;
 import com.discordbot.battle.repository.CharacterAbilityRepository;
 import com.discordbot.battle.repository.PlayerCharacterRepository;
 import com.discordbot.battle.service.BattleService;
@@ -11,7 +13,10 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
+import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.requests.restaction.interactions.MessageEditCallbackAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
@@ -19,12 +24,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Answers;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -65,6 +76,9 @@ class BattleInteractionHandlerTest {
     private ButtonInteractionEvent event;
 
     @Mock
+    private StringSelectInteractionEvent selectEvent;
+
+    @Mock
     private User user;
 
     @Mock
@@ -90,6 +104,11 @@ class BattleInteractionHandlerTest {
         when(user.getId()).thenReturn("123456789012345678");
         when(guild.getId()).thenReturn("987654321098765432");
 
+        when(selectEvent.getUser()).thenReturn(user);
+        when(selectEvent.getGuild()).thenReturn(guild);
+        when(selectEvent.reply(anyString())).thenReturn(replyAction);
+        when(selectEvent.reply(any(MessageCreateData.class))).thenReturn(replyAction);
+
         // Mock reply/edit actions
         when(event.reply(anyString())).thenReturn(replyAction);
         when(event.reply(any(MessageCreateData.class))).thenReturn(replyAction);
@@ -98,6 +117,7 @@ class BattleInteractionHandlerTest {
         doAnswer(inv -> editAction).when(event).editMessageEmbeds(any(MessageEmbed[].class));
         doAnswer(inv -> editAction).when(editAction).setComponents(any(MessageTopLevelComponent[].class));
         doAnswer(inv -> editAction).when(editAction).setComponents();
+        doAnswer(inv -> replyAction).when(replyAction).setComponents(any(MessageTopLevelComponent[].class));
 
         // Mock battle
         when(battle.getId()).thenReturn("battle-123");
@@ -484,5 +504,64 @@ class BattleInteractionHandlerTest {
         // Should return early without any interaction
         verify(event, never()).reply(anyString());
         verify(battleService, never()).getBattleOrThrow(anyString());
+    }
+
+    @Test
+    @DisplayName("Ability menu reply uses ActionRow and caps options at 25")
+    void abilityMenuBuildsSelectAndCapsOptions() {
+        when(event.getComponentId()).thenReturn("battle:battle-123:ability");
+        when(battleService.getBattleOrThrow("battle-123")).thenReturn(battle);
+        when(user.getId()).thenReturn("123456789012345678");
+        when(battle.isActive()).thenReturn(true);
+        when(battle.getCurrentTurnUserId()).thenReturn("123456789012345678");
+        when(battle.getGuildId()).thenReturn("987654321098765432");
+
+        var character = mock(com.discordbot.battle.entity.PlayerCharacter.class);
+        when(characterRepository.findByUserIdAndGuildId(anyString(), anyString()))
+            .thenReturn(java.util.Optional.of(character));
+
+        List<CharacterAbility> learned = IntStream.range(0, 26)
+            .mapToObj(i -> {
+                CharacterAbility ca = mock(CharacterAbility.class, Answers.RETURNS_DEEP_STUBS);
+                Ability ability = new Ability("key" + i, "Ability" + i, "SPELL", null, 1, "", "", "desc");
+                when(ca.getAbility()).thenReturn(ability);
+                return ca;
+            }).toList();
+        when(characterAbilityRepository.findByCharacter(character)).thenReturn(learned);
+
+        handler.onButtonInteraction(event);
+
+        ArgumentCaptor<MessageTopLevelComponent[]> captor = ArgumentCaptor.forClass(MessageTopLevelComponent[].class);
+        verify(replyAction).setComponents(captor.capture());
+        MessageTopLevelComponent[] components = captor.getValue();
+        assertEquals(1, components.length);
+        ActionRow row = (ActionRow) components[0];
+        StringSelectMenu menu = (StringSelectMenu) row.getComponents().getFirst();
+        assertEquals(25, menu.getOptions().size());
+    }
+
+    @Test
+    @DisplayName("Ability select rejects non-owner user")
+    void abilitySelectRejectsNonOwner() {
+        when(selectEvent.getComponentId()).thenReturn("battle-ability:battle-123:owner-id");
+        when(selectEvent.getUser().getId()).thenReturn("other-user");
+
+        handler.onStringSelectInteraction(selectEvent);
+
+        verify(selectEvent).reply("❌ This ability menu isn't for you.");
+        verify(replyAction).setEphemeral(true);
+    }
+
+    @Test
+    @DisplayName("Ability select with no choice replies with error")
+    void abilitySelectNoChoice() {
+        when(selectEvent.getComponentId()).thenReturn("battle-ability:battle-123:owner-id");
+        when(selectEvent.getUser().getId()).thenReturn("owner-id");
+        when(selectEvent.getValues()).thenReturn(List.of());
+
+        handler.onStringSelectInteraction(selectEvent);
+
+        verify(selectEvent).reply("❌ No ability selected.");
+        verify(replyAction).setEphemeral(true);
     }
 }

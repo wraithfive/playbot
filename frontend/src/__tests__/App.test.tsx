@@ -98,7 +98,9 @@ describe('App', () => {
     (client.serverApi.getServers as any).mockResolvedValue({ data: [] });
     render(<App />);
 
-    expect(screen.getByTestId('footer')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('footer')).toBeInTheDocument();
+    });
   });
 
   it('prevents duplicate auth checks', async () => {
