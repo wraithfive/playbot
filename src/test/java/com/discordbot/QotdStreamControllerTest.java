@@ -107,9 +107,48 @@ class QotdStreamControllerTest {
     }
 
     @Test
-    @DisplayName("uploadCsv should reject double-extension files like 'malicious.exe.csv'")
+    @DisplayName("uploadCsv should reject double-extension files for security (prevents 'malicious.exe.csv' attacks)")
     void testUploadCsv_RejectsDoubleExtension() throws IOException {
+        // Security test: Ensure filenames with multiple extensions are rejected
+        // This prevents potential attacks where a file is crafted to bypass validation
         MultipartFile file = createMockMultipartFile("file", "malicious.exe.csv", "text/csv", "Q1\nQ2\n".getBytes());
+
+        var response = controller.uploadCsv("guild123", 42L, file, mockAuth);
+
+        assertEquals(400, response.getStatusCode().value());
+        verify(streamService, never()).uploadCsv(anyString(), anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("uploadCsv should accept uppercase .CSV extension")
+    void testUploadCsv_AcceptsUppercaseExtension() throws IOException {
+        MultipartFile file = createMockMultipartFile("file", "questions.CSV", "text/csv", "Q1\nQ2\n".getBytes());
+        QotdDtos.UploadCsvResult result = new QotdDtos.UploadCsvResult(2, 0, Collections.emptyList());
+        when(streamService.uploadCsv("guild123", 42L, file)).thenReturn(result);
+
+        var response = controller.uploadCsv("guild123", 42L, file, mockAuth);
+
+        assertEquals(200, response.getStatusCode().value());
+        verify(streamService, times(1)).uploadCsv("guild123", 42L, file);
+    }
+
+    @Test
+    @DisplayName("uploadCsv should accept mixed-case .Csv extension")
+    void testUploadCsv_AcceptsMixedCaseExtension() throws IOException {
+        MultipartFile file = createMockMultipartFile("file", "questions.Csv", "text/csv", "Q1\nQ2\n".getBytes());
+        QotdDtos.UploadCsvResult result = new QotdDtos.UploadCsvResult(2, 0, Collections.emptyList());
+        when(streamService.uploadCsv("guild123", 42L, file)).thenReturn(result);
+
+        var response = controller.uploadCsv("guild123", 42L, file, mockAuth);
+
+        assertEquals(200, response.getStatusCode().value());
+        verify(streamService, times(1)).uploadCsv("guild123", 42L, file);
+    }
+
+    @Test
+    @DisplayName("uploadCsv should reject null filename")
+    void testUploadCsv_RejectsNullFilename() throws IOException {
+        MultipartFile file = createMockMultipartFile("file", null, "text/csv", "Q1\nQ2\n".getBytes());
 
         var response = controller.uploadCsv("guild123", 42L, file, mockAuth);
 

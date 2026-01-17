@@ -263,8 +263,9 @@ public class QotdStreamController {
             return ResponseEntity.status(413).build();
         }
 
-        // File extension validation (more reliable than content-type)
-        // Validates that the actual file extension (not just the presence of .csv) is the only extension
+        // File extension validation (more reliable than content-type header)
+        // Security: Enforce single extension pattern to prevent double-extension attacks (e.g., "malicious.exe.csv")
+        // This ensures the file is treated as CSV and not exploited through filename tricks
         String filename = file.getOriginalFilename();
         if (filename == null || !filename.toLowerCase().matches("^[^.]+\\.csv$")) {
             logger.warn("CSV upload rejected - invalid file extension for guild {} stream {}, filename: {}", 
