@@ -249,6 +249,10 @@ public class QotdStreamController {
             return ResponseEntity.status(403).build();
         }
 
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         // File size validation (2MB limit)
         long maxSize = 2 * 1024 * 1024;
         if (file.getSize() > maxSize) {
