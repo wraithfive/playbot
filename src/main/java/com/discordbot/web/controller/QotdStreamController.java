@@ -250,6 +250,8 @@ public class QotdStreamController {
         }
 
         if (file.isEmpty()) {
+            logger.warn("CSV upload rejected - empty file for guild {} stream {}, filename: {}",
+                    guildId, streamId, file.getOriginalFilename());
             return ResponseEntity.badRequest().build();
         }
 
