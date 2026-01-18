@@ -42,8 +42,7 @@ class AdminServiceMoreTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        com.discordbot.discord.DiscordApiClient discordApiClient = mock(com.discordbot.discord.DiscordApiClient.class);
-        service = new AdminService(jda, authorizedClientService, guildsCache, ws, discordApiClient);
+        service = new AdminService(jda, authorizedClientService, guildsCache, ws);
     }
 
     @Test
@@ -112,13 +111,15 @@ class AdminServiceMoreTest {
         Guild g = mock(Guild.class);
         net.dv8tion.jda.api.requests.restaction.RoleAction action = mock(net.dv8tion.jda.api.requests.restaction.RoleAction.class, RETURNS_SELF);
         Role created = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors createdColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(jda.getGuildById("g1")).thenReturn(g);
         when(g.getName()).thenReturn("G");
         when(g.createRole()).thenReturn(action);
         when(action.complete()).thenReturn(created);
         when(created.getId()).thenReturn("rid");
         when(created.getName()).thenReturn("gacha:epic:Blue");
-        when(created.getColor()).thenReturn(java.awt.Color.BLUE);
+        when(created.getColors()).thenReturn(createdColors);
+        when(createdColors.getPrimary()).thenReturn(java.awt.Color.BLUE);
         when(created.getPosition()).thenReturn(2);
 
         doThrow(new RuntimeException("ws boom")).when(ws).notifyRolesChanged("g1", "created");
@@ -353,9 +354,11 @@ class AdminServiceMoreTest {
         when(jda.getGuildById("g1")).thenReturn(g);
 
         Role g1 = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors g1Colors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(g1.getName()).thenReturn("gacha:rare:Blue");
         when(g1.getId()).thenReturn("r1");
-        when(g1.getColor()).thenReturn(java.awt.Color.BLUE);
+        when(g1.getColors()).thenReturn(g1Colors);
+        when(g1Colors.getPrimary()).thenReturn(java.awt.Color.BLUE);
         when(g1.getPosition()).thenReturn(5);
 
         Role normal = mock(Role.class);
@@ -381,9 +384,11 @@ class AdminServiceMoreTest {
         when(jda.getGuildById("g2")).thenReturn(g);
 
         Role r = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors rColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(r.getName()).thenReturn("gacha:epic:NoColor");
         when(r.getId()).thenReturn("rX");
-        when(r.getColor()).thenReturn(null);
+        when(r.getColors()).thenReturn(rColors);
+        when(rColors.getPrimary()).thenReturn(null);
         when(r.getPosition()).thenReturn(7);
 
         when(g.getRoles()).thenReturn(List.of(r));
@@ -402,9 +407,11 @@ class AdminServiceMoreTest {
         when(jda.getGuildById("g3")).thenReturn(g);
 
         Role r = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors r2Colors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(r.getName()).thenReturn("gacha:Gold");
         when(r.getId()).thenReturn("rN");
-        when(r.getColor()).thenReturn(java.awt.Color.YELLOW);
+        when(r.getColors()).thenReturn(r2Colors);
+        when(r2Colors.getPrimary()).thenReturn(java.awt.Color.YELLOW);
         when(r.getPosition()).thenReturn(4);
         when(g.getRoles()).thenReturn(List.of(r));
 
@@ -421,9 +428,11 @@ class AdminServiceMoreTest {
         when(jda.getGuildById("g4")).thenReturn(g);
 
         Role r = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors r3Colors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(r.getName()).thenReturn("gacha:Rare:Blueish");
         when(r.getId()).thenReturn("rC");
-        when(r.getColor()).thenReturn(java.awt.Color.BLUE);
+        when(r.getColors()).thenReturn(r3Colors);
+        when(r3Colors.getPrimary()).thenReturn(java.awt.Color.BLUE);
         when(r.getPosition()).thenReturn(6);
         when(g.getRoles()).thenReturn(List.of(r));
 
@@ -531,9 +540,11 @@ class AdminServiceMoreTest {
         when(g.getName()).thenReturn("G");
         when(g.createRole()).thenReturn(action);
         when(action.complete()).thenReturn(created);
+        net.dv8tion.jda.api.entities.RoleColors createdColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(created.getId()).thenReturn("rid");
         when(created.getName()).thenReturn("gacha:rare:White");
-        when(created.getColor()).thenReturn(java.awt.Color.WHITE);
+        when(created.getColors()).thenReturn(createdColors);
+        when(createdColors.getPrimary()).thenReturn(java.awt.Color.WHITE);
         when(created.getPosition()).thenReturn(1);
 
         // null color
