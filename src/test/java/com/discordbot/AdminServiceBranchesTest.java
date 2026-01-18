@@ -253,6 +253,94 @@ class AdminServiceBranchesTest {
     }
 
     @Test
+    @DisplayName("isUserAdminInGuild: returns true when user has Staff role")
+    void isUserAdminInGuild_withStaffRole() {
+        Authentication auth = mockAuth("user1");
+        var authorizedClient = TestTokens.authorizedClient("tok");
+        when(clients.loadAuthorizedClient(eq("discord"), eq("user1"))).thenReturn(authorizedClient);
+
+        // User has no admin permissions
+        Map<String,Object> guild = new HashMap<>();
+        guild.put("id", "g1");
+        guild.put("name", "G");
+        guild.put("permissions", "0");
+        when(cache.get(eq("tok"), any())).thenReturn(List.of(guild));
+
+        // Mock guild and member with Staff role
+        Guild mockGuild = mock(Guild.class);
+        net.dv8tion.jda.api.entities.Member mockMember = mock(net.dv8tion.jda.api.entities.Member.class);
+        Role staffRole = mock(Role.class);
+        when(staffRole.getName()).thenReturn("Staff");
+        
+        when(jda.getGuildById("g1")).thenReturn(mockGuild);
+        when(mockGuild.getMemberById("user1")).thenReturn(mockMember);
+        when(mockMember.getRoles()).thenReturn(List.of(staffRole));
+
+        assertTrue(service.isUserAdminInGuild(auth, "g1"));
+    }
+
+    @Test
+    @DisplayName("isUserAdminInGuild: returns false when user has neither admin perms nor Staff role")
+    void isUserAdminInGuild_noPermissionsNoStaff() {
+        Authentication auth = mockAuth("user1");
+        var authorizedClient = TestTokens.authorizedClient("tok");
+        when(clients.loadAuthorizedClient(eq("discord"), eq("user1"))).thenReturn(authorizedClient);
+
+        // User has no admin permissions
+        Map<String,Object> guild = new HashMap<>();
+        guild.put("id", "g1");
+        guild.put("name", "G");
+        guild.put("permissions", "0");
+        when(cache.get(eq("tok"), any())).thenReturn(List.of(guild));
+
+        // Mock guild and member with no Staff role
+        Guild mockGuild = mock(Guild.class);
+        net.dv8tion.jda.api.entities.Member mockMember = mock(net.dv8tion.jda.api.entities.Member.class);
+        Role otherRole = mock(Role.class);
+        when(otherRole.getName()).thenReturn("Member");
+        
+        when(jda.getGuildById("g1")).thenReturn(mockGuild);
+        when(mockGuild.getMemberById("user1")).thenReturn(mockMember);
+        when(mockMember.getRoles()).thenReturn(List.of(otherRole));
+
+        assertFalse(service.isUserAdminInGuild(auth, "g1"));
+    }
+
+    @Test
+    @DisplayName("isUserActualAdminInGuild: returns true for admin permissions only")
+    void isUserActualAdminInGuild_adminOnly() {
+        Authentication auth = mockAuth("user1");
+        var authorizedClient = TestTokens.authorizedClient("tok");
+        when(clients.loadAuthorizedClient(eq("discord"), eq("user1"))).thenReturn(authorizedClient);
+
+        Map<String,Object> guildAdmin = new HashMap<>();
+        guildAdmin.put("id", "g1");
+        guildAdmin.put("name", "G");
+        guildAdmin.put("permissions", String.valueOf(net.dv8tion.jda.api.Permission.ADMINISTRATOR.getRawValue()));
+        when(cache.get(eq("tok"), any())).thenReturn(List.of(guildAdmin));
+
+        assertTrue(service.isUserActualAdminInGuild(auth, "g1"));
+    }
+
+    @Test
+    @DisplayName("isUserActualAdminInGuild: returns false even with Staff role")
+    void isUserActualAdminInGuild_staffNotAllowed() {
+        Authentication auth = mockAuth("user1");
+        var authorizedClient = TestTokens.authorizedClient("tok");
+        when(clients.loadAuthorizedClient(eq("discord"), eq("user1"))).thenReturn(authorizedClient);
+
+        // User has no admin permissions
+        Map<String,Object> guild = new HashMap<>();
+        guild.put("id", "g1");
+        guild.put("name", "G");
+        guild.put("permissions", "0");
+        when(cache.get(eq("tok"), any())).thenReturn(List.of(guild));
+
+        // Even with Staff role, should return false
+        assertFalse(service.isUserActualAdminInGuild(auth, "g1"));
+    }
+
+    @Test
     @DisplayName("getGatchaRoles: returns empty when guild missing")
     void getGatchaRoles_guildMissing() {
         when(jda.getGuildById("none")).thenReturn(null);

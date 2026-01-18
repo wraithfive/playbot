@@ -71,14 +71,14 @@ class ServerControllerTest {
     @DisplayName("getBotInviteUrl enforces auth and admin perms")
     void getInvite_authz() {
         assertEquals(401, controller.getBotInviteUrl("g1", null).getStatusCode().value());
-        when(adminService.isUserAdminInGuild(auth, "g1")).thenReturn(false);
+        when(adminService.isUserActualAdminInGuild(auth, "g1")).thenReturn(false);
         assertEquals(403, controller.getBotInviteUrl("g1", auth).getStatusCode().value());
     }
 
     @Test
     @DisplayName("getBotInviteUrl returns invite when authorized")
     void getInvite_ok() {
-        when(adminService.isUserAdminInGuild(auth, "g1")).thenReturn(true);
+        when(adminService.isUserActualAdminInGuild(auth, "g1")).thenReturn(true);
         when(adminService.generateBotInviteUrl("g1")).thenReturn("https://invite");
         ResponseEntity<Map<String,String>> res = controller.getBotInviteUrl("g1", auth);
         assertEquals(200, res.getStatusCode().value());
