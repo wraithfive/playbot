@@ -4,6 +4,8 @@ import com.discordbot.web.dto.qotd.QotdDtos.*;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.QotdStreamService;
 import com.discordbot.web.service.RateLimitService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/servers/{guildId}/channels/{channelId}/qotd/streams")
 public class QotdStreamController {
+    private static final Logger logger = LoggerFactory.getLogger(QotdStreamController.class);
 
     private final QotdStreamService streamService;
     private final AdminService adminService;
@@ -233,31 +236,52 @@ public class QotdStreamController {
             @RequestParam("file") MultipartFile file,
             Authentication authentication) {
 
+        logger.debug("CSV upload initiated for guild {} stream {}, file: {}", guildId, streamId, file.getOriginalFilename());
+
         // Rate limiting check
         if (!rateLimitService.allowBulkOperation(authentication)) {
+            logger.warn("CSV upload rate limited for guild {} stream {}", guildId, streamId);
             return ResponseEntity.status(429).build();
         }
 
         if (!canManage(guildId, authentication)) {
+            logger.warn("CSV upload permission denied for guild {} stream {}", guildId, streamId);
             return ResponseEntity.status(403).build();
+        }
+
+        if (file.isEmpty()) {
+            logger.warn("CSV upload rejected - empty file for guild {} stream {}, filename: {}",
+                    guildId, streamId, file.getOriginalFilename());
+            return ResponseEntity.badRequest().build();
         }
 
         // File size validation (2MB limit)
         long maxSize = 2 * 1024 * 1024;
         if (file.getSize() > maxSize) {
+            logger.warn("CSV upload rejected - file too large ({}KB) for guild {} stream {}", 
+                    file.getSize() / 1024, guildId, streamId);
             return ResponseEntity.status(413).build();
         }
 
-        // Content-type validation
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.toLowerCase().contains("csv")) {
+        // File extension validation (more reliable than content-type header)
+        // Security: Enforce single extension pattern to prevent double-extension attacks (e.g., "malicious.exe.csv")
+        // This ensures the file is treated as CSV and not exploited through filename tricks
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().matches("^[^.]+\\.csv$")) {
+            logger.warn("CSV upload rejected - invalid file extension for guild {} stream {}, filename: {}", 
+                    guildId, streamId, filename);
             return ResponseEntity.badRequest().build();
         }
 
         try {
+            logger.info("Processing CSV upload for guild {} stream {}, filename: {} ({}KB)", 
+                    guildId, streamId, filename, file.getSize() / 1024);
             UploadCsvResult result = streamService.uploadCsv(guildId, streamId, file);
+            logger.info("CSV upload successful for guild {} stream {} - {} rows processed ({} success, {} failed)", 
+                    guildId, streamId, result.successCount() + result.failureCount(), result.successCount(), result.failureCount());
             return ResponseEntity.ok(result);
         } catch (Exception e) {
+            logger.error("CSV upload failed for guild {} stream {}", guildId, streamId, e);
             return ResponseEntity.badRequest().build();
         }
     }
