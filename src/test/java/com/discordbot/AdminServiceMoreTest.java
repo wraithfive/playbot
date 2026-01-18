@@ -43,7 +43,7 @@ class AdminServiceMoreTest {
         guildsCache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
         com.discordbot.discord.DiscordApiClient discordApiClient = mock(com.discordbot.discord.DiscordApiClient.class);
-        service = new AdminService(jda, authorizedClientService, guildsCache, ws, discordApiClient);
+        service = new AdminService(jda, authorizedClientService, guildsCache, ws);
     }
 
     @Test

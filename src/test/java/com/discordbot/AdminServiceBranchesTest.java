@@ -1,6 +1,5 @@
 package com.discordbot;
 
-import com.discordbot.discord.DiscordApiClient;
 import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
@@ -46,7 +45,7 @@ class AdminServiceBranchesTest {
         cache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
         DiscordApiClient discordApiClient = mock(DiscordApiClient.class);
-        service = new AdminService(jda, clients, cache, ws, discordApiClient);
+        service = new AdminService(jda, clients, cache, ws);
     }
 
     @Test

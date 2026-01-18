@@ -19,7 +19,7 @@ class SlashCommandHandlerTest {
     var wsService = mock(WebSocketNotificationService.class);
     var qotdSubmissionService = mock(QotdSubmissionService.class);
     var apiClient = new com.discordbot.discord.DiscordApiClient();
-    var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService, apiClient);
+    var handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService);
         var guild = mock(Guild.class);
         var updateAction = mock(CommandListUpdateAction.class);
         var event = new GuildJoinEvent(null, 0, guild);
