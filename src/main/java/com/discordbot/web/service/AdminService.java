@@ -150,7 +150,7 @@ public class AdminService {
             boolean supportsEnhanced = false;
             try {
                 // Only check capability if the bot is present in the guild
-                if (botPresent && guild != null) {
+                if (botPresent) {
                     supportsEnhanced = guild.getFeatures().contains("ENHANCED_ROLE_COLORS") ||
                                      guild.getFeatures().contains("ROLE_COLORS") ||
                                      guild.getFeatures().contains("GUILD_ROLE_COLORS");
