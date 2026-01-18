@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import org.mockito.ArgumentCaptor;
+
 
 /**
  * Tests for the D20 roll mechanic feature.
@@ -46,7 +46,6 @@ class D20MechanicTest {
         guildsCache = mock(GuildsCache.class);
         wsService = mock(WebSocketNotificationService.class);
         qotdSubmissionService = mock(QotdSubmissionService.class);
-    var apiClient = new com.discordbot.discord.DiscordApiClient();
     handler = new SlashCommandHandler(cooldownRepo, streamRepo, guildsCache, wsService, qotdSubmissionService);
     }
 
@@ -618,9 +617,11 @@ class D20MechanicTest {
 
     private Role createMockRole(String name, String id, Color color) {
         Role role = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors roleColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(role.getName()).thenReturn(name);
         when(role.getId()).thenReturn(id);
-        when(role.getColor()).thenReturn(color);
+        when(role.getColors()).thenReturn(roleColors);
+        when(roleColors.getPrimary()).thenReturn(color);
         return role;
     }
 

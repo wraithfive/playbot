@@ -40,7 +40,6 @@ class AdminServiceTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         webSocketService = mock(WebSocketNotificationService.class);
-        com.discordbot.discord.DiscordApiClient discordApiClient = mock(com.discordbot.discord.DiscordApiClient.class);
 
         adminService = new AdminService(jda, authorizedClientService, guildsCache, webSocketService);
     }

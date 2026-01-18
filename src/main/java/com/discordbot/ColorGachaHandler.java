@@ -143,7 +143,7 @@ public class ColorGachaHandler extends ListenerAdapter {
 
                 EmbedBuilder embed = new EmbedBuilder();
                 embed.setTitle("🎨 Color Gacha Roll!");
-                embed.setColor(randomRole.getColor());
+                embed.setColor(randomRole.getColors().getPrimary());
                 embed.setDescription("**" + event.getAuthor().getName() + "** rolled...");
                 embed.addField("Color", roleInfo.displayName, true);
                 if (roleInfo.rarity != null) {
@@ -288,7 +288,7 @@ public class ColorGachaHandler extends ListenerAdapter {
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("Your Current Color");
-        embed.setColor(gachaRole.getColor());
+        embed.setColor(gachaRole.getColors().getPrimary());
         embed.addField("Color", roleInfo.displayName, true);
         if (roleInfo.rarity != null) {
             embed.addField("Rarity", roleInfo.rarity.getEmoji() + " " + roleInfo.rarity.name(), true);

@@ -616,8 +616,8 @@ public class AdminService {
             displayName = afterPrefix.substring(parts[0].length() + 1);
         }
 
-        String colorHex = role.getColor() != null ?
-            String.format("#%06X", role.getColor().getRGB() & 0xFFFFFF) : null;
+        String colorHex = role.getColors().getPrimary() != null ?
+            String.format("#%06X", role.getColors().getPrimary().getRGB() & 0xFFFFFF) : null;
 
         return new GachaRoleInfo(
             role.getId(),

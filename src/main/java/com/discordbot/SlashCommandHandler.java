@@ -345,7 +345,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             // Create response embed (+ color preview thumbnail)
             EmbedBuilder embed = new EmbedBuilder();
             embed.setTitle("🎲 Gacha Roll Result");
-            embed.setColor(discordRole.getColor() != null ? discordRole.getColor() : Color.MAGENTA);
+            embed.setColor(discordRole.getColors().getPrimary() != null ? discordRole.getColors().getPrimary() : Color.MAGENTA);
 
             // Remove rarity emoji next to the name to reduce confusion; show name cleanly
             String description = String.format("You rolled: **%s**", rolledRole.displayName);
@@ -470,7 +470,7 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("🎨 Your Current Color");
-        embed.setColor(currentRole.map(Role::getColor).orElse(Color.MAGENTA));
+        embed.setColor(currentRole.map(r -> r.getColors().getPrimary()).orElse(Color.MAGENTA));
 
         if (currentRole.isPresent()) {
             Role role = currentRole.get();
@@ -744,8 +744,8 @@ public class SlashCommandHandler extends ListenerAdapter {
                 int x = margin + (col * (maxWidth / 2));
                 
                 Role discordRole = roleMap.get(ri.roleId);
-                Color roleColor = (discordRole != null && discordRole.getColor() != null)
-                    ? discordRole.getColor()
+                Color roleColor = (discordRole != null && discordRole.getColors().getPrimary() != null)
+                    ? discordRole.getColors().getPrimary()
                     : Color.WHITE;
                 
                 // Check if this is a gradient/holographic role using JDA's native API
@@ -977,11 +977,11 @@ public class SlashCommandHandler extends ListenerAdapter {
                     g.setColor(stops.get(0));
                 } else {
                     // Fallback to role color
-                    g.setColor(role.getColor() != null ? role.getColor() : Color.WHITE);
+                    g.setColor(role.getColors().getPrimary() != null ? role.getColors().getPrimary() : Color.WHITE);
                 }
             } else {
                 // Solid color
-                g.setColor(role.getColor() != null ? role.getColor() : Color.WHITE);
+                g.setColor(role.getColors().getPrimary() != null ? role.getColors().getPrimary() : Color.WHITE);
             }
 
             // Draw swatch with rounded corners and border

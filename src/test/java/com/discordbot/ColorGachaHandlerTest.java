@@ -545,8 +545,10 @@ class ColorGachaHandlerTest {
 
     private Role createMockRole(String name, Color color) {
         Role role = mock(Role.class);
+        net.dv8tion.jda.api.entities.RoleColors roleColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(role.getName()).thenReturn(name);
-        when(role.getColor()).thenReturn(color);
+        when(role.getColors()).thenReturn(roleColors);
+        when(roleColors.getPrimary()).thenReturn(color);
         return role;
     }
 
