@@ -336,7 +336,32 @@ class AdminServiceBranchesTest {
         guild.put("permissions", "0");
         when(cache.get(eq("tok"), any())).thenReturn(List.of(guild));
 
+        // Mock guild and member with Staff role to prove Staff alone is insufficient
+        Guild mockGuild = mock(Guild.class);
+        net.dv8tion.jda.api.entities.Member mockMember = mock(net.dv8tion.jda.api.entities.Member.class);
+        Role staffRole = mock(Role.class);
+        when(staffRole.getName()).thenReturn("Staff");
+        when(jda.getGuildById("g1")).thenReturn(mockGuild);
+        when(mockGuild.getMemberById("user1")).thenReturn(mockMember);
+        when(mockMember.getRoles()).thenReturn(List.of(staffRole));
+
         // Even with Staff role, should return false
+        assertFalse(service.isUserActualAdminInGuild(auth, "g1"));
+    }
+
+    @Test
+    @DisplayName("isUserActualAdminInGuild: returns false when permissions are not numeric")
+    void isUserActualAdminInGuild_permissionsParseError() {
+        Authentication auth = mockAuth("user1");
+        var authorizedClient = TestTokens.authorizedClient("tok");
+        when(clients.loadAuthorizedClient(eq("discord"), eq("user1"))).thenReturn(authorizedClient);
+
+        Map<String,Object> guild = new HashMap<>();
+        guild.put("id", "g1");
+        guild.put("name", "G");
+        guild.put("permissions", "not-a-number");
+        when(cache.get(eq("tok"), any())).thenReturn(List.of(guild));
+
         assertFalse(service.isUserActualAdminInGuild(auth, "g1"));
     }
 
