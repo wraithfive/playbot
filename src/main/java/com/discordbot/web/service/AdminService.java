@@ -182,25 +182,13 @@ public class AdminService {
             return false;
         }
 
-        List<Map<String, Object>> userGuilds = getUserGuildsFromDiscord(accessToken);
-
-        for (Map<String, Object> userGuild : userGuilds) {
-            if (guildId.equals(userGuild.get("id"))) {
-                Long permissions = Long.parseLong(userGuild.get("permissions").toString());
-                boolean isAdmin = (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
-                                 (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
-                
-                if (isAdmin) {
-                    return true;
-                }
-                
-                // Check if user has Staff role
-                return hasStaffRole(userId, guildId);
-            }
+        // Check if user has actual admin permissions
+        if (checkAdminPermissions(guildId, accessToken)) {
+            return true;
         }
 
-        logger.warn("User {} attempted to access guild {} without permissions", userId, guildId);
-        return false;
+        // Check if user has Staff role as fallback
+        return hasStaffRole(userId, guildId);
     }
 
     /**
@@ -236,6 +224,14 @@ public class AdminService {
             return false;
         }
 
+        return checkAdminPermissions(guildId, accessToken);
+    }
+
+    /**
+     * Check if user has actual ADMINISTRATOR or MANAGE_SERVER permissions in a guild
+     * Extracted as a helper to avoid duplication between permission checking methods
+     */
+    private boolean checkAdminPermissions(String guildId, String accessToken) {
         List<Map<String, Object>> userGuilds = getUserGuildsFromDiscord(accessToken);
 
         for (Map<String, Object> userGuild : userGuilds) {
