@@ -76,7 +76,7 @@ public class ServerController {
     /**
      * GET /api/servers/{guildId}/invite
      * Generate bot invite URL for a specific server
-     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     * SECURED: Requires OAuth2 authentication + user must be ACTUAL admin (not Staff role)
      * Note: Does NOT require bot to be present (that's the whole point of inviting it!)
      */
     @GetMapping("/{guildId}/invite")
@@ -89,8 +89,8 @@ public class ServerController {
             return ResponseEntity.status(401).build();
         }
 
-        // Check if user has admin permissions (bot presence not required for invites)
-        if (!adminService.isUserAdminInGuild(authentication, guildId)) {
+        // Check if user has actual admin permissions (Staff role NOT allowed for bot invites)
+        if (!adminService.isUserActualAdminInGuild(authentication, guildId)) {
             logger.warn("Unauthorized attempt to get bot invite for guild: {}", guildId);
             return ResponseEntity.status(403).build();
         }

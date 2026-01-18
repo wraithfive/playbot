@@ -167,6 +167,7 @@ public class AdminService {
 
     /**
      * Check if user has admin permissions in a specific guild (regardless of bot presence)
+     * Returns true if user has EITHER actual admin permissions OR Staff role
      */
     public boolean isUserAdminInGuild(Authentication authentication, String guildId) {
         if (authentication == null || !(authentication.getPrincipal() instanceof OAuth2User)) {
@@ -181,18 +182,72 @@ public class AdminService {
             return false;
         }
 
+        // User is admin if they have actual permissions OR Staff role
+        return checkAdminPermissions(guildId, accessToken) || hasStaffRole(userId, guildId);
+    }
+
+    /**
+     * Check if user has Staff role in a guild
+     */
+    private boolean hasStaffRole(String userId, String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return false;
+        }
+
+        net.dv8tion.jda.api.entities.Member member = guild.getMemberById(userId);
+        if (member == null) {
+            return false;
+        }
+
+        return member.getRoles().stream()
+            .anyMatch(role -> role.getName().equalsIgnoreCase("Staff"));
+    }
+
+    /**
+     * Check if user has actual ADMINISTRATOR or MANAGE_SERVER permissions (no Staff role)
+     * Use this for restricted actions like bot invites
+     */
+    public boolean isUserActualAdminInGuild(Authentication authentication, String guildId) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof OAuth2User)) {
+            return false;
+        }
+
+        String accessToken = getAccessToken(authentication);
+
+        if (accessToken == null) {
+            return false;
+        }
+
+        return checkAdminPermissions(guildId, accessToken);
+    }
+
+    /**
+     * Check if user has actual ADMINISTRATOR or MANAGE_SERVER permissions in a guild
+     * Extracted as a helper to avoid duplication between permission checking methods
+     */
+    private boolean checkAdminPermissions(String guildId, String accessToken) {
         List<Map<String, Object>> userGuilds = getUserGuildsFromDiscord(accessToken);
 
         for (Map<String, Object> userGuild : userGuilds) {
             if (guildId.equals(userGuild.get("id"))) {
-                Long permissions = Long.parseLong(userGuild.get("permissions").toString());
-                boolean isAdmin = (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
-                                 (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
-                return isAdmin;
+                Object permissionsObj = userGuild.get("permissions");
+                if (permissionsObj == null) {
+                    return false;
+                }
+
+                long permissions;
+                try {
+                    permissions = Long.parseLong(permissionsObj.toString());
+                } catch (NumberFormatException e) {
+                    // Treat unparseable permissions as missing admin privileges
+                    return false;
+                }
+                return (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
+                       (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
             }
         }
 
-        logger.warn("User {} attempted to access guild {} without permissions", userId, guildId);
         return false;
     }
 
