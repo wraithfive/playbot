@@ -258,8 +258,8 @@ public class QotdStreamController {
         // File size validation (2MB limit)
         long maxSize = 2 * 1024 * 1024;
         if (file.getSize() > maxSize) {
-            logger.warn("CSV upload rejected - file too large ({}MB) for guild {} stream {}", 
-                    file.getSize() / (1024 * 1024), guildId, streamId);
+            logger.warn("CSV upload rejected - file too large ({}KB) for guild {} stream {}", 
+                    file.getSize() / 1024, guildId, streamId);
             return ResponseEntity.status(413).build();
         }
 
