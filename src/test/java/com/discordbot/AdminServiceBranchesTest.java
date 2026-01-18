@@ -1,6 +1,5 @@
 package com.discordbot;
 
-import com.discordbot.discord.DiscordApiClient;
 import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
@@ -45,8 +44,7 @@ class AdminServiceBranchesTest {
         clients = mock(OAuth2AuthorizedClientService.class);
         cache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        DiscordApiClient discordApiClient = mock(DiscordApiClient.class);
-        service = new AdminService(jda, clients, cache, ws, discordApiClient);
+        service = new AdminService(jda, clients, cache, ws);
     }
 
     @Test
@@ -171,9 +169,11 @@ class AdminServiceBranchesTest {
         when(g.getName()).thenReturn("G");
         when(g.createRole()).thenReturn(action);
         when(action.complete()).thenReturn(created);
+        net.dv8tion.jda.api.entities.RoleColors createdColors = mock(net.dv8tion.jda.api.entities.RoleColors.class);
         when(created.getId()).thenReturn("rid");
         when(created.getName()).thenReturn("gacha:rare:White");
-        when(created.getColor()).thenReturn(Color.WHITE);
+        when(created.getColors()).thenReturn(createdColors);
+        when(createdColors.getPrimary()).thenReturn(Color.WHITE);
         when(created.getPosition()).thenReturn(1);
 
         var dto = service.createGatchaRole("g1", new com.discordbot.web.dto.CreateRoleRequest("White","rare","not-a-hex", null, null));
