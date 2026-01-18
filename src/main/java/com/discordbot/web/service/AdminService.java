@@ -240,7 +240,18 @@ public class AdminService {
 
         for (Map<String, Object> userGuild : userGuilds) {
             if (guildId.equals(userGuild.get("id"))) {
-                Long permissions = Long.parseLong(userGuild.get("permissions").toString());
+                Object permissionsObj = userGuild.get("permissions");
+                if (permissionsObj == null) {
+                    return false;
+                }
+
+                long permissions;
+                try {
+                    permissions = Long.parseLong(permissionsObj.toString());
+                } catch (NumberFormatException e) {
+                    // Treat unparseable permissions as missing admin privileges
+                    return false;
+                }
                 return (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
                        (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
             }
