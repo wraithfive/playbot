@@ -26,10 +26,10 @@ public class QotdQuestion {
     @Column(nullable = false, length = 2000)
     private String text;
 
-    @Column(length = 32)
+    @Column(length = 255)
     private String authorUserId;
 
-    @Column(length = 128)
+    @Column(length = 255)
     private String authorUsername;
 
     @Column(nullable = false)
