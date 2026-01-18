@@ -33,7 +33,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.LinearGradientPaint;
-import com.discordbot.discord.DiscordApiClient;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
@@ -64,7 +63,6 @@ public class SlashCommandHandler extends ListenerAdapter {
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
     private final QotdSubmissionService qotdSubmissionService;
-    private final DiscordApiClient discordApiClient;
     private final Random random = new Random();
 
     // (Removed image icon cache - using emoji-only inline in text rendering)
@@ -75,14 +73,12 @@ public class SlashCommandHandler extends ListenerAdapter {
             QotdStreamRepository streamRepository,
             GuildsCache guildsCache,
             WebSocketNotificationService webSocketNotificationService,
-            QotdSubmissionService qotdSubmissionService,
-            DiscordApiClient discordApiClient) {
+            QotdSubmissionService qotdSubmissionService) {
         this.cooldownRepository = cooldownRepository;
         this.streamRepository = streamRepository;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
         this.qotdSubmissionService = qotdSubmissionService;
-        this.discordApiClient = discordApiClient;
         logger.info("SlashCommandHandler initialized with database persistence, QOTD submissions, stream autocomplete, and WebSocket notifications");
     }
 
@@ -366,13 +362,9 @@ public class SlashCommandHandler extends ListenerAdapter {
                 embed.addField("✨ Bonus", "Lucky Streak used! Guaranteed Epic or higher.", false);
             }
 
-            // Generate a small color preview for this role (supports gradients/holo via REST)
+            // Generate a small color preview for this role (supports gradients/holo via JDA)
             try {
-                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
-                    discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
-                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(rolledRole.roleId);
-
-                byte[] swatch = renderSingleColorSwatch(discordRole, colorsObj);
+                byte[] swatch = renderSingleColorSwatch(discordRole);
                 if (swatch != null && swatch.length > 0) {
                     embed.setThumbnail("attachment://roll_color.png");
                     event.replyFiles(FileUpload.fromData(swatch, "roll_color.png"))
@@ -576,10 +568,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         if (currentRole.isPresent()) {
             Role role = currentRole.get();
             try {
-                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
-                    discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
-                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(role.getId());
-                byte[] swatch = renderSingleColorSwatch(role, colorsObj);
+                byte[] swatch = renderSingleColorSwatch(role);
                 if (swatch != null && swatch.length > 0) {
                     embed.setThumbnail("attachment://mycolor.png");
                     event.replyFiles(FileUpload.fromData(swatch, "mycolor.png"))
@@ -617,11 +606,7 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         // Render color preview images with headings and pagination
         try {
-            // Fetch role colors via Discord API (new Role Colors Object)
-            Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors =
-                discordApiClient != null ? discordApiClient.getGuildRoleColors(event.getGuild().getId()) : Collections.emptyMap();
-
-            List<byte[]> imagePages = renderColorSwatchPages(gachaRoles, roleMap, apiColors, 20);
+            List<byte[]> imagePages = renderColorSwatchPages(gachaRoles, roleMap, 20);
             if (imagePages.isEmpty()) {
                 event.reply("❌ Failed to generate color preview. Please try again.")
                     .setEphemeral(true).queue();
@@ -669,7 +654,6 @@ public class SlashCommandHandler extends ListenerAdapter {
      * Each page shows up to maxPerPage roles with actual color previews.
      */
     private List<byte[]> renderColorSwatchPages(List<RoleInfo> roles, Map<String, Role> roleMap,
-                                                Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors,
                                                 int maxPerPage) throws IOException {
         // Group by rarity
         Map<Rarity, List<RoleInfo>> byRarity = roles.stream()
@@ -687,7 +671,7 @@ public class SlashCommandHandler extends ListenerAdapter {
             for (RoleInfo ri : list) {
                 currentPage.add(ri);
                 if (currentPage.size() >= maxPerPage) {
-                    pages.add(renderColorSwatchImage(currentPage, roleMap, apiColors));
+                    pages.add(renderColorSwatchImage(currentPage, roleMap));
                     currentPage = new ArrayList<>();
                 }
             }
@@ -695,7 +679,7 @@ public class SlashCommandHandler extends ListenerAdapter {
         
         // Render final page if any roles remain
         if (!currentPage.isEmpty()) {
-            pages.add(renderColorSwatchImage(currentPage, roleMap, apiColors));
+            pages.add(renderColorSwatchImage(currentPage, roleMap));
         }
         
         return pages;
@@ -704,8 +688,7 @@ public class SlashCommandHandler extends ListenerAdapter {
     /**
      * Render a single page of color swatches with rarity headings and role icons.
      */
-    private byte[] renderColorSwatchImage(List<RoleInfo> roles, Map<String, Role> roleMap,
-                                          Map<String, com.discordbot.discord.DiscordApiClient.RoleColors> apiColors) throws IOException {
+    private byte[] renderColorSwatchImage(List<RoleInfo> roles, Map<String, Role> roleMap) throws IOException {
         int swatchSize = 50;
         int iconSize = 24;
         int spacing = 8;
@@ -765,51 +748,57 @@ public class SlashCommandHandler extends ListenerAdapter {
                     ? discordRole.getColor()
                     : Color.WHITE;
                 
-                // Check if this is a gradient role
-                // Prefer API-based role colors object
-                com.discordbot.discord.DiscordApiClient.RoleColors colorsObj = apiColors.get(ri.roleId);
-                boolean apiGradient = colorsObj != null && (colorsObj.isGradient() || colorsObj.isHolographic());
-                boolean isGradient = apiGradient;
+                // Check if this is a gradient/holographic role using JDA's native API
+                boolean isGradient = false;
+                if (discordRole != null) {
+                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
+                    isGradient = roleColors.isGradient() || roleColors.isHolographic();
+                }
                 
                 // Draw color swatch (gradient or solid)
-                if (isGradient) {
-                    if (apiGradient && colorsObj != null) {
-                        // Build gradient from API primary/secondary/tertiary colors
-                        List<Color> apiStops = new ArrayList<>();
-                        int primary = colorsObj.getPrimaryColor();
-                        int secondary = colorsObj.getSecondaryColor();
-                        int tertiary = colorsObj.getTertiaryColor();
-                        
-                        if (primary != com.discordbot.discord.DiscordApiClient.RoleColors.DEFAULT_COLOR_RAW) {
-                            apiStops.add(new Color(primary));
+                if (isGradient && discordRole != null) {
+                    // Build gradient from JDA's native role colors
+                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
+                    List<Color> colorStops = new ArrayList<>();
+                    
+                    // Add primary color
+                    Color primary = roleColors.getPrimary();
+                    if (primary != null) {
+                        colorStops.add(primary);
+                    }
+                    
+                    // Add secondary color if present (gradient)
+                    Color secondary = roleColors.getSecondary();
+                    if (secondary != null) {
+                        colorStops.add(secondary);
+                    }
+                    
+                    // Add tertiary color if present (holographic)
+                    Color tertiary = roleColors.getTertiary();
+                    if (tertiary != null) {
+                        colorStops.add(tertiary);
+                    }
+                    
+                    if (colorStops.size() >= 2) {
+                        int n = colorStops.size();
+                        float[] fractions = new float[n];
+                        Color[] colors = new Color[n];
+                        for (int i = 0; i < n; i++) {
+                            fractions[i] = (float) i / (n - 1);
+                            colors[i] = colorStops.get(i);
                         }
-                        if (secondary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                            apiStops.add(new Color(secondary));
-                        }
-                        if (tertiary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                            apiStops.add(new Color(tertiary));
-                        }
-                        if (apiStops.size() >= 2) {
-                            int n = apiStops.size();
-                            float[] fractions = new float[n];
-                            Color[] colors = new Color[n];
-                            for (int i = 0; i < n; i++) {
-                                fractions[i] = (float) i / (n - 1);
-                                colors[i] = apiStops.get(i);
-                            }
-                            LinearGradientPaint paint = new LinearGradientPaint(
-                                x, rowY,
-                                x + swatchSize, rowY + swatchSize,
-                                fractions,
-                                colors
-                            );
-                            g.setPaint(paint);
-                        } else if (apiStops.size() == 1) {
-                            g.setColor(apiStops.get(0));
-                        } else {
-                            // Fallback to roleColor if API had no usable stops
-                            g.setColor(roleColor);
-                        }
+                        LinearGradientPaint paint = new LinearGradientPaint(
+                            x, rowY,
+                            x + swatchSize, rowY + swatchSize,
+                            fractions,
+                            colors
+                        );
+                        g.setPaint(paint);
+                    } else if (colorStops.size() == 1) {
+                        g.setColor(colorStops.get(0));
+                    } else {
+                        // Fallback to roleColor
+                        g.setColor(roleColor);
                     }
                 } else {
                     g.setColor(roleColor);
@@ -847,11 +836,14 @@ public class SlashCommandHandler extends ListenerAdapter {
                 g.setFont(new Font("Arial", Font.PLAIN, 12));
                 g.setColor(Color.WHITE);
                 String name = ri.displayName;
-                // Label using API indicator only
-                if (colorsObj != null && colorsObj.isHolographic()) {
-                    name += " [Holo]";
-                } else if (apiGradient) {
-                    name += " [Gradient]";
+                // Label using JDA native indicator
+                if (discordRole != null) {
+                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
+                    if (roleColors.isHolographic()) {
+                        name += " [Holo]";
+                    } else if (roleColors.isGradient()) {
+                        name += " [Gradient]";
+                    }
                 }
                 g.drawString(name, x + swatchSize + spacing, rowY + swatchSize / 2 + 5);
 
@@ -925,7 +917,7 @@ public class SlashCommandHandler extends ListenerAdapter {
      * Render a small swatch image (PNG) for a single role, supporting solid, gradient, and holographic.
      * Returns null if rendering fails.
      */
-    private byte[] renderSingleColorSwatch(Role role, com.discordbot.discord.DiscordApiClient.RoleColors colorsObj) {
+    private byte[] renderSingleColorSwatch(Role role) {
         try {
             int width = 300;
             int height = 60;
@@ -944,22 +936,27 @@ public class SlashCommandHandler extends ListenerAdapter {
             int x = margin;
             int y = margin;
 
+            // Get JDA's native role colors
+            net.dv8tion.jda.api.entities.RoleColors roleColors = role.getColors();
+            
             // Determine paint for swatch
-            if (colorsObj != null && (colorsObj.isGradient() || colorsObj.isHolographic())) {
-                // Build gradient paint using available stops
+            if (roleColors.isGradient() || roleColors.isHolographic()) {
+                // Build gradient paint using available color stops
                 java.util.List<Color> stops = new ArrayList<>();
-                int primary = colorsObj.getPrimaryColor();
-                int secondary = colorsObj.getSecondaryColor();
-                int tertiary = colorsObj.getTertiaryColor();
-
-                if (primary != com.discordbot.discord.DiscordApiClient.RoleColors.DEFAULT_COLOR_RAW) {
-                    stops.add(new Color(primary));
+                
+                Color primary = roleColors.getPrimary();
+                if (primary != null) {
+                    stops.add(primary);
                 }
-                if (secondary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                    stops.add(new Color(secondary));
+                
+                Color secondary = roleColors.getSecondary();
+                if (secondary != null) {
+                    stops.add(secondary);
                 }
-                if (tertiary != com.discordbot.discord.DiscordApiClient.RoleColors.COLOR_NOT_SET) {
-                    stops.add(new Color(tertiary));
+                
+                Color tertiary = roleColors.getTertiary();
+                if (tertiary != null) {
+                    stops.add(tertiary);
                 }
 
                 if (stops.size() >= 2) {
