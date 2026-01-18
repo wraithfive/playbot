@@ -167,6 +167,7 @@ public class AdminService {
 
     /**
      * Check if user has admin permissions in a specific guild (regardless of bot presence)
+     * Also allows users with "Staff" role
      */
     public boolean isUserAdminInGuild(Authentication authentication, String guildId) {
         if (authentication == null || !(authentication.getPrincipal() instanceof OAuth2User)) {
@@ -188,11 +189,63 @@ public class AdminService {
                 Long permissions = Long.parseLong(userGuild.get("permissions").toString());
                 boolean isAdmin = (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
                                  (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
-                return isAdmin;
+                
+                if (isAdmin) {
+                    return true;
+                }
+                
+                // Check if user has Staff role
+                return hasStaffRole(userId, guildId);
             }
         }
 
         logger.warn("User {} attempted to access guild {} without permissions", userId, guildId);
+        return false;
+    }
+
+    /**
+     * Check if user has Staff role in a guild
+     */
+    private boolean hasStaffRole(String userId, String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return false;
+        }
+
+        net.dv8tion.jda.api.entities.Member member = guild.getMemberById(userId);
+        if (member == null) {
+            return false;
+        }
+
+        return member.getRoles().stream()
+            .anyMatch(role -> role.getName().equalsIgnoreCase("Staff"));
+    }
+
+    /**
+     * Check if user has actual ADMINISTRATOR or MANAGE_SERVER permissions (no Staff role)
+     * Use this for restricted actions like bot invites
+     */
+    public boolean isUserActualAdminInGuild(Authentication authentication, String guildId) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof OAuth2User)) {
+            return false;
+        }
+
+        String accessToken = getAccessToken(authentication);
+
+        if (accessToken == null) {
+            return false;
+        }
+
+        List<Map<String, Object>> userGuilds = getUserGuildsFromDiscord(accessToken);
+
+        for (Map<String, Object> userGuild : userGuilds) {
+            if (guildId.equals(userGuild.get("id"))) {
+                Long permissions = Long.parseLong(userGuild.get("permissions").toString());
+                return (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
+                       (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
+            }
+        }
+
         return false;
     }
 
