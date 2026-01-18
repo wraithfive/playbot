@@ -27,4 +27,7 @@
     <!-- D20 roll mechanic (issue #5) -->
     <include file="db/changelog/changes/010-add-d20-mechanic-columns.xml"/>
 
+    <!-- Bug fixes -->
+    <include file="db/changelog/changes/011-fix-author-user-id-length.xml"/>
+
 </databaseChangeLog>
