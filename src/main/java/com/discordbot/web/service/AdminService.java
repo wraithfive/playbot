@@ -613,8 +613,9 @@ public class AdminService {
             displayName = afterPrefix.substring(parts[0].length() + 1);
         }
 
-        String colorHex = role.getColors().getPrimary() != null ?
-            String.format("#%06X", role.getColors().getPrimary().getRGB() & 0xFFFFFF) : null;
+        net.dv8tion.jda.api.entities.RoleColors rc = role.getColors();
+        String colorHex = (rc != null && rc.getPrimary() != null) ?
+            String.format("#%06X", rc.getPrimary().getRGB() & 0xFFFFFF) : null;
 
         return new GachaRoleInfo(
             role.getId(),
@@ -695,6 +696,7 @@ public class AdminService {
                 // Use holographic style with colors
                 Role role = guild.createRole()
                     .setName(fullName)
+                    // Primary stays explicit; Discord applies its own holographic palette server-side
                     .setColor(primaryColor)
                     .useHolographicStyle()
                     .setMentionable(false)

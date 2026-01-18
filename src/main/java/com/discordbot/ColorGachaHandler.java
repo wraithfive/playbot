@@ -143,7 +143,8 @@ public class ColorGachaHandler extends ListenerAdapter {
 
                 EmbedBuilder embed = new EmbedBuilder();
                 embed.setTitle("🎨 Color Gacha Roll!");
-                embed.setColor(randomRole.getColors().getPrimary());
+                net.dv8tion.jda.api.entities.RoleColors rc = randomRole.getColors();
+                embed.setColor(rc != null && rc.getPrimary() != null ? rc.getPrimary() : Color.MAGENTA);
                 embed.setDescription("**" + event.getAuthor().getName() + "** rolled...");
                 embed.addField("Color", roleInfo.displayName, true);
                 if (roleInfo.rarity != null) {
@@ -288,7 +289,8 @@ public class ColorGachaHandler extends ListenerAdapter {
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("Your Current Color");
-        embed.setColor(gachaRole.getColors().getPrimary());
+                net.dv8tion.jda.api.entities.RoleColors rc = gachaRole.getColors();
+                embed.setColor(rc != null && rc.getPrimary() != null ? rc.getPrimary() : Color.MAGENTA);
         embed.addField("Color", roleInfo.displayName, true);
         if (roleInfo.rarity != null) {
             embed.addField("Rarity", roleInfo.rarity.getEmoji() + " " + roleInfo.rarity.name(), true);

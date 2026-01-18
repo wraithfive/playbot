@@ -345,7 +345,8 @@ public class SlashCommandHandler extends ListenerAdapter {
             // Create response embed (+ color preview thumbnail)
             EmbedBuilder embed = new EmbedBuilder();
             embed.setTitle("🎲 Gacha Roll Result");
-            embed.setColor(discordRole.getColors().getPrimary() != null ? discordRole.getColors().getPrimary() : Color.MAGENTA);
+            net.dv8tion.jda.api.entities.RoleColors rc = discordRole.getColors();
+            embed.setColor(rc != null && rc.getPrimary() != null ? rc.getPrimary() : Color.MAGENTA);
 
             // Remove rarity emoji next to the name to reduce confusion; show name cleanly
             String description = String.format("You rolled: **%s**", rolledRole.displayName);
@@ -470,7 +471,10 @@ public class SlashCommandHandler extends ListenerAdapter {
 
         EmbedBuilder embed = new EmbedBuilder();
         embed.setTitle("🎨 Your Current Color");
-        embed.setColor(currentRole.map(r -> r.getColors().getPrimary()).orElse(Color.MAGENTA));
+        embed.setColor(currentRole
+            .map(r -> r.getColors())
+            .map(rc -> rc != null ? rc.getPrimary() : null)
+            .orElse(Color.MAGENTA));
 
         if (currentRole.isPresent()) {
             Role role = currentRole.get();
@@ -744,13 +748,21 @@ public class SlashCommandHandler extends ListenerAdapter {
                 int x = margin + (col * (maxWidth / 2));
                 
                 Role discordRole = roleMap.get(ri.roleId);
-                Color roleColor = (discordRole != null && discordRole.getColors().getPrimary() != null)
-                    ? discordRole.getColors().getPrimary()
-                    : Color.WHITE;
-                
-                // Check if this is a gradient/holographic role using JDA's native API
+                if (discordRole == null) {
+                    // If the role disappeared, skip rendering but keep layout stable
+                    col++;
+                    if (col >= 2) {
+                        col = 0;
+                        rowY += swatchSize + spacing;
+                    }
+                    continue;
+                }
+
                 net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
-                boolean isGradient = roleColors.isGradient() || roleColors.isHolographic();
+                boolean isGradient = roleColors != null && (roleColors.isGradient() || roleColors.isHolographic());
+                Color roleColor = (roleColors != null && roleColors.getPrimary() != null)
+                    ? roleColors.getPrimary()
+                    : Color.WHITE;
                 
                 // Draw color swatch (gradient or solid)
                 if (isGradient) {
@@ -773,6 +785,14 @@ public class SlashCommandHandler extends ListenerAdapter {
                     Color tertiary = roleColors.getTertiary();
                     if (tertiary != null) {
                         colorStops.add(tertiary);
+                    }
+
+                    // If Discord doesn't return colors for holographic, fall back to documented defaults
+                    if (colorStops.isEmpty() && roleColors.isHolographic()) {
+                        // Discord applies its own holographic palette when tertiary is set; use documented swatch defaults
+                        colorStops.add(new Color(0x8A7FFF));
+                        colorStops.add(new Color(0x67C7FF));
+                        colorStops.add(new Color(0xF7A8FF));
                     }
                     
                     if (colorStops.size() >= 2) {
@@ -934,8 +954,9 @@ public class SlashCommandHandler extends ListenerAdapter {
             // Get JDA's native role colors
             net.dv8tion.jda.api.entities.RoleColors roleColors = role.getColors();
             
-            // Determine paint for swatch
-            if (roleColors.isGradient() || roleColors.isHolographic()) {
+            if (roleColors == null) {
+                g.setColor(Color.WHITE);
+            } else if (roleColors.isGradient() || roleColors.isHolographic()) {
                 // Build gradient paint using available color stops
                 java.util.List<Color> stops = new ArrayList<>();
                 
@@ -972,11 +993,13 @@ public class SlashCommandHandler extends ListenerAdapter {
                     g.setColor(stops.get(0));
                 } else {
                     // Fallback to role color
-                    g.setColor(role.getColors().getPrimary() != null ? role.getColors().getPrimary() : Color.WHITE);
+                    Color primaryColor = roleColors.getPrimary();
+                    g.setColor(primaryColor != null ? primaryColor : Color.WHITE);
                 }
             } else {
                 // Solid color
-                g.setColor(role.getColors().getPrimary() != null ? role.getColors().getPrimary() : Color.WHITE);
+                Color primaryColor = roleColors.getPrimary();
+                g.setColor(primaryColor != null ? primaryColor : Color.WHITE);
             }
 
             // Draw swatch with rounded corners and border
