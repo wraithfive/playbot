@@ -853,7 +853,7 @@ public class SlashCommandHandler extends ListenerAdapter {
                 g.setColor(Color.WHITE);
                 String name = ri.displayName;
                 // Label using JDA native indicator
-                if (discordRole != null && roleColors != null) {
+                if (roleColors != null) {
                     if (roleColors.isHolographic()) {
                         name += " [Holo]";
                     } else if (roleColors.isGradient()) {
