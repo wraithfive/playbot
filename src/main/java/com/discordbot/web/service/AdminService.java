@@ -167,7 +167,7 @@ public class AdminService {
 
     /**
      * Check if user has admin permissions in a specific guild (regardless of bot presence)
-     * Also allows users with "Staff" role
+     * Returns true if user has EITHER actual admin permissions OR Staff role
      */
     public boolean isUserAdminInGuild(Authentication authentication, String guildId) {
         if (authentication == null || !(authentication.getPrincipal() instanceof OAuth2User)) {
@@ -182,13 +182,8 @@ public class AdminService {
             return false;
         }
 
-        // Check if user has actual admin permissions
-        if (checkAdminPermissions(guildId, accessToken)) {
-            return true;
-        }
-
-        // Check if user has Staff role as fallback
-        return hasStaffRole(userId, guildId);
+        // User is admin if they have actual permissions OR Staff role
+        return checkAdminPermissions(guildId, accessToken) || hasStaffRole(userId, guildId);
     }
 
     /**
