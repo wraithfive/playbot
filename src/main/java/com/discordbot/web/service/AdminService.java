@@ -150,13 +150,10 @@ public class AdminService {
             boolean supportsEnhanced = false;
             try {
                 // Only check capability if the bot is present in the guild
-                if (botPresent) {
-                    Guild botGuild = jda.getGuildById(guildId);
-                    if (botGuild != null) {
-                        supportsEnhanced = botGuild.getFeatures().contains("ENHANCED_ROLE_COLORS") ||
-                                         botGuild.getFeatures().contains("ROLE_COLORS") ||
-                                         botGuild.getFeatures().contains("GUILD_ROLE_COLORS");
-                    }
+                if (botPresent && guild != null) {
+                    supportsEnhanced = guild.getFeatures().contains("ENHANCED_ROLE_COLORS") ||
+                                     guild.getFeatures().contains("ROLE_COLORS") ||
+                                     guild.getFeatures().contains("GUILD_ROLE_COLORS");
                 }
             } catch (Exception e) {
                 logger.debug("Failed to check enhanced role color capability for guild {}: {}", guildId, e.toString());
@@ -653,9 +650,9 @@ public class AdminService {
      * Create a role using the most appropriate method based on color requirements and guild capabilities.
      * 
      * <p>Strategy:
-     * - Solid color request → Use JDA directly
+     * - Solid color request → Use JDA directly with setColor()
      * - Enhanced colors but guild lacks capability → Fallback to JDA solid color
-     * - Enhanced colors with guild support → Use REST API with fallback on failure
+     * - Enhanced colors with guild support → Use JDA's setGradientColors() or useHolographicStyle() with fallback on failure
      */
     private Role createRoleWithAppropriateMethod(Guild guild, String guildId, String fullName, 
                                                  java.awt.Color primaryColor, int secondaryColorInt, int tertiaryColorInt) {
@@ -695,9 +692,10 @@ public class AdminService {
         try {
             // Check if holographic (three colors)
             if (tertiaryColorInt != net.dv8tion.jda.api.entities.Role.DEFAULT_COLOR_RAW) {
-                // Use holographic style
+                // Use holographic style with colors
                 Role role = guild.createRole()
                     .setName(fullName)
+                    .setColor(primaryColor)
                     .useHolographicStyle()
                     .setMentionable(false)
                     .setHoisted(false)

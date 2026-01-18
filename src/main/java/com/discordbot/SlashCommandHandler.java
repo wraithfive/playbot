@@ -749,16 +749,12 @@ public class SlashCommandHandler extends ListenerAdapter {
                     : Color.WHITE;
                 
                 // Check if this is a gradient/holographic role using JDA's native API
-                boolean isGradient = false;
-                if (discordRole != null) {
-                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
-                    isGradient = roleColors.isGradient() || roleColors.isHolographic();
-                }
+                net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
+                boolean isGradient = roleColors.isGradient() || roleColors.isHolographic();
                 
                 // Draw color swatch (gradient or solid)
-                if (isGradient && discordRole != null) {
+                if (isGradient) {
                     // Build gradient from JDA's native role colors
-                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
                     List<Color> colorStops = new ArrayList<>();
                     
                     // Add primary color
@@ -838,7 +834,6 @@ public class SlashCommandHandler extends ListenerAdapter {
                 String name = ri.displayName;
                 // Label using JDA native indicator
                 if (discordRole != null) {
-                    net.dv8tion.jda.api.entities.RoleColors roleColors = discordRole.getColors();
                     if (roleColors.isHolographic()) {
                         name += " [Holo]";
                     } else if (roleColors.isGradient()) {
