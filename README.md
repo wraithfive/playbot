@@ -573,6 +573,7 @@ See [DATABASE_MIGRATIONS.md](DATABASE_MIGRATIONS.md) for templates and full guid
 High-level security posture:
 
 - OAuth2 login with Discord; only server admins can access secured endpoints
+- "Staff" role is treated as admin-equivalent for server management (except bot invites, which remain admin-only); bot must be present to detect Staff membership
 - CSRF protection enabled for REST via cookie token; WebSocket upgrades exempt
 - CORS origin is derived from `ADMIN_PANEL_URL` and restricted accordingly
 - Sessions and OAuth client data are stored via JDBC tables (Liquibase-managed)

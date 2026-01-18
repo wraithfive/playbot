@@ -52,6 +52,7 @@ We take the security of Playbot seriously. If you believe you have found a secur
    - Only grant bot admin access to trusted users
    - Regularly review who has access to the admin panel
    - Use strong passwords for admin accounts
+   - "Staff" role is treated as admin-equivalent for management actions, **except** bot invites (still admin-only); requires the bot to be present to detect Staff membership
 
 ### For Developers
 
