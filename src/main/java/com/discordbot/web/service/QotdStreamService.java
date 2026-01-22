@@ -9,6 +9,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.unions.MessageChannelUnion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.support.CronExpression;
@@ -426,7 +428,27 @@ public class QotdStreamService {
                 return;
             }
 
-            TextChannel channel = guild.getTextChannelById(stream.getChannelId());
+            // Try to get as TextChannel first, then as ThreadChannel
+            MessageChannelUnion channel = null;
+            TextChannel textChannel = guild.getTextChannelById(stream.getChannelId());
+            ThreadChannel threadChannel = null;
+            
+            if (textChannel != null) {
+                channel = (MessageChannelUnion) textChannel;
+            } else {
+                // Try as a thread channel
+                threadChannel = guild.getThreadChannelById(stream.getChannelId());
+                if (threadChannel != null) {
+                    channel = (MessageChannelUnion) threadChannel;
+                    
+                    // Bot must be a member of the thread to post
+                    if (!threadChannel.isJoined()) {
+                        log.info("Joining thread {} to post QOTD", threadChannel.getName());
+                        threadChannel.join().complete();
+                    }
+                }
+            }
+            
             if (channel == null) {
                 log.error("Channel not found: {}", stream.getChannelId());
                 return;
