@@ -1,8 +1,6 @@
 package com.discordbot.web.service;
 
-import com.discordbot.entity.QotdConfig;
 import com.discordbot.entity.QotdStream;
-import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdStreamRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,43 +14,30 @@ import java.util.List;
 
 /**
  * Scheduler for QOTD posting.
- * Now supports both legacy configs (deprecated) and new stream-based scheduling.
+ * Supports stream-based scheduling only (legacy config-based system deprecated).
  */
 @Component
 public class QotdScheduler {
     private static final Logger logger = LoggerFactory.getLogger(QotdScheduler.class);
 
-    // Legacy (deprecated) - keep for backward compatibility during migration
-    private final QotdConfigRepository configRepo;
-    private final QotdService qotdService;
-
-    // NEW: Stream-based scheduling
+    // Stream-based scheduling
     private final QotdStreamRepository streamRepository;
     private final QotdStreamService streamService;
 
     public QotdScheduler(
-            QotdConfigRepository configRepo,
-            QotdService qotdService,
             QotdStreamRepository streamRepository,
             QotdStreamService streamService) {
-        this.configRepo = configRepo;
-        this.qotdService = qotdService;
         this.streamRepository = streamRepository;
         this.streamService = streamService;
     }
 
-    // Check every minute whether any channel is due for a QOTD post
     @Scheduled(cron = "0 * * * * *")
     public void tick() {
-        // NEW: Process stream-based schedules (primary path)
         tickStreams();
-
-        // LEGACY: Disabled after full migration to stream-based system
-        // tickLegacyConfigs();
     }
 
     /**
-     * NEW: Process stream-based QOTD schedules.
+     * Process stream-based QOTD schedules.
      * Each stream can have independent schedules within the same channel.
      */
     private void tickStreams() {
@@ -104,43 +89,6 @@ public class QotdScheduler {
         } catch (Exception e) {
             logger.warn("Invalid cron for stream {}: {}", stream.getId(), e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * LEGACY: Process old config-based schedules.
-     * DISABLED: No longer called after full migration to stream-based system.
-     * Kept for reference only.
-     */
-    @Deprecated
-    private void tickLegacyConfigs() {
-        List<QotdConfig> configs = configRepo.findAll();
-        for (QotdConfig cfg : configs) {
-            if (!cfg.isEnabled()) continue;
-            String cron = cfg.getScheduleCron();
-            if (cron == null || cron.isBlank()) continue;
-            try {
-                CronExpression expr = CronExpression.parse(cron);
-                ZoneId zone = ZoneId.of(cfg.getTimezone() == null ? "UTC" : cfg.getTimezone());
-                ZonedDateTime now = ZonedDateTime.now(zone).withSecond(0).withNano(0);
-                ZonedDateTime last = now.minusMinutes(1);
-                ZonedDateTime nextAfterLast = expr.next(last);
-                if (nextAfterLast != null && !nextAfterLast.isAfter(now)) {
-                    // Check if we already posted in this time window to prevent duplicates
-                    if (cfg.getLastPostedAt() != null) {
-                        ZonedDateTime lastPosted = cfg.getLastPostedAt().atZone(zone);
-                        // If we posted within the last 2 minutes, skip this trigger
-                        if (lastPosted.isAfter(now.minusMinutes(2))) {
-                            logger.debug("QOTD already posted recently for channel {} in guild {}, skipping", cfg.getChannelId(), cfg.getGuildId());
-                            continue;
-                        }
-                    }
-                    logger.info("LEGACY QOTD due for channel {} in guild {} at {}", cfg.getChannelId(), cfg.getGuildId(), now);
-                    qotdService.postNextQuestion(cfg.getGuildId(), cfg.getChannelId());
-                }
-            } catch (Exception e) {
-                logger.warn("Invalid cron for channel {} in guild {}: {}", cfg.getChannelId(), cfg.getGuildId(), e.getMessage());
-            }
         }
     }
 }
