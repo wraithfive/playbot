@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion;
@@ -850,40 +851,74 @@ public class AdminService {
             return Collections.emptyList();
         }
         
-        // Get active threads grouped by parent channel ID
-        Map<String, List<ThreadChannel>> threadsByParent = guild.getThreadChannels().stream()
-            .filter(thread -> !thread.isArchived() && thread.canTalk())
+        // Fetch active threads from Discord API (cache may be incomplete)
+        List<ThreadChannel> activeThreads;
+        try {
+            activeThreads = guild.retrieveActiveThreads().complete();
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve active threads for guild {}: {}", guildId, e.getMessage());
+            activeThreads = Collections.emptyList();
+        }
+
+        // Group active threads by parent channel ID (exclude archived)
+        Map<String, List<ThreadChannel>> threadsByParent = activeThreads.stream()
+            .filter(thread -> !thread.isArchived())
             .collect(Collectors.groupingBy(thread -> {
                 IThreadContainerUnion parent = thread.getParentChannel();
                 return parent != null ? parent.getId() : "";
             }));
         
-        // Build tree with channels as parents and threads as children
-        return guild.getTextChannels().stream()
-            .filter(channel -> channel.canTalk())
+        // Helper to build thread nodes for a channel
+        java.util.function.Function<String, List<ChannelTreeNodeDto>> getThreadNodes = channelId ->
+            threadsByParent.getOrDefault(channelId, Collections.emptyList()).stream()
+                .sorted((a, b) -> a.getName().compareTo(b.getName()))
+                .map(thread -> new ChannelTreeNodeDto(
+                    thread.getId(),
+                    thread.getName(),
+                    ChannelType.THREAD,
+                    thread.canTalk()  // canPost for threads
+                ))
+                .collect(Collectors.toList());
+
+        List<ChannelTreeNodeDto> result = new ArrayList<>();
+
+        // Add text channels (show all, include canPost status)
+        guild.getTextChannels().stream()
             .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
-            .map(channel -> {
-                // Get threads for this channel
-                List<ChannelTreeNodeDto> threadNodes = threadsByParent
-                    .getOrDefault(channel.getId(), Collections.emptyList())
-                    .stream()
-                    .sorted((a, b) -> a.getName().compareTo(b.getName()))
-                    .map(thread -> new ChannelTreeNodeDto(
-                        thread.getId(),
-                        thread.getName(),
-                        ChannelType.THREAD
-                    ))
-                    .collect(Collectors.toList());
-                
-                // Create channel node with thread children
-                return new ChannelTreeNodeDto(
-                    channel.getId(),
-                    channel.getName(),
-                    ChannelType.CHANNEL,
-                    threadNodes
-                );
-            })
-            .collect(Collectors.toList());
+            .forEach(channel -> result.add(new ChannelTreeNodeDto(
+                channel.getId(),
+                channel.getName(),
+                ChannelType.CHANNEL,
+                channel.canTalk(),  // canPost
+                getThreadNodes.apply(channel.getId())
+            )));
+
+        // Add news/announcement channels (show all, include canPost status)
+        guild.getNewsChannels().stream()
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
+            .forEach(channel -> result.add(new ChannelTreeNodeDto(
+                channel.getId(),
+                channel.getName(),
+                ChannelType.CHANNEL,
+                channel.canTalk(),  // canPost
+                getThreadNodes.apply(channel.getId())
+            )));
+
+        // Add forum channels (show all, include canPost status)
+        guild.getForumChannels().stream()
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
+            .forEach(forum -> result.add(new ChannelTreeNodeDto(
+                forum.getId(),
+                forum.getName(),
+                ChannelType.CHANNEL,
+                guild.getSelfMember().hasPermission(forum, Permission.MESSAGE_SEND_IN_THREADS),  // canPost
+                getThreadNodes.apply(forum.getId())
+            )));
+
+        // Sort final result by name since we combined different channel types
+        result.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
+
+        return result;
     }
 
     /**
@@ -909,22 +944,41 @@ public class AdminService {
 
         List<ChannelStreamStatusDto> statusList = new ArrayList<>();
 
-        // Check all text channels
+        // Check all text channels (no filter - show all)
         for (TextChannel channel : guild.getTextChannels()) {
-            if (channel.canTalk()) {
-                boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
-                boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
-                statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
-            }
+            boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
         }
 
-        // Check all threads
-        for (ThreadChannel thread : guild.getThreadChannels()) {
-            if (!thread.isArchived() && thread.canTalk()) {
-                boolean hasConfigured = channelHasEnabled.containsKey(thread.getId());
-                boolean hasEnabled = channelHasEnabled.getOrDefault(thread.getId(), false);
-                statusList.add(new ChannelStreamStatusDto(thread.getId(), hasConfigured, hasEnabled));
-            }
+        // Check all news/announcement channels (no filter - show all)
+        for (NewsChannel channel : guild.getNewsChannels()) {
+            boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
+        }
+
+        // Check all forum channels (no filter - show all)
+        for (var forum : guild.getForumChannels()) {
+            boolean hasConfigured = channelHasEnabled.containsKey(forum.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(forum.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(forum.getId(), hasConfigured, hasEnabled));
+        }
+
+        // Fetch active threads from Discord API (cache may be incomplete)
+        List<ThreadChannel> activeThreads;
+        try {
+            activeThreads = guild.retrieveActiveThreads().complete();
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve active threads for guild {}: {}", guildId, e.getMessage());
+            activeThreads = Collections.emptyList();
+        }
+
+        // Check all threads (no filter - show all)
+        for (ThreadChannel thread : activeThreads) {
+            boolean hasConfigured = channelHasEnabled.containsKey(thread.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(thread.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(thread.getId(), hasConfigured, hasEnabled));
         }
 
         return statusList;

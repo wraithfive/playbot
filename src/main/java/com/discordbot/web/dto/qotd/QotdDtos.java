@@ -50,11 +50,12 @@ public class QotdDtos {
             String id,
             String name,
             ChannelType type,
+            boolean canPost,  // whether bot has permission to send messages
             List<ChannelTreeNodeDto> children  // empty for threads, contains threads for channels
     ) {
         // Constructor with empty children for leaf nodes (threads)
-        public ChannelTreeNodeDto(String id, String name, ChannelType type) {
-            this(id, name, type, Collections.emptyList());
+        public ChannelTreeNodeDto(String id, String name, ChannelType type, boolean canPost) {
+            this(id, name, type, canPost, Collections.emptyList());
         }
     }
 

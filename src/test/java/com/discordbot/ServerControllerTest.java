@@ -51,7 +51,7 @@ class ServerControllerTest {
         when(adminService.canManageGuild(auth, "g1")).thenReturn(true);
 
         List<ChannelTreeNodeDto> nodes = Arrays.asList(
-            new ChannelTreeNodeDto("ch1", "general", ChannelType.CHANNEL, Collections.emptyList())
+            new ChannelTreeNodeDto("ch1", "general", ChannelType.CHANNEL, true, Collections.emptyList())
         );
         when(adminService.getChannelOptions("g1")).thenReturn(nodes);
 

@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion;
+import net.dv8tion.jda.api.requests.RestAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,12 +95,19 @@ class AdminServiceChannelOptionsTest {
         // Setup guild
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
-        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        // Mock retrieveActiveThreads() API call
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
-        
+
         assertEquals(2, result.size(), "Should return 2 top-level channels");
-        
+
         // Verify channel 1 with threads
         ChannelTreeNodeDto channel1 = result.stream()
             .filter(c -> c.id().equals("channel1"))
@@ -107,8 +115,9 @@ class AdminServiceChannelOptionsTest {
             .orElseThrow();
         assertEquals("general", channel1.name());
         assertEquals(ChannelType.CHANNEL, channel1.type());
+        assertTrue(channel1.canPost(), "Channel 1 should have canPost=true");
         assertEquals(2, channel1.children().size(), "Channel 1 should have 2 threads");
-        
+
         // Verify threads are children
         ChannelTreeNodeDto thread1 = channel1.children().stream()
             .filter(t -> t.id().equals("thread1"))
@@ -116,8 +125,9 @@ class AdminServiceChannelOptionsTest {
             .orElseThrow();
         assertEquals("discussion-thread", thread1.name());
         assertEquals(ChannelType.THREAD, thread1.type());
+        assertTrue(thread1.canPost(), "Thread 1 should have canPost=true");
         assertTrue(thread1.children().isEmpty(), "Threads should have no children");
-        
+
         // Verify channel 2 with no threads
         ChannelTreeNodeDto channel2 = result.stream()
             .filter(c -> c.id().equals("channel2"))
@@ -125,30 +135,45 @@ class AdminServiceChannelOptionsTest {
             .orElseThrow();
         assertEquals("announcements", channel2.name());
         assertEquals(ChannelType.CHANNEL, channel2.type());
+        assertTrue(channel2.canPost(), "Channel 2 should have canPost=true");
         assertTrue(channel2.children().isEmpty(), "Channel 2 should have no threads");
     }
     
     @Test
-    @DisplayName("getChannelOptions filters out channels bot cannot talk in")
-    void getChannelOptions_filtersNoTalkChannels() {
+    @DisplayName("getChannelOptions includes all channels with canPost status")
+    void getChannelOptions_includesAllChannelsWithCanPostStatus() {
         String guildId = "guild123";
-        
+
         when(textChannel1.getId()).thenReturn("channel1");
         when(textChannel1.getName()).thenReturn("readable-only");
+        when(textChannel1.getPosition()).thenReturn(0);
         when(textChannel1.canTalk()).thenReturn(false); // Bot cannot talk here
-        
+
         when(textChannel2.getId()).thenReturn("channel2");
         when(textChannel2.getName()).thenReturn("writable");
+        when(textChannel2.getPosition()).thenReturn(1);
         when(textChannel2.canTalk()).thenReturn(true);
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
-        when(guild.getThreadChannels()).thenReturn(Collections.emptyList());
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Collections.emptyList());
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
-        
-        assertEquals(1, result.size(), "Should only return writable channel");
-        assertEquals("channel2", result.get(0).id());
+
+        assertEquals(2, result.size(), "Should return all channels");
+
+        // Find channels by id
+        ChannelTreeNodeDto ch1 = result.stream().filter(c -> c.id().equals("channel1")).findFirst().orElseThrow();
+        ChannelTreeNodeDto ch2 = result.stream().filter(c -> c.id().equals("channel2")).findFirst().orElseThrow();
+
+        assertFalse(ch1.canPost(), "Channel 1 should have canPost=false");
+        assertTrue(ch2.canPost(), "Channel 2 should have canPost=true");
     }
     
     @Test
@@ -166,13 +191,19 @@ class AdminServiceChannelOptionsTest {
     @DisplayName("getChannelOptions handles guild with no channels")
     void getChannelOptions_noChannels_returnsEmptyList() {
         String guildId = "guild123";
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Collections.emptyList());
-        when(guild.getThreadChannels()).thenReturn(Collections.emptyList());
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Collections.emptyList());
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
-        
+
         assertTrue(result.isEmpty(), "Should return empty list when no channels");
     }
     
@@ -203,26 +234,34 @@ class AdminServiceChannelOptionsTest {
         
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1));
-        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        // Note: retrieveActiveThreads only returns non-archived threads, so we only include threadChannel1
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Arrays.asList(threadChannel1));
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
-        
+
         assertEquals(1, result.size(), "Should return 1 channel");
         ChannelTreeNodeDto channel = result.get(0);
         assertEquals(1, channel.children().size(), "Should only include active thread");
         assertEquals("thread1", channel.children().get(0).id());
     }
-    
+
     @Test
-    @DisplayName("getChannelOptions filters out threads bot cannot talk in")
-    void getChannelOptions_filtersThreadCannotTalk() {
+    @DisplayName("getChannelOptions includes threads with canPost status")
+    void getChannelOptions_includesThreadsWithCanPostStatus() {
         String guildId = "guild123";
-        
+
         // Setup channel
         when(textChannel1.getId()).thenReturn("channel1");
         when(textChannel1.getName()).thenReturn("general");
+        when(textChannel1.getPosition()).thenReturn(0);
         when(textChannel1.canTalk()).thenReturn(true);
-        
+
         // Thread where bot CAN talk
         when(threadChannel1.getId()).thenReturn("thread1");
         when(threadChannel1.getName()).thenReturn("readable-thread");
@@ -230,49 +269,60 @@ class AdminServiceChannelOptionsTest {
         when(threadChannel1.canTalk()).thenReturn(true);
         when(threadChannel1.isArchived()).thenReturn(false);
         when(parentChannel.getId()).thenReturn("channel1");
-        
+
         // Thread where bot CANNOT talk
         when(threadChannel2.getId()).thenReturn("thread2");
         when(threadChannel2.getName()).thenReturn("readonly-thread");
         when(threadChannel2.getParentChannel()).thenReturn(parentChannel);
         when(threadChannel2.canTalk()).thenReturn(false); // Bot cannot talk here
         when(threadChannel2.isArchived()).thenReturn(false);
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1));
-        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
-        
+
         assertEquals(1, result.size(), "Should return 1 channel");
         ChannelTreeNodeDto channel = result.get(0);
-        assertEquals(1, channel.children().size(), "Should only include readable thread");
-        assertEquals("thread1", channel.children().get(0).id());
+        assertEquals(2, channel.children().size(), "Should include both threads");
+
+        // Verify canPost status on threads
+        ChannelTreeNodeDto th1 = channel.children().stream().filter(t -> t.id().equals("thread1")).findFirst().orElseThrow();
+        ChannelTreeNodeDto th2 = channel.children().stream().filter(t -> t.id().equals("thread2")).findFirst().orElseThrow();
+        assertTrue(th1.canPost(), "Thread 1 should have canPost=true");
+        assertFalse(th2.canPost(), "Thread 2 should have canPost=false");
     }
-    
+
     @Test
     @DisplayName("getStreamStatusForAllChannels returns status for all channels")
     void getStreamStatusForAllChannels_returnsStatusForChannels() {
         String guildId = "guild123";
-        
+
         // Setup channels
         when(textChannel1.getId()).thenReturn("channel1");
-        when(textChannel1.canTalk()).thenReturn(true);
         when(textChannel2.getId()).thenReturn("channel2");
-        when(textChannel2.canTalk()).thenReturn(true);
-        
+
         // Setup threads
         when(threadChannel1.getId()).thenReturn("thread1");
-        when(threadChannel1.isArchived()).thenReturn(false);
-        when(threadChannel1.canTalk()).thenReturn(true);
         when(threadChannel2.getId()).thenReturn("thread2");
-        when(threadChannel2.isArchived()).thenReturn(false);
-        when(threadChannel2.canTalk()).thenReturn(true);
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
-        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
-        
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         // Mock streams: channel1 has enabled, channel2 has only configured, threads have none
         QotdStream stream1 = mock(QotdStream.class);
         when(stream1.getChannelId()).thenReturn("channel1");
@@ -316,56 +366,61 @@ class AdminServiceChannelOptionsTest {
     }
     
     @Test
-    @DisplayName("getStreamStatusForAllChannels excludes channels bot cannot talk in")
-    void getStreamStatusForAllChannels_excludesNoTalkChannels() {
+    @DisplayName("getStreamStatusForAllChannels includes all channels regardless of permissions")
+    void getStreamStatusForAllChannels_includesAllChannels() {
         String guildId = "guild123";
-        
+
         when(textChannel1.getId()).thenReturn("channel1");
-        when(textChannel1.canTalk()).thenReturn(false); // Bot cannot talk
         when(textChannel2.getId()).thenReturn("channel2");
-        when(textChannel2.canTalk()).thenReturn(true);
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
-        when(guild.getThreadChannels()).thenReturn(Collections.emptyList());
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Collections.emptyList());
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         when(qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId))
             .thenReturn(Collections.emptyList());
-        
+
         List<ChannelStreamStatusDto> result = adminService.getStreamStatusForAllChannels(guildId);
-        
-        assertEquals(1, result.size());
-        assertEquals("channel2", result.get(0).channelId());
+
+        assertEquals(2, result.size(), "Should return all channels");
+        assertTrue(result.stream().anyMatch(s -> s.channelId().equals("channel1")));
+        assertTrue(result.stream().anyMatch(s -> s.channelId().equals("channel2")));
     }
-    
+
     @Test
     @DisplayName("getStreamStatusForAllChannels excludes archived threads")
     void getStreamStatusForAllChannels_excludesArchivedThreads() {
         String guildId = "guild123";
-        
+
         when(textChannel1.getId()).thenReturn("channel1");
-        when(textChannel1.canTalk()).thenReturn(true);
-        
+
         // Active thread
         when(threadChannel1.getId()).thenReturn("thread1");
-        when(threadChannel1.isArchived()).thenReturn(false);
-        when(threadChannel1.canTalk()).thenReturn(true);
-        
-        // Archived thread
-        when(threadChannel2.getId()).thenReturn("thread2");
-        when(threadChannel2.isArchived()).thenReturn(true);
-        when(threadChannel2.canTalk()).thenReturn(true);
-        
+
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1));
-        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        when(guild.getNewsChannels()).thenReturn(Collections.emptyList());
+        when(guild.getForumChannels()).thenReturn(Collections.emptyList());
+
+        // retrieveActiveThreads only returns non-archived threads from Discord API
+        @SuppressWarnings("unchecked")
+        RestAction<List<ThreadChannel>> threadAction = mock(RestAction.class);
+        when(threadAction.complete()).thenReturn(Arrays.asList(threadChannel1)); // Only active thread
+        when(guild.retrieveActiveThreads()).thenReturn(threadAction);
+
         when(qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId))
             .thenReturn(Collections.emptyList());
-        
+
         List<ChannelStreamStatusDto> result = adminService.getStreamStatusForAllChannels(guildId);
-        
+
         assertEquals(2, result.size()); // 1 channel + 1 active thread
         assertTrue(result.stream().anyMatch(s -> s.channelId().equals("channel1")));
         assertTrue(result.stream().anyMatch(s -> s.channelId().equals("thread1")));
-        assertTrue(result.stream().noneMatch(s -> s.channelId().equals("thread2")));
     }
 }

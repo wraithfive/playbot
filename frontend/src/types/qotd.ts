@@ -44,6 +44,7 @@ export interface ChannelTreeNodeDto {
   id: string;
   name: string;
   type: ChannelType;
+  canPost: boolean; // whether bot has permission to send messages
   children: ChannelTreeNodeDto[]; // empty for threads
 }
 

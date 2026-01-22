@@ -30,6 +30,7 @@ function ChannelTreeNode({
   const isChannel = node.type === 'CHANNEL';
   const hasEnabled = enabledIds.has(node.id);
   const isConfigured = configuredIds.has(node.id);
+  const canPost = node.canPost;
 
   return (
     <div style={{ marginLeft: `${level * 1}rem` }}>
@@ -43,6 +44,7 @@ function ChannelTreeNode({
           cursor: 'pointer',
           backgroundColor: selectedChannelId === node.id ? 'rgba(88, 101, 242, 0.15)' : 'transparent',
           border: selectedChannelId === node.id ? '1px solid rgb(88, 101, 242)' : 'none',
+          opacity: canPost ? 1 : 0.6,
         }}
       >
         {hasChildren && (
@@ -84,6 +86,14 @@ function ChannelTreeNode({
           }}
         >
           <span>{node.name}</span>
+          {!canPost && (
+            <span
+              title="Bot lacks permission to post here. Grant Send Messages permission to enable."
+              style={{ color: '#f59e0b', fontSize: '0.85rem' }}
+            >
+              ⚠️
+            </span>
+          )}
           {(hasEnabled || isConfigured) && (
             <span
               title={hasEnabled ? 'Enabled stream' : 'Configured but disabled'}
