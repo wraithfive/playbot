@@ -1,0 +1,54 @@
+{
+  "guildId": "1428517367411118254",
+  "guildName": "Wraith_Five's server",
+  "timestamp": "2026-01-22T01:18:07.065Z",
+  "channels": [
+    {
+      "id": "1463704248561832142",
+      "name": "test-no-threads",
+      "threads": []
+    },
+    {
+      "id": "1463704249216008378",
+      "name": "test-with-2-threads",
+      "threads": [
+        {
+          "id": "1463704250298269971",
+          "name": "thread-1-discussion",
+          "parentId": "1463704249216008378"
+        },
+        {
+          "id": "1463704254089793548",
+          "name": "thread-2-questions",
+          "parentId": "1463704249216008378"
+        }
+      ]
+    },
+    {
+      "id": "1463704256354975794",
+      "name": "test-with-3-threads",
+      "threads": [
+        {
+          "id": "1463704256883458068",
+          "name": "announcements-thread",
+          "parentId": "1463704256354975794"
+        },
+        {
+          "id": "1463704259009712281",
+          "name": "bugs-thread",
+          "parentId": "1463704256354975794"
+        },
+        {
+          "id": "1463704260842881065",
+          "name": "feature-requests-thread",
+          "parentId": "1463704256354975794"
+        }
+      ]
+    },
+    {
+      "id": "1463704262285459515",
+      "name": "test-empty-channel",
+      "threads": []
+    }
+  ]
+}

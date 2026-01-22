@@ -517,8 +517,10 @@ public class QotdStreamService {
         if (guild == null) {
             throw new IllegalArgumentException("Guild not found: " + guildId);
         }
-        TextChannel channel = guild.getTextChannelById(channelId);
-        if (channel == null) {
+        // Check for both text channels and thread channels
+        TextChannel textChannel = guild.getTextChannelById(channelId);
+        ThreadChannel threadChannel = guild.getThreadChannelById(channelId);
+        if (textChannel == null && threadChannel == null) {
             throw new IllegalArgumentException("Channel not found or does not belong to this guild");
         }
     }
@@ -569,20 +571,29 @@ public class QotdStreamService {
     }
 
     private String buildCronExpression(String advancedCron, List<String> daysOfWeek, String timeOfDay) {
+        String cronExpression;
+        
         if (advancedCron != null && !advancedCron.isEmpty()) {
-            return advancedCron;
-        }
+            cronExpression = advancedCron;
+        } else if (daysOfWeek != null && !daysOfWeek.isEmpty() && timeOfDay != null) {
+            String[] timeParts = timeOfDay.split(":");
+            int hour = Integer.parseInt(timeParts[0]);
+            int minute = Integer.parseInt(timeParts[1]);
 
-        if (daysOfWeek == null || daysOfWeek.isEmpty() || timeOfDay == null) {
+            String days = String.join(",", daysOfWeek);
+            cronExpression = String.format("0 %d %d ? * %s", minute, hour, days);
+        } else {
             return null;
         }
 
-        String[] timeParts = timeOfDay.split(":");
-        int hour = Integer.parseInt(timeParts[0]);
-        int minute = Integer.parseInt(timeParts[1]);
+        // Validate cron expression
+        try {
+            org.springframework.scheduling.support.CronExpression.parse(cronExpression);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid cron expression: " + e.getMessage());
+        }
 
-        String days = String.join(",", daysOfWeek);
-        return String.format("0 %d %d ? * %s", minute, hour, days);
+        return cronExpression;
     }
 
     private String[] parseCsvLine(String line) {

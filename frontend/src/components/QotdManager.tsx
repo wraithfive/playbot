@@ -1,15 +1,142 @@
 import React, { useRef } from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { qotdApi } from '../api/client';
-import type { CreateStreamRequest, UpdateStreamRequest } from '../types/qotd';
+import { qotdApi, serverApi } from '../api/client';
+import type { CreateStreamRequest, UpdateStreamRequest, ChannelTreeNodeDto } from '../types/qotd';
 import { useWebSocket } from '../hooks/useWebSocket';
+
+function ChannelTreeNode({
+  node,
+  level = 0,
+  expandedNodes,
+  onToggleExpand,
+  selectedChannelId,
+  onSelectChannel,
+  configuredIds,
+  enabledIds,
+}: {
+  node: ChannelTreeNodeDto;
+  level?: number;
+  expandedNodes: Set<string>;
+  onToggleExpand: (id: string) => void;
+  selectedChannelId: string;
+  onSelectChannel: (id: string) => void;
+  configuredIds: Set<string>;
+  enabledIds: Set<string>;
+}) {
+  const isExpanded = expandedNodes.has(node.id);
+  const hasChildren = node.children && node.children.length > 0;
+  const isChannel = node.type === 'CHANNEL';
+  const hasEnabled = enabledIds.has(node.id);
+  const isConfigured = configuredIds.has(node.id);
+
+  return (
+    <div style={{ marginLeft: `${level * 1}rem` }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          padding: '0.5rem',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          backgroundColor: selectedChannelId === node.id ? 'rgba(88, 101, 242, 0.15)' : 'transparent',
+          border: selectedChannelId === node.id ? '1px solid rgb(88, 101, 242)' : 'none',
+        }}
+      >
+        {hasChildren && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand(node.id);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0',
+              width: '1.5rem',
+              textAlign: 'center',
+              fontSize: '0.9rem',
+              color: '#666',
+            }}
+          >
+            {isExpanded ? '▼' : '▶'}
+          </button>
+        )}
+        {!hasChildren && <div style={{ width: '1.5rem' }}></div>}
+        <span style={{ fontSize: '1rem' }}>{isChannel ? '📌' : '🧵'}</span>
+        <button
+          onClick={() => onSelectChannel(node.id)}
+          style={{
+            flex: 1,
+            textAlign: 'left',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0',
+            fontWeight: selectedChannelId === node.id ? '600' : '400',
+            color: selectedChannelId === node.id ? 'rgb(88, 101, 242)' : 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <span>{node.name}</span>
+          {(hasEnabled || isConfigured) && (
+            <span
+              title={hasEnabled ? 'Enabled stream' : 'Configured but disabled'}
+              style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: hasEnabled ? '#16a34a' : '#dc2626',
+              }}
+            />
+          )}
+        </button>
+      </div>
+      {hasChildren && isExpanded && (
+        <div>
+          {node.children!.map((child) => (
+            <ChannelTreeNode
+              key={child.id}
+              node={child}
+              level={level + 1}
+              expandedNodes={expandedNodes}
+              onToggleExpand={onToggleExpand}
+              selectedChannelId={selectedChannelId}
+              onSelectChannel={onSelectChannel}
+              configuredIds={configuredIds}
+              enabledIds={enabledIds}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function QotdManager() {
   const { guildId } = useParams<{ guildId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  // Tree expansion state
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const autoExpandedRef = useRef(false);
+  
+  const toggleExpandNode = (nodeId: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodeId)) {
+      newExpanded.delete(nodeId);
+    } else {
+      newExpanded.add(nodeId);
+    }
+    setExpandedNodes(newExpanded);
+  };
 
   // Channel selection state
   const [selectedChannelId, setSelectedChannelId] = useState<string>('');
@@ -527,24 +654,110 @@ export default function QotdManager() {
   ]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Fetch available channels
+  // Fetch available channels and threads as tree structure
   const { data: channels } = useQuery({
-    queryKey: ['qotd-channels', guildId],
-    queryFn: async () => (await qotdApi.listChannels(guildId!)).data,
+    queryKey: ['qotd-channel-options', guildId],
+    queryFn: async () => (await serverApi.getChannelOptions(guildId!)),
     enabled: !!guildId,
   });
 
-  // Fetch all configured channels
-  const { data: configuredChannels } = useQuery({
+  // Fetch all configured channels/threads (guild-wide) to mark configured nodes
+  const { data: configs } = useQuery({
     queryKey: ['qotd-configs', guildId],
-    queryFn: async () => (await qotdApi.listConfigs(guildId!)).data,
+    queryFn: async () => await qotdApi.listConfigs(guildId!),
     enabled: !!guildId,
   });
+
+  // channelTree is already in tree structure from getChannelOptions
+  const channelTree = channels || [];
+
+  // channel/thread id -> name lookup
+  const channelNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const walk = (nodes: ChannelTreeNodeDto[]) => {
+      nodes.forEach((node) => {
+        map.set(node.id, node.name);
+        if (node.children && node.children.length > 0) {
+          walk(node.children);
+        }
+      });
+    };
+    walk(channelTree);
+    return map;
+  }, [channelTree]);
+
+  // Collect all node ids for expand-all and for stream summary queries
+  const allNodeIds = useMemo(() => {
+    const ids: string[] = [];
+    const walk = (nodes: ChannelTreeNodeDto[]) => {
+      nodes.forEach((node) => {
+        ids.push(node.id);
+        if (node.children && node.children.length > 0) {
+          walk(node.children);
+        }
+      });
+    };
+    walk(channelTree);
+    return ids;
+  }, [channelTree]);
+
+  // Fetch stream status for all nodes in one batch call
+  const { data: streamStatus } = useQuery({
+    queryKey: ['qotd-stream-status', guildId],
+    queryFn: async () => await qotdApi.getStreamStatus(guildId!),
+    enabled: !!guildId && allNodeIds.length > 0,
+    staleTime: 0, // always fresh per load
+  });
+
+  // Enabled streams set
+  const enabledIds = useMemo(() => {
+    const set = new Set<string>();
+    streamStatus?.forEach((status) => {
+      if (status.hasEnabled) set.add(status.channelId);
+    });
+    return set;
+  }, [streamStatus]);
+
+  // Configured (regardless of enabled) set from batch status
+  const configuredIds = useMemo(() => {
+    const set = new Set<string>();
+    streamStatus?.forEach((status) => {
+      if (status.hasConfigured) set.add(status.channelId);
+    });
+    configs?.forEach((c) => set.add(c.channelId));
+    return set;
+  }, [configs, streamStatus]);
+
+  // Compute channels that have enabled descendants for auto-expand on load
+  const channelsWithEnabledThreads = useMemo(() => {
+    const toExpand = new Set<string>();
+    const walk = (nodes: ChannelTreeNodeDto[], parentId?: string) => {
+      nodes.forEach((node) => {
+        if (enabledIds.has(node.id)) {
+          // This node is enabled; mark parent for expansion
+          if (parentId) toExpand.add(parentId);
+        }
+        if (node.children && node.children.length > 0) {
+          walk(node.children, node.id);
+        }
+      });
+    };
+    walk(channelTree);
+    return toExpand;
+  }, [channelTree, enabledIds]);
+
+  // Auto-expand channels with enabled threads on first data load
+  useEffect(() => {
+    if (!autoExpandedRef.current && channelsWithEnabledThreads.size > 0) {
+      setExpandedNodes((prev) => new Set([...prev, ...channelsWithEnabledThreads]));
+      autoExpandedRef.current = true;
+    }
+  }, [channelsWithEnabledThreads]);
 
   // Fetch streams for selected channel
   const { data: streams } = useQuery({
     queryKey: ['qotd-streams', guildId, selectedChannelId],
-    queryFn: async () => (await qotdApi.listStreams(guildId!, selectedChannelId!)).data,
+    queryFn: async () => await qotdApi.listStreams(guildId!, selectedChannelId!),
     enabled: !!guildId && !!selectedChannelId,
   });
 
@@ -558,21 +771,21 @@ export default function QotdManager() {
   // Fetch config for selected channel (DEPRECATED - keeping for backward compat display)
   const { data: config } = useQuery({
     queryKey: ['qotd-config', guildId, selectedChannelId],
-    queryFn: async () => (await qotdApi.getConfig(guildId!, selectedChannelId!)).data,
+    queryFn: async () => await qotdApi.getConfig(guildId!, selectedChannelId!),
     enabled: false, // Disabled - config now comes from selected stream
   });
 
   // Fetch questions for selected stream (WebSocket handles real-time updates)
   const { data: questions } = useQuery({
     queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId],
-    queryFn: async () => (await qotdApi.listStreamQuestions(guildId!, selectedChannelId!, selectedStreamId!)).data,
+    queryFn: async () => await qotdApi.listStreamQuestions(guildId!, selectedChannelId!, selectedStreamId!),
     enabled: !!guildId && !!selectedChannelId && !!selectedStreamId,
   });
 
   // Fetch guild-wide pending submissions (WebSocket handles real-time updates)
   const { data: submissions } = useQuery({
     queryKey: ['qotd-submissions', guildId],
-    queryFn: async () => (await qotdApi.listPending(guildId!)).data,
+    queryFn: async () => await qotdApi.listPending(guildId!),
     enabled: !!guildId,
   });
 
@@ -682,6 +895,10 @@ export default function QotdManager() {
       if (message.channelId === selectedChannelId) {
         qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, message.channelId] });
       }
+      // Refresh stream summary indicators (enabled/configured badges)
+      qc.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'qotd-streams-summary' && q.queryKey[1] === guildId,
+      });
     } else if (message.type === 'QOTD_QUESTIONS_CHANGED') {
       // Refresh questions for the affected stream
       if (message.channelId === selectedChannelId && message.streamId) {
@@ -697,11 +914,15 @@ export default function QotdManager() {
     mutationFn: (req: UpdateStreamRequest) => qotdApi.updateStream(guildId!, selectedChannelId!, selectedStreamId!, req),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, selectedChannelId] });
+      qc.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'qotd-streams-summary' && q.queryKey[1] === guildId,
+      });
       setConfigMessage('✓ Saved stream configuration');
       setTimeout(() => setConfigMessage(''), 5000);
     },
-    onError: () => {
-      setConfigMessage('✗ Failed to save stream configuration');
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data || 'Failed to save stream configuration';
+      setConfigMessage(`✗ ${errorMessage}`);
       setTimeout(() => setConfigMessage(''), 5000);
     },
   });
@@ -806,8 +1027,11 @@ export default function QotdManager() {
 
   // Get channel name for display
   const getChannelName = (channelId: string) => {
-    return channels?.find(ch => ch.id === channelId)?.name || channelId;
+    return channelNameMap.get(channelId) || channelId;
   };
+
+  const expandAll = () => setExpandedNodes(new Set(allNodeIds));
+  const collapseAll = () => setExpandedNodes(new Set());
 
   return (
     <div className="main-content">
@@ -833,56 +1057,80 @@ export default function QotdManager() {
           <p>Configure separate question lists and schedules for each channel.</p>
         </div>
 
-        {/* Channel Selection */}
-        <section className="action-card" style={{ marginBottom: '1rem' }}>
-          <h3>Select Channel</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {channels?.map((ch) => (
-              <button
-                key={ch.id}
-                className={selectedChannelId === ch.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                onClick={() => {
-                  setSelectedChannelId(ch.id);
-                  setSelectedStreamId(null); // Reset stream when changing channel
-                }}
-              >
-                {ch.name}
-                {configuredChannels?.some(cfg => cfg.channelId === ch.id && cfg.enabled) && ' ✓'}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Stream Selection (shown when channel is selected) */}
-        {selectedChannelId && (
-          <section className="action-card" style={{ marginBottom: '1rem' }}>
-            <h3>Select Stream</h3>
-            {streams ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {streams.map((stream) => (
-                  <button
-                    key={stream.id}
-                    className={selectedStreamId === stream.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                    onClick={() => setSelectedStreamId(stream.id)}
-                  >
-                    {stream.streamName}
-                    {stream.enabled && ' ✓'}
-                  </button>
-                ))}
-                {streams.length < 5 && (
-                  <button
-                    className="btn btn-success btn-sm"
-                    onClick={() => setShowCreateStream(true)}
-                  >
-                    + New Stream
-                  </button>
-                )}
+        {/* 2-Column Layout: Tree Sidebar (left) + Configuration (right) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(250px, 320px) 1fr',
+          gap: '2rem',
+          alignItems: 'start',
+        }}>
+          {/* LEFT SIDEBAR: Channel/Thread Tree */}
+          <aside style={{ position: 'sticky', top: '1rem' }}>
+            <section className="action-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <h3 style={{ margin: 0 }}>Select Channel or Thread</h3>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary btn-xs" onClick={expandAll}>Expand all</button>
+                  <button className="btn btn-secondary btn-xs" onClick={collapseAll}>Collapse all</button>
+                </div>
               </div>
-            ) : (
-              <div>Loading streams...</div>
+              {channelTree && channelTree.length > 0 ? (
+                <div style={{ padding: '0.75rem', maxHeight: '600px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                  {channelTree.map((node) => (
+                    <ChannelTreeNode
+                      key={node.id}
+                      node={node}
+                      level={0}
+                      expandedNodes={expandedNodes}
+                      onToggleExpand={toggleExpandNode}
+                      selectedChannelId={selectedChannelId}
+                      onSelectChannel={(id) => {
+                        setSelectedChannelId(id);
+                        setSelectedStreamId(null); // Reset stream when changing channel
+                      }}
+                      configuredIds={configuredIds}
+                      enabledIds={enabledIds}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: '#666', fontStyle: 'italic', padding: '1rem' }}>Loading channels...</div>
+              )}
+            </section>
+          </aside>
+
+          {/* RIGHT MAIN: Configuration Sections */}
+          <main>
+            {/* Stream Selection (shown when channel is selected) */}
+            {selectedChannelId && (
+              <section className="action-card" style={{ marginBottom: '1rem' }}>
+                <h3>Select Stream</h3>
+                {streams ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {streams.map((stream) => (
+                      <button
+                        key={stream.id}
+                        className={selectedStreamId === stream.id ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                        onClick={() => setSelectedStreamId(stream.id)}
+                      >
+                        {stream.streamName}
+                        {stream.enabled && ' ✓'}
+                      </button>
+                    ))}
+                    {streams.length < 5 && (
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => setShowCreateStream(true)}
+                      >
+                        + New Stream
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div>Loading streams...</div>
+                )}
+              </section>
             )}
-          </section>
-        )}
 
         {/* Create Stream Dialog */}
         {showCreateStream && (
@@ -947,9 +1195,9 @@ export default function QotdManager() {
           </div>
         )}
 
-        {/* Show stream config only when stream is selected */}
-        {selectedChannelId && selectedStreamId && (
-          <>
+            {/* Show stream config only when stream is selected */}
+            {selectedChannelId && selectedStreamId && (
+              <>
             <section className="action-card" style={{ marginBottom: '1rem' }}>
               <h3>QOTD Banner for {getChannelName(selectedChannelId)}</h3>
               {bannerLoading ? (
@@ -1823,8 +2071,14 @@ export default function QotdManager() {
                           }}>
                             #{index + 1}
                           </span>
-                          <div style={{ flex: 1 }}>
-                            <div className="role-name" style={{ lineHeight: 1.5, marginBottom: q.authorUsername ? '0.25rem' : 0 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="role-name" style={{ 
+                              lineHeight: 1.5, 
+                              marginBottom: q.authorUsername ? '0.25rem' : 0,
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                            }}>
                               {q.text}
                             </div>
                             {q.authorUsername && (
@@ -1916,7 +2170,9 @@ export default function QotdManager() {
               ))}
             </div>
           </section>
-        )}
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );

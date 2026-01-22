@@ -76,6 +76,7 @@ class QotdStreamServiceTest {
         TextChannel channel = mock(TextChannel.class);
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannelById(channelId)).thenReturn(channel);
+        when(guild.getThreadChannelById(channelId)).thenReturn(null);
 
         // Mock: only 2 streams exist
         when(streamRepo.countByGuildIdAndChannelId(guildId, channelId)).thenReturn(2L);
@@ -107,6 +108,7 @@ class QotdStreamServiceTest {
         TextChannel channel = mock(TextChannel.class);
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannelById(channelId)).thenReturn(channel);
+        when(guild.getThreadChannelById(channelId)).thenReturn(null);
 
         // Mock: only 2 streams exist
         when(streamRepo.countByGuildIdAndChannelId(guildId, channelId)).thenReturn(2L);
@@ -217,6 +219,7 @@ class QotdStreamServiceTest {
         TextChannel channel = mock(TextChannel.class);
         when(jda.getGuildById(guildId)).thenReturn(guild);
         when(guild.getTextChannelById(channelId)).thenReturn(channel);
+        when(guild.getThreadChannelById(channelId)).thenReturn(null);
 
         QotdStream stream1 = new QotdStream();
         stream1.setId(1L);
@@ -292,6 +295,7 @@ class QotdStreamServiceTest {
         Guild guild = mock(Guild.class);
         when(jda.getGuildById("g1")).thenReturn(guild);
         when(guild.getTextChannelById("c1")).thenReturn(null);
+        when(guild.getThreadChannelById("c1")).thenReturn(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
             () -> service.listStreams("g1", "c1"));

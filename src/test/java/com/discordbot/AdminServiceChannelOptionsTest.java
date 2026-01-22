@@ -2,9 +2,12 @@ package com.discordbot;
 
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.GuildsCache;
 import com.discordbot.web.service.WebSocketNotificationService;
+import com.discordbot.repository.QotdStreamRepository;
+import com.discordbot.entity.QotdStream;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -30,6 +33,7 @@ class AdminServiceChannelOptionsTest {
     private OAuth2AuthorizedClientService authorizedClientService;
     private GuildsCache guildsCache;
     private WebSocketNotificationService webSocketService;
+    private QotdStreamRepository qotdStreamRepository;
     
     private TextChannel textChannel1;
     private TextChannel textChannel2;
@@ -46,6 +50,7 @@ class AdminServiceChannelOptionsTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         webSocketService = mock(WebSocketNotificationService.class);
+        qotdStreamRepository = mock(QotdStreamRepository.class);
         
         textChannel1 = mock(TextChannel.class);
         textChannel2 = mock(TextChannel.class);
@@ -53,7 +58,7 @@ class AdminServiceChannelOptionsTest {
         threadChannel2 = mock(ThreadChannel.class);
         parentChannel = mock(IThreadContainerUnion.class);
         
-        adminService = new AdminService(jda, authorizedClientService, guildsCache, webSocketService);
+        adminService = new AdminService(jda, authorizedClientService, guildsCache, webSocketService, qotdStreamRepository);
     }
     
     @Test
@@ -206,5 +211,161 @@ class AdminServiceChannelOptionsTest {
         ChannelTreeNodeDto channel = result.get(0);
         assertEquals(1, channel.children().size(), "Should only include active thread");
         assertEquals("thread1", channel.children().get(0).id());
+    }
+    
+    @Test
+    @DisplayName("getChannelOptions filters out threads bot cannot talk in")
+    void getChannelOptions_filtersThreadCannotTalk() {
+        String guildId = "guild123";
+        
+        // Setup channel
+        when(textChannel1.getId()).thenReturn("channel1");
+        when(textChannel1.getName()).thenReturn("general");
+        when(textChannel1.canTalk()).thenReturn(true);
+        
+        // Thread where bot CAN talk
+        when(threadChannel1.getId()).thenReturn("thread1");
+        when(threadChannel1.getName()).thenReturn("readable-thread");
+        when(threadChannel1.getParentChannel()).thenReturn(parentChannel);
+        when(threadChannel1.canTalk()).thenReturn(true);
+        when(threadChannel1.isArchived()).thenReturn(false);
+        when(parentChannel.getId()).thenReturn("channel1");
+        
+        // Thread where bot CANNOT talk
+        when(threadChannel2.getId()).thenReturn("thread2");
+        when(threadChannel2.getName()).thenReturn("readonly-thread");
+        when(threadChannel2.getParentChannel()).thenReturn(parentChannel);
+        when(threadChannel2.canTalk()).thenReturn(false); // Bot cannot talk here
+        when(threadChannel2.isArchived()).thenReturn(false);
+        
+        when(jda.getGuildById(guildId)).thenReturn(guild);
+        when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1));
+        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        
+        List<ChannelTreeNodeDto> result = adminService.getChannelOptions(guildId);
+        
+        assertEquals(1, result.size(), "Should return 1 channel");
+        ChannelTreeNodeDto channel = result.get(0);
+        assertEquals(1, channel.children().size(), "Should only include readable thread");
+        assertEquals("thread1", channel.children().get(0).id());
+    }
+    
+    @Test
+    @DisplayName("getStreamStatusForAllChannels returns status for all channels")
+    void getStreamStatusForAllChannels_returnsStatusForChannels() {
+        String guildId = "guild123";
+        
+        // Setup channels
+        when(textChannel1.getId()).thenReturn("channel1");
+        when(textChannel1.canTalk()).thenReturn(true);
+        when(textChannel2.getId()).thenReturn("channel2");
+        when(textChannel2.canTalk()).thenReturn(true);
+        
+        // Setup threads
+        when(threadChannel1.getId()).thenReturn("thread1");
+        when(threadChannel1.isArchived()).thenReturn(false);
+        when(threadChannel1.canTalk()).thenReturn(true);
+        when(threadChannel2.getId()).thenReturn("thread2");
+        when(threadChannel2.isArchived()).thenReturn(false);
+        when(threadChannel2.canTalk()).thenReturn(true);
+        
+        when(jda.getGuildById(guildId)).thenReturn(guild);
+        when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
+        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        
+        // Mock streams: channel1 has enabled, channel2 has only configured, threads have none
+        QotdStream stream1 = mock(QotdStream.class);
+        when(stream1.getChannelId()).thenReturn("channel1");
+        when(stream1.getEnabled()).thenReturn(true);
+        
+        QotdStream stream2 = mock(QotdStream.class);
+        when(stream2.getChannelId()).thenReturn("channel2");
+        when(stream2.getEnabled()).thenReturn(false);
+        
+        when(qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId))
+            .thenReturn(Arrays.asList(stream1, stream2));
+        
+        List<ChannelStreamStatusDto> result = adminService.getStreamStatusForAllChannels(guildId);
+        
+        // Should return 4 entries (2 channels + 2 threads)
+        assertEquals(4, result.size());
+        
+        // Verify channel1: has configured and enabled
+        ChannelStreamStatusDto ch1 = result.stream()
+            .filter(s -> s.channelId().equals("channel1"))
+            .findFirst()
+            .orElseThrow();
+        assertTrue(ch1.hasConfigured());
+        assertTrue(ch1.hasEnabled());
+        
+        // Verify channel2: has configured but not enabled
+        ChannelStreamStatusDto ch2 = result.stream()
+            .filter(s -> s.channelId().equals("channel2"))
+            .findFirst()
+            .orElseThrow();
+        assertTrue(ch2.hasConfigured());
+        assertFalse(ch2.hasEnabled());
+        
+        // Verify threads: not configured
+        ChannelStreamStatusDto th1 = result.stream()
+            .filter(s -> s.channelId().equals("thread1"))
+            .findFirst()
+            .orElseThrow();
+        assertFalse(th1.hasConfigured());
+        assertFalse(th1.hasEnabled());
+    }
+    
+    @Test
+    @DisplayName("getStreamStatusForAllChannels excludes channels bot cannot talk in")
+    void getStreamStatusForAllChannels_excludesNoTalkChannels() {
+        String guildId = "guild123";
+        
+        when(textChannel1.getId()).thenReturn("channel1");
+        when(textChannel1.canTalk()).thenReturn(false); // Bot cannot talk
+        when(textChannel2.getId()).thenReturn("channel2");
+        when(textChannel2.canTalk()).thenReturn(true);
+        
+        when(jda.getGuildById(guildId)).thenReturn(guild);
+        when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1, textChannel2));
+        when(guild.getThreadChannels()).thenReturn(Collections.emptyList());
+        when(qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId))
+            .thenReturn(Collections.emptyList());
+        
+        List<ChannelStreamStatusDto> result = adminService.getStreamStatusForAllChannels(guildId);
+        
+        assertEquals(1, result.size());
+        assertEquals("channel2", result.get(0).channelId());
+    }
+    
+    @Test
+    @DisplayName("getStreamStatusForAllChannels excludes archived threads")
+    void getStreamStatusForAllChannels_excludesArchivedThreads() {
+        String guildId = "guild123";
+        
+        when(textChannel1.getId()).thenReturn("channel1");
+        when(textChannel1.canTalk()).thenReturn(true);
+        
+        // Active thread
+        when(threadChannel1.getId()).thenReturn("thread1");
+        when(threadChannel1.isArchived()).thenReturn(false);
+        when(threadChannel1.canTalk()).thenReturn(true);
+        
+        // Archived thread
+        when(threadChannel2.getId()).thenReturn("thread2");
+        when(threadChannel2.isArchived()).thenReturn(true);
+        when(threadChannel2.canTalk()).thenReturn(true);
+        
+        when(jda.getGuildById(guildId)).thenReturn(guild);
+        when(guild.getTextChannels()).thenReturn(Arrays.asList(textChannel1));
+        when(guild.getThreadChannels()).thenReturn(Arrays.asList(threadChannel1, threadChannel2));
+        when(qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId))
+            .thenReturn(Collections.emptyList());
+        
+        List<ChannelStreamStatusDto> result = adminService.getStreamStatusForAllChannels(guildId);
+        
+        assertEquals(2, result.size()); // 1 channel + 1 active thread
+        assertTrue(result.stream().anyMatch(s -> s.channelId().equals("channel1")));
+        assertTrue(result.stream().anyMatch(s -> s.channelId().equals("thread1")));
+        assertTrue(result.stream().noneMatch(s -> s.channelId().equals("thread2")));
     }
 }

@@ -9,6 +9,8 @@ import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
+import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -34,7 +36,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class AdminService {
@@ -48,14 +49,17 @@ public class AdminService {
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final QotdStreamRepository qotdStreamRepository;
 
     public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, 
-                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService) {
+                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService,
+                       QotdStreamRepository qotdStreamRepository) {
         this.jda = jda;
         this.restTemplate = new RestTemplate();
         this.authorizedClientService = authorizedClientService;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
+        this.qotdStreamRepository = qotdStreamRepository;
     }
 
     /**
@@ -852,11 +856,13 @@ public class AdminService {
         // Build tree with channels as parents and threads as children
         return guild.getTextChannels().stream()
             .filter(channel -> channel.canTalk())
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
             .map(channel -> {
                 // Get threads for this channel
                 List<ChannelTreeNodeDto> threadNodes = threadsByParent
                     .getOrDefault(channel.getId(), Collections.emptyList())
                     .stream()
+                    .sorted((a, b) -> a.getName().compareTo(b.getName()))
                     .map(thread -> new ChannelTreeNodeDto(
                         thread.getId(),
                         thread.getName(),
@@ -873,5 +879,49 @@ public class AdminService {
                 );
             })
             .collect(Collectors.toList());
+    }
+
+    /**
+     * Get stream status for all channels/threads in a guild (batch endpoint).
+     * Returns which channels/threads have configured or enabled streams.
+     * Uses database queries to determine status efficiently.
+     */
+    public List<ChannelStreamStatusDto> getStreamStatusForAllChannels(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return Collections.emptyList();
+        }
+
+        // Get all streams for this guild from database
+        List<com.discordbot.entity.QotdStream> allStreams = qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId);
+        
+        // Group streams by channel ID and track which have enabled streams
+        Map<String, Boolean> channelHasEnabled = new java.util.HashMap<>();
+        for (com.discordbot.entity.QotdStream stream : allStreams) {
+            channelHasEnabled.put(stream.getChannelId(), 
+                channelHasEnabled.getOrDefault(stream.getChannelId(), false) || stream.getEnabled());
+        }
+
+        List<ChannelStreamStatusDto> statusList = new ArrayList<>();
+
+        // Check all text channels
+        for (TextChannel channel : guild.getTextChannels()) {
+            if (channel.canTalk()) {
+                boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
+                boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
+                statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
+            }
+        }
+
+        // Check all threads
+        for (ThreadChannel thread : guild.getThreadChannels()) {
+            if (!thread.isArchived() && thread.canTalk()) {
+                boolean hasConfigured = channelHasEnabled.containsKey(thread.getId());
+                boolean hasEnabled = channelHasEnabled.getOrDefault(thread.getId(), false);
+                statusList.add(new ChannelStreamStatusDto(thread.getId(), hasConfigured, hasEnabled));
+            }
+        }
+
+        return statusList;
     }
 }

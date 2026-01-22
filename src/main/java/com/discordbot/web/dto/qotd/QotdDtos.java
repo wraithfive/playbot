@@ -111,4 +111,11 @@ public class QotdDtos {
             boolean randomize,
             boolean autoApprove
     ) {}
+
+    // Stream status for batch endpoint
+    public record ChannelStreamStatusDto(
+        String channelId,
+        boolean hasConfigured,  // whether any stream exists for this channel
+        boolean hasEnabled      // whether at least one stream is enabled
+    ) {}
 }

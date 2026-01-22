@@ -2,6 +2,9 @@ package com.discordbot;
 
 import com.discordbot.web.controller.ServerController;
 import com.discordbot.web.dto.GuildInfo;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
 import com.discordbot.web.service.AdminService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +30,76 @@ class ServerControllerTest {
         adminService = mock(AdminService.class);
         controller = new ServerController(adminService);
         auth = createMockAuth("user123");
+    }
+
+    @Test
+    @DisplayName("getChannelOptions enforces auth and manage permissions")
+    void getChannelOptions_authz() {
+        // Unauthenticated
+        ResponseEntity<List<ChannelTreeNodeDto>> unauth = controller.getChannelOptions("g1", null);
+        assertEquals(401, unauth.getStatusCode().value());
+
+        // Authenticated but cannot manage
+        when(adminService.canManageGuild(auth, "g1")).thenReturn(false);
+        ResponseEntity<List<ChannelTreeNodeDto>> forbidden = controller.getChannelOptions("g1", auth);
+        assertEquals(403, forbidden.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("getChannelOptions returns tree nodes when authorized")
+    void getChannelOptions_ok() {
+        when(adminService.canManageGuild(auth, "g1")).thenReturn(true);
+
+        List<ChannelTreeNodeDto> nodes = Arrays.asList(
+            new ChannelTreeNodeDto("ch1", "general", ChannelType.CHANNEL, Collections.emptyList())
+        );
+        when(adminService.getChannelOptions("g1")).thenReturn(nodes);
+
+        ResponseEntity<List<ChannelTreeNodeDto>> res = controller.getChannelOptions("g1", auth);
+        assertEquals(200, res.getStatusCode().value());
+        assertEquals(1, Objects.requireNonNull(res.getBody()).size());
+        assertEquals("ch1", res.getBody().get(0).id());
+    }
+
+    @Test
+    @DisplayName("getStreamStatus enforces auth and manage permissions")
+    void getStreamStatus_authz() {
+        // Unauthenticated
+        ResponseEntity<List<ChannelStreamStatusDto>> unauth = controller.getStreamStatus("g1", null);
+        assertEquals(401, unauth.getStatusCode().value());
+
+        // Authenticated but cannot manage
+        when(adminService.canManageGuild(auth, "g1")).thenReturn(false);
+        ResponseEntity<List<ChannelStreamStatusDto>> forbidden = controller.getStreamStatus("g1", auth);
+        assertEquals(403, forbidden.getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("getStreamStatus returns status list when authorized")
+    void getStreamStatus_ok() {
+        when(adminService.canManageGuild(auth, "g1")).thenReturn(true);
+
+        List<ChannelStreamStatusDto> statusList = Arrays.asList(
+            new ChannelStreamStatusDto("ch1", true, true),   // has configured and enabled
+            new ChannelStreamStatusDto("ch2", true, false),  // has configured but not enabled
+            new ChannelStreamStatusDto("ch3", false, false)  // no configuration
+        );
+        when(adminService.getStreamStatusForAllChannels("g1")).thenReturn(statusList);
+
+        ResponseEntity<List<ChannelStreamStatusDto>> res = controller.getStreamStatus("g1", auth);
+        assertEquals(200, res.getStatusCode().value());
+        assertEquals(3, Objects.requireNonNull(res.getBody()).size());
+        
+        // Verify the batch data is correct
+        ChannelStreamStatusDto first = res.getBody().get(0);
+        assertEquals("ch1", first.channelId());
+        assertTrue(first.hasConfigured());
+        assertTrue(first.hasEnabled());
+        
+        ChannelStreamStatusDto second = res.getBody().get(1);
+        assertEquals("ch2", second.channelId());
+        assertTrue(second.hasConfigured());
+        assertFalse(second.hasEnabled());
     }
 
     @Test
