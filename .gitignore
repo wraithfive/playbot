@@ -47,6 +47,10 @@ data/
 # Legal documents (production versions - keep templates only in repo)
 frontend/src/components/PrivacyPolicy.tsx
 frontend/src/components/TermsOfService.tsx
+
+# Test configuration files (generated dynamically)
+e2e/test-server-config.json
+
 # Old color-gacha-bot logs (renamed to playbot)
 logs/color-gacha-bot*.log
 logs/backend.log

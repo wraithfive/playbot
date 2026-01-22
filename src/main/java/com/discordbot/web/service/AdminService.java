@@ -219,7 +219,7 @@ public class AdminService {
     private boolean hasStaffRole(String userId, String guildId) {
         Guild guild = jda.getGuildById(guildId);
         if (guild == null) {
-            logger.info("Guild {} not found in JDA cache for Staff role check", guildId);
+            logger.debug("Guild {} not found in JDA cache for Staff role check", guildId);
             return false;
         }
 
@@ -227,16 +227,16 @@ public class AdminService {
         if (member == null) {
             // Try to load the member if not cached
             try {
-                logger.info("Member {} not in cache, attempting to retrieve from guild {}", userId, guildId);
+                logger.debug("Member {} not in cache, attempting to retrieve from guild {}", userId, guildId);
                 member = guild.retrieveMemberById(userId).complete();
-                logger.info("Successfully retrieved member {} from guild {}", userId, guildId);
+                logger.debug("Successfully retrieved member {} from guild {}", userId, guildId);
             } catch (Exception e) {
-                logger.info("Failed to retrieve member {} from guild {}: {} - {}", userId, guildId, e.getClass().getSimpleName(), e.getMessage());
+                logger.debug("Failed to retrieve member {} from guild {}: {} - {}", userId, guildId, e.getClass().getSimpleName(), e.getMessage());
                 return false;
             }
             
             if (member == null) {
-                logger.info("Member {} returned null after retrieve in guild {}", userId, guildId);
+                logger.debug("Member {} returned null after retrieve in guild {}", userId, guildId);
                 return false;
             }
         }
@@ -244,7 +244,7 @@ public class AdminService {
         boolean hasStaff = member.getRoles().stream()
             .anyMatch(role -> role.getName().equalsIgnoreCase("Staff"));
         
-        logger.info("User {} in guild {}: hasStaff={}, roles={}", userId, guildId, hasStaff,
+        logger.debug("User {} in guild {}: hasStaff={}, roles={}", userId, guildId, hasStaff,
             member.getRoles().stream().map(r -> r.getName()).toList());
         
         return hasStaff;
