@@ -28,24 +28,27 @@
         <rollback>
             <comment>Rollback creates empty table structure only - data is not recoverable</comment>
             <createTable tableName="qotd_configs_deprecated">
-                <column name="id" type="BIGINT" autoIncrement="true">
+                <column name="guild_id" type="VARCHAR(255)">
                     <constraints primaryKey="true" nullable="false"/>
                 </column>
-                <column name="guild_id" type="VARCHAR(255)">
-                    <constraints nullable="false"/>
-                </column>
                 <column name="channel_id" type="VARCHAR(255)">
-                    <constraints nullable="false"/>
+                    <constraints primaryKey="true" nullable="false"/>
                 </column>
                 <column name="enabled" type="BOOLEAN" defaultValueBoolean="false">
                     <constraints nullable="false"/>
                 </column>
                 <column name="schedule_cron" type="VARCHAR(255)"/>
-                <column name="timezone" type="VARCHAR(100)"/>
-                <column name="next_index" type="INT" defaultValueNumeric="0">
+                <column name="timezone" type="VARCHAR(255)"/>
+                <column name="randomize" type="BOOLEAN" defaultValueBoolean="false">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="auto_approve" type="BOOLEAN" defaultValueBoolean="false">
                     <constraints nullable="false"/>
                 </column>
                 <column name="last_posted_at" type="TIMESTAMP"/>
+                <column name="next_index" type="INT" defaultValueNumeric="0">
+                    <constraints nullable="false"/>
+                </column>
             </createTable>
         </rollback>
     </changeSet>
@@ -75,15 +78,14 @@
                 <column name="id" type="BIGINT" autoIncrement="true">
                     <constraints primaryKey="true" nullable="false"/>
                 </column>
-                <column name="guild_id" type="VARCHAR(255)">
+                <column name="channel_id" type="VARCHAR(64)">
                     <constraints nullable="false"/>
                 </column>
-                <column name="channel_id" type="VARCHAR(255)">
+                <column name="banner_text" type="VARCHAR(160)">
                     <constraints nullable="false"/>
                 </column>
-                <column name="banner_url" type="VARCHAR(2048)"/>
-                <column name="embed_color" type="VARCHAR(10)"/>
-                <column name="mention_target" type="TEXT"/>
+                <column name="embed_color" type="INT"/>
+                <column name="mention_target" type="VARCHAR(64)"/>
             </createTable>
         </rollback>
     </changeSet>
