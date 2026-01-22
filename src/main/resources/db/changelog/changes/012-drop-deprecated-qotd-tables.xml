@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="012-01-drop-qotd-configs-deprecated" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="qotd_configs_deprecated"/>
+        </preConditions>
+
+        <comment>
+            Drop qotd_configs_deprecated table (issue #3 - tech debt cleanup).
+            This table was renamed in migration 008 during multi-streams migration.
+            
+            Verification (Jan 22, 2026):
+            - Table confirmed empty (0 rows)
+            - All data migrated to qotd_streams
+            - Multi-streams deployed and stable
+            - 30+ days elapsed since migration
+            
+            Safe to remove as all data has been successfully migrated to streams.
+        </comment>
+
+        <dropTable tableName="qotd_configs_deprecated"/>
+
+        <rollback>
+            <comment>Rollback creates empty table structure only - data is not recoverable</comment>
+            <createTable tableName="qotd_configs_deprecated">
+                <column name="id" type="BIGINT" autoIncrement="true">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="guild_id" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="channel_id" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="enabled" type="BOOLEAN" defaultValueBoolean="false">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="schedule_cron" type="VARCHAR(255)"/>
+                <column name="timezone" type="VARCHAR(100)"/>
+                <column name="next_index" type="INT" defaultValueNumeric="0">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="last_posted_at" type="TIMESTAMP"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="012-02-drop-qotd-banner-deprecated" author="nwatson">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="qotd_banner_deprecated"/>
+        </preConditions>
+
+        <comment>
+            Drop qotd_banner_deprecated table (issue #3 - tech debt cleanup).
+            This table was renamed in migration 008 during multi-streams migration.
+            
+            Verification (Jan 22, 2026):
+            - Table confirmed empty (0 rows)
+            - Banner data migrated to qotd_streams.banner_* columns
+            - Multi-streams deployed and stable
+            
+            Safe to remove as all banner data has been migrated to streams.
+        </comment>
+
+        <dropTable tableName="qotd_banner_deprecated"/>
+
+        <rollback>
+            <comment>Rollback creates empty table structure only - data is not recoverable</comment>
+            <createTable tableName="qotd_banner_deprecated">
+                <column name="id" type="BIGINT" autoIncrement="true">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="guild_id" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="channel_id" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="banner_url" type="VARCHAR(2048)"/>
+                <column name="embed_color" type="VARCHAR(10)"/>
+                <column name="mention_target" type="TEXT"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

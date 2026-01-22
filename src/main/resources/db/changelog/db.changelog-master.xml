@@ -30,4 +30,7 @@
     <!-- Bug fixes -->
     <include file="db/changelog/changes/011-fix-author-user-id-length.xml"/>
 
+    <!-- Tech debt cleanup (issue #3) -->
+    <include file="db/changelog/changes/012-drop-deprecated-qotd-tables.xml"/>
+
 </databaseChangeLog>
