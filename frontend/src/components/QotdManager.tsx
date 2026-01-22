@@ -1505,7 +1505,7 @@ export default function QotdManager() {
                 <h3 style={{ margin: 0 }}>
                   Configuration: {streams?.find(s => s.id === selectedStreamId)?.streamName || 'Stream'}
                 </h3>
-                {streams && streams.length > 1 && (
+                {streams && streams.length >= 1 && (
                   <button
                     className="btn btn-danger btn-sm"
                     onClick={async () => {
@@ -1520,6 +1520,7 @@ export default function QotdManager() {
                         try {
                           await qotdApi.deleteStream(guildId, selectedChannelId, selectedStreamId);
                           qc.invalidateQueries({ queryKey: ['qotd-streams', guildId, selectedChannelId] });
+                          qc.invalidateQueries({ queryKey: ['qotd-stream-status', guildId] });
                           // Select the first remaining stream
                           const remaining = streams.filter(s => s.id !== selectedStreamId);
                           if (remaining.length > 0) {
