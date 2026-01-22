@@ -81,8 +81,7 @@ test.describe('QOTD Channel Tree Selection', () => {
     for (const channel of channelsWithThreads) {
       // The channel button should have the channel icon nearby
       const channelButton = page.locator(`button:has-text("${channel.name}")`);
-      const text = await channelButton.textContent();
-      expect(text).toContain('📌'); // Channel icon
+      expect(await channelButton.textContent()).toContain('📌'); // Channel icon
     }
   });
 

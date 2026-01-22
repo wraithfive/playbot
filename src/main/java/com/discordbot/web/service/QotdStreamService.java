@@ -577,6 +577,11 @@ public class QotdStreamService {
             if (thread != null) {
                 if (!thread.isJoined()) {
                     try {
+                        // Verify bot has MANAGE_THREADS permission before attempting to join
+                        if (self == null || !self.hasPermission(thread, Permission.MANAGE_THREADS)) {
+                            log.error("Bot lacks MANAGE_THREADS permission to join thread {} ({})", thread.getName(), thread.getId());
+                            return false;
+                        }
                         log.info("Joining thread {} to enable stream posting", thread.getName());
                         thread.join().complete();
                     } catch (Exception e) {

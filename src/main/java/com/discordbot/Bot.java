@@ -74,12 +74,6 @@ public class Bot {
             builder.setMemberCachePolicy(net.dv8tion.jda.api.utils.MemberCachePolicy.ALL);
             builder.setChunkingFilter(net.dv8tion.jda.api.utils.ChunkingFilter.ALL);
             
-            // Enable cache flags to see all channels and threads
-            builder.enableCache(
-                net.dv8tion.jda.api.utils.cache.CacheFlag.VOICE_STATE,
-                net.dv8tion.jda.api.utils.cache.CacheFlag.SCHEDULED_EVENTS
-            );
-            
             logger.info("Gateway intents configured: GUILD_MESSAGES, MESSAGE_CONTENT, GUILD_MEMBERS");
             logger.info("Member caching enabled: ALL members will be cached with chunking");
 

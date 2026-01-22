@@ -17,7 +17,7 @@
  */
 
 require('dotenv').config();
-const { Client, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { Client, ChannelType } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -132,7 +132,7 @@ async function createTestChannels(guild) {
           // Create thread from message
           const thread = await message.startThread({
             name: threadConfig.name,
-            autoArchiveDuration: 60 // 1 hour
+            autoArchiveDuration: 4320 // 3 days - prevents test threads from auto-archiving
           });
 
           console.log(`    ✓ Created thread: ${thread.name} (${thread.id})`);

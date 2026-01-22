@@ -860,13 +860,18 @@ public class AdminService {
             activeThreads = Collections.emptyList();
         }
 
-        // Group active threads by parent channel ID (exclude archived)
+        // Group active threads by parent channel ID (exclude archived and orphaned)
         Map<String, List<ThreadChannel>> threadsByParent = activeThreads.stream()
             .filter(thread -> !thread.isArchived())
-            .collect(Collectors.groupingBy(thread -> {
+            .filter(thread -> {
                 IThreadContainerUnion parent = thread.getParentChannel();
-                return parent != null ? parent.getId() : "";
-            }));
+                if (parent == null) {
+                    logger.warn("Orphaned thread detected (no parent): {} ({})", thread.getName(), thread.getId());
+                    return false;
+                }
+                return true;
+            })
+            .collect(Collectors.groupingBy(thread -> thread.getParentChannel().getId()));
         
         // Helper to build thread nodes for a channel
         java.util.function.Function<String, List<ChannelTreeNodeDto>> getThreadNodes = channelId ->
@@ -915,9 +920,9 @@ public class AdminService {
                 getThreadNodes.apply(forum.getId())
             )));
 
-        // Sort final result by name since we combined different channel types
-        result.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
-
+        // Note: channels are sorted by Discord position order (via guild.getTextChannels() etc)
+        // This preserves the server's channel layout instead of alphabetical sorting
+        
         return result;
     }
 
