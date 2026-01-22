@@ -156,11 +156,6 @@ public class AdminService {
             }
             boolean canManage = isAdmin || hasStaff;
 
-            if (guildId.equals("559146288906764298") || botPresent) {
-                logger.info("Guild check - ID: {} ({}): isAdmin={}, botPresent={}, hasStaff={}, canManage={}", 
-                    guildId, guildName, isAdmin, botPresent, hasStaff, canManage);
-            }
-
             if (!canManage) {
                 continue;
             }
