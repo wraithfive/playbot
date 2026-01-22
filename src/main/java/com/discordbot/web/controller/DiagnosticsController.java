@@ -1,8 +1,6 @@
 package com.discordbot.web.controller;
 
-import com.discordbot.entity.QotdQuestion;
 import com.discordbot.entity.QotdStream;
-import com.discordbot.repository.QotdQuestionRepository;
 import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.web.service.AdminService;
 import net.dv8tion.jda.api.JDA;
@@ -24,13 +22,11 @@ public class DiagnosticsController {
     private final JDA jda;
     private final AdminService adminService;
     private final QotdStreamRepository streamRepository;
-    private final QotdQuestionRepository questionRepository;
 
-    public DiagnosticsController(JDA jda, AdminService adminService, QotdStreamRepository streamRepository, QotdQuestionRepository questionRepository) {
+    public DiagnosticsController(JDA jda, AdminService adminService, QotdStreamRepository streamRepository) {
         this.jda = jda;
         this.adminService = adminService;
         this.streamRepository = streamRepository;
-        this.questionRepository = questionRepository;
     }
 
     /**
@@ -192,38 +188,6 @@ public class DiagnosticsController {
         result.put("deletedStreamIds", deletedIds);
         result.put("message", deletedCount + " orphaned stream(s) deleted");
         return ResponseEntity.ok(result);
-    }
-
-    /**
-     * Clean up legacy QOTD questions (questions with null streamId from old config system)
-     * Requires authenticated user with admin rights in any guild
-     */
-    @PostMapping("/cleanup-legacy-questions")
-    public ResponseEntity<Map<String, Object>> cleanupLegacyQuestions(Authentication auth) {
-        
-        if (auth == null) {
-            return ResponseEntity.status(403).build();
-        }
-
-        try {
-            // Find all questions with null streamId (legacy questions not migrated)
-            var legacyQuestions = questionRepository.findByStreamIdIsNull();
-            
-            long deletedCount = legacyQuestions.size();
-            if (deletedCount > 0) {
-                questionRepository.deleteAll(legacyQuestions);
-            }
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("deletedCount", deletedCount);
-            result.put("message", deletedCount + " legacy question(s) deleted");
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of(
-                "error", "Failed to cleanup legacy questions",
-                "message", e.getMessage()
-            ));
-        }
     }
 }
 
