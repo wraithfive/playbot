@@ -444,7 +444,13 @@ public class QotdStreamService {
                     // Bot must be a member of the thread to post
                     if (!threadChannel.isJoined()) {
                         log.info("Joining thread {} to post QOTD", threadChannel.getName());
-                        threadChannel.join().complete();
+                        try {
+                            threadChannel.join().complete();
+                        } catch (Exception e) {
+                            log.error("Failed to join thread {} ({}) to post QOTD: {}", 
+                                threadChannel.getName(), threadChannel.getId(), e.getMessage());
+                            return;
+                        }
                     }
                 }
             }

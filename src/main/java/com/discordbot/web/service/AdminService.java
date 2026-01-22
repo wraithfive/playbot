@@ -223,10 +223,20 @@ public class AdminService {
             // Try to load the member if not cached
             try {
                 logger.debug("Member {} not in cache, attempting to retrieve from guild {}", userId, guildId);
-                member = guild.retrieveMemberById(userId).complete();
+                var restAction = guild.retrieveMemberById(userId);
+                if (restAction == null) {
+                    logger.debug("retrieveMemberById returned null for user {} in guild {}", userId, guildId);
+                    return false;
+                }
+                member = restAction.complete();
                 logger.debug("Successfully retrieved member {} from guild {}", userId, guildId);
-            } catch (Exception e) {
-                logger.debug("Failed to retrieve member {} from guild {}: {} - {}", userId, guildId, e.getClass().getSimpleName(), e.getMessage());
+            } catch (net.dv8tion.jda.api.exceptions.ErrorResponseException e) {
+                // Member not found or bot lacks permission
+                logger.debug("Failed to retrieve member {} from guild {}: {}", userId, guildId, e.getMessage());
+                return false;
+            } catch (java.util.concurrent.RejectedExecutionException e) {
+                // Request execution rejected
+                logger.warn("Failed to retrieve member {} from guild {} due to rejection: {}", userId, guildId, e.getMessage());
                 return false;
             }
             
@@ -841,12 +851,11 @@ public class AdminService {
         }
         
         // Get active threads grouped by parent channel ID
+        // Exclude orphaned threads (no parent channel) as they cannot be properly grouped
         Map<String, List<ThreadChannel>> threadsByParent = guild.getThreadChannels().stream()
             .filter(thread -> !thread.isArchived() && thread.canTalk())
-            .collect(Collectors.groupingBy(thread -> {
-                IThreadContainerUnion parent = thread.getParentChannel();
-                return parent != null ? parent.getId() : "";
-            }));
+            .filter(thread -> thread.getParentChannel() != null)
+            .collect(Collectors.groupingBy(thread -> thread.getParentChannel().getId()));
         
         // Build tree with channels as parents and threads as children
         return guild.getTextChannels().stream()
