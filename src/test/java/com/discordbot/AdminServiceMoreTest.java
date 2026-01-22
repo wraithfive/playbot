@@ -155,7 +155,8 @@ class AdminServiceMoreTest {
             | net.dv8tion.jda.api.Permission.MESSAGE_SEND.getRawValue()
             | net.dv8tion.jda.api.Permission.MESSAGE_EMBED_LINKS.getRawValue()
             | net.dv8tion.jda.api.Permission.MESSAGE_HISTORY.getRawValue()
-            | net.dv8tion.jda.api.Permission.MESSAGE_ATTACH_FILES.getRawValue();
+            | net.dv8tion.jda.api.Permission.MESSAGE_ATTACH_FILES.getRawValue()
+            | net.dv8tion.jda.api.Permission.MANAGE_THREADS.getRawValue();
 
         String url = service.generateBotInviteUrl("g1");
         assertTrue(url.contains("permissions=" + expected), "URL should contain expected permissions mask");
