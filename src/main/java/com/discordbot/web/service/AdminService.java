@@ -7,10 +7,15 @@ import com.discordbot.web.dto.GachaRoleInfo;
 import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -25,8 +30,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class AdminService {
@@ -818,5 +826,52 @@ public class AdminService {
             .complete();
         logger.info("Created solid color role {} in guild {} (fallback)", fullName, guild.getName());
         return role;
+    }
+    
+    /**
+     * Get a tree structure of channels and their threads that the bot can send messages to.
+     * Returns channels as parent nodes with their active threads as children.
+     * 
+     * @param guildId The Discord guild ID
+     * @return List of channel tree nodes (channels with nested threads)
+     */
+    public List<ChannelTreeNodeDto> getChannelOptions(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return Collections.emptyList();
+        }
+        
+        // Get active threads grouped by parent channel ID
+        Map<String, List<ThreadChannel>> threadsByParent = guild.getThreadChannels().stream()
+            .filter(thread -> !thread.isArchived() && thread.canTalk())
+            .collect(Collectors.groupingBy(thread -> {
+                IThreadContainerUnion parent = thread.getParentChannel();
+                return parent != null ? parent.getId() : "";
+            }));
+        
+        // Build tree with channels as parents and threads as children
+        return guild.getTextChannels().stream()
+            .filter(channel -> channel.canTalk())
+            .map(channel -> {
+                // Get threads for this channel
+                List<ChannelTreeNodeDto> threadNodes = threadsByParent
+                    .getOrDefault(channel.getId(), Collections.emptyList())
+                    .stream()
+                    .map(thread -> new ChannelTreeNodeDto(
+                        thread.getId(),
+                        thread.getName(),
+                        ChannelType.THREAD
+                    ))
+                    .collect(Collectors.toList());
+                
+                // Create channel node with thread children
+                return new ChannelTreeNodeDto(
+                    channel.getId(),
+                    channel.getName(),
+                    ChannelType.CHANNEL,
+                    threadNodes
+                );
+            })
+            .collect(Collectors.toList());
     }
 }
