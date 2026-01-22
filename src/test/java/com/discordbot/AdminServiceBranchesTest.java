@@ -6,6 +6,7 @@ import com.discordbot.web.dto.RoleHierarchyStatus;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.GuildsCache;
 import com.discordbot.web.service.WebSocketNotificationService;
+import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
@@ -36,6 +37,7 @@ class AdminServiceBranchesTest {
     private OAuth2AuthorizedClientService clients;
     private GuildsCache cache;
     private WebSocketNotificationService ws;
+    private QotdStreamRepository qotdStreamRepository;
     private AdminService service;
 
     @BeforeEach
@@ -44,7 +46,8 @@ class AdminServiceBranchesTest {
         clients = mock(OAuth2AuthorizedClientService.class);
         cache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        service = new AdminService(jda, clients, cache, ws);
+        qotdStreamRepository = mock(QotdStreamRepository.class);
+        service = new AdminService(jda, clients, cache, ws, qotdStreamRepository);
     }
 
     @Test

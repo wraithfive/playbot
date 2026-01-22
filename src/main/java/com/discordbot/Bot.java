@@ -69,7 +69,13 @@ public class Bot {
                 GatewayIntent.MESSAGE_CONTENT,
                 GatewayIntent.GUILD_MEMBERS
             );
+            
+            // Enable member chunking to cache all members (required for large servers)
+            builder.setMemberCachePolicy(net.dv8tion.jda.api.utils.MemberCachePolicy.ALL);
+            builder.setChunkingFilter(net.dv8tion.jda.api.utils.ChunkingFilter.ALL);
+            
             logger.info("Gateway intents configured: GUILD_MESSAGES, MESSAGE_CONTENT, GUILD_MEMBERS");
+            logger.info("Member caching enabled: ALL members will be cached with chunking");
 
             // Set bot status and activity
             builder.setStatus(OnlineStatus.ONLINE);

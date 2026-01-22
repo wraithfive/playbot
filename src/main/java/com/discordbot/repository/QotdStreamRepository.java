@@ -35,6 +35,12 @@ public interface QotdStreamRepository extends JpaRepository<QotdStream, Long> {
     boolean existsByGuildIdAndChannelId(String guildId, String channelId);
 
     /**
+     * Check if channel has any enabled streams.
+     * Used to skip legacy config posting for channels that now use streams.
+     */
+    boolean existsByChannelIdAndEnabledTrue(String channelId);
+
+    /**
      * Find stream by guild, channel, and name.
      * Used for uniqueness validation when creating/updating streams.
      */

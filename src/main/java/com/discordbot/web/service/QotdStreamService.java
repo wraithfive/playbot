@@ -8,7 +8,11 @@ import com.discordbot.web.dto.qotd.QotdDtos.*;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.Permission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.support.CronExpression;
@@ -109,6 +113,14 @@ public class QotdStreamService {
         stream.setCreatedAt(Instant.now());
 
         QotdStream saved = streamRepository.save(stream);
+        // If enabled, ensure the bot can post to the target (join threads if needed)
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            boolean ok = ensureBotCanPost(saved.getGuildId(), saved.getChannelId());
+            if (!ok) {
+                log.warn("Stream {} enabled but bot cannot post to {}. Check permissions or thread membership.",
+                        saved.getStreamName(), saved.getChannelId());
+            }
+        }
         wsNotificationService.notifyQotdStreamChanged(guildId, channelId, saved.getId(), "created");
 
         return toDto(saved);
@@ -141,6 +153,14 @@ public class QotdStreamService {
         stream.setUpdatedAt(Instant.now());
 
         QotdStream saved = streamRepository.save(stream);
+        // If enabled, ensure the bot can post to the target (join threads if needed)
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            boolean ok = ensureBotCanPost(saved.getGuildId(), saved.getChannelId());
+            if (!ok) {
+                log.warn("Stream {} enabled but bot cannot post to {}. Check permissions or thread membership.",
+                        saved.getStreamName(), saved.getChannelId());
+            }
+        }
         wsNotificationService.notifyQotdStreamChanged(stream.getGuildId(), stream.getChannelId(), streamId, "updated");
 
         return toDto(saved);
@@ -426,7 +446,33 @@ public class QotdStreamService {
                 return;
             }
 
-            TextChannel channel = guild.getTextChannelById(stream.getChannelId());
+            // Try to get as TextChannel first, then as ThreadChannel
+            MessageChannel channel = null;
+            TextChannel textChannel = guild.getTextChannelById(stream.getChannelId());
+            ThreadChannel threadChannel = null;
+            
+            if (textChannel != null) {
+                channel = textChannel;
+            } else {
+                // Try as a thread channel
+                threadChannel = guild.getThreadChannelById(stream.getChannelId());
+                if (threadChannel != null) {
+                    channel = threadChannel;
+                    
+                    // Bot must be a member of the thread to post
+                    if (!threadChannel.isJoined()) {
+                        log.info("Joining thread {} to post QOTD", threadChannel.getName());
+                        try {
+                            threadChannel.join().complete();
+                        } catch (Exception e) {
+                            log.error("Failed to join thread {} ({}) to post QOTD: {}", 
+                                threadChannel.getName(), threadChannel.getId(), e.getMessage());
+                            return;
+                        }
+                    }
+                }
+            }
+            
             if (channel == null) {
                 log.error("Channel not found: {}", stream.getChannelId());
                 return;
@@ -495,9 +541,66 @@ public class QotdStreamService {
         if (guild == null) {
             throw new IllegalArgumentException("Guild not found: " + guildId);
         }
-        TextChannel channel = guild.getTextChannelById(channelId);
-        if (channel == null) {
+        // Check for both text channels and thread channels
+        TextChannel textChannel = guild.getTextChannelById(channelId);
+        ThreadChannel threadChannel = guild.getThreadChannelById(channelId);
+        if (textChannel == null && threadChannel == null) {
             throw new IllegalArgumentException("Channel not found or does not belong to this guild");
+        }
+    }
+
+    /**
+     * Ensure the bot can post to the given channel or thread.
+     * If target is a thread and bot is not joined, attempt to join.
+     * Returns true if posting should be possible; false otherwise.
+     */
+    private boolean ensureBotCanPost(String guildId, String channelId) {
+        try {
+            Guild guild = jda.getGuildById(guildId);
+            if (guild == null) {
+                log.error("Guild not found while ensuring postability: {}", guildId);
+                return false;
+            }
+
+            Member self = guild.getSelfMember();
+
+            TextChannel text = guild.getTextChannelById(channelId);
+            if (text != null) {
+                boolean canSend = self != null ? self.hasPermission(text, Permission.MESSAGE_SEND) : text.canTalk();
+                if (!canSend) {
+                    log.warn("Bot lacks MESSAGE_SEND in channel {} ({})", text.getName(), text.getId());
+                }
+                return canSend;
+            }
+
+            ThreadChannel thread = guild.getThreadChannelById(channelId);
+            if (thread != null) {
+                if (!thread.isJoined()) {
+                    try {
+                        // Verify bot has MANAGE_THREADS permission before attempting to join
+                        if (self == null || !self.hasPermission(thread, Permission.MANAGE_THREADS)) {
+                            log.error("Bot lacks MANAGE_THREADS permission to join thread {} ({})", thread.getName(), thread.getId());
+                            return false;
+                        }
+                        log.info("Joining thread {} to enable stream posting", thread.getName());
+                        thread.join().complete();
+                    } catch (Exception e) {
+                        log.error("Failed to join thread {} ({}): {}", thread.getName(), thread.getId(), e.getMessage());
+                        return false;
+                    }
+                }
+                boolean canSend = self != null ? self.hasPermission(thread, Permission.MESSAGE_SEND_IN_THREADS) : thread.canTalk();
+                if (!canSend) {
+                    log.warn("Bot lacks MESSAGE_SEND_IN_THREADS in thread {} ({})", thread.getName(), thread.getId());
+                }
+                return canSend;
+            }
+
+            log.error("Target channel/thread not found: {}", channelId);
+            return false;
+        } catch (Exception e) {
+            log.error("Error while ensuring bot can post to {} in guild {}", channelId, guildId, e);
+            return false;
         }
     }
 
@@ -547,20 +650,29 @@ public class QotdStreamService {
     }
 
     private String buildCronExpression(String advancedCron, List<String> daysOfWeek, String timeOfDay) {
+        String cronExpression;
+        
         if (advancedCron != null && !advancedCron.isEmpty()) {
-            return advancedCron;
-        }
+            cronExpression = advancedCron;
+        } else if (daysOfWeek != null && !daysOfWeek.isEmpty() && timeOfDay != null) {
+            String[] timeParts = timeOfDay.split(":");
+            int hour = Integer.parseInt(timeParts[0]);
+            int minute = Integer.parseInt(timeParts[1]);
 
-        if (daysOfWeek == null || daysOfWeek.isEmpty() || timeOfDay == null) {
+            String days = String.join(",", daysOfWeek);
+            cronExpression = String.format("0 %d %d ? * %s", minute, hour, days);
+        } else {
             return null;
         }
 
-        String[] timeParts = timeOfDay.split(":");
-        int hour = Integer.parseInt(timeParts[0]);
-        int minute = Integer.parseInt(timeParts[1]);
+        // Validate cron expression
+        try {
+            org.springframework.scheduling.support.CronExpression.parse(cronExpression);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid cron expression: " + e.getMessage());
+        }
 
-        String days = String.join(",", daysOfWeek);
-        return String.format("0 %d %d ? * %s", minute, hour, days);
+        return cronExpression;
     }
 
     private String[] parseCsvLine(String line) {

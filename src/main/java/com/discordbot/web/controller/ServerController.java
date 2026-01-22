@@ -1,6 +1,8 @@
 package com.discordbot.web.controller;
 
 import com.discordbot.web.dto.GuildInfo;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
 import com.discordbot.web.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +43,57 @@ public class ServerController {
         logger.info("Returning {} guilds", guilds.size());
 
         return ResponseEntity.ok(guilds);
+    }
+
+    /**
+     * GET /api/servers/{guildId}/channel-options
+     * Returns a tree of channels with nested threads for selection.
+     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     */
+    @GetMapping("/{guildId}/channel-options")
+    public ResponseEntity<List<ChannelTreeNodeDto>> getChannelOptions(
+            @PathVariable String guildId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/{}/channel-options", guildId);
+            return ResponseEntity.status(401).build();
+        }
+
+        // Check if user has permission to manage this guild
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            logger.warn("Unauthorized access attempt to guild channel options: {}", guildId);
+            return ResponseEntity.status(403).build();
+        }
+
+        List<ChannelTreeNodeDto> options = adminService.getChannelOptions(guildId);
+        return ResponseEntity.ok(options);
+    }
+
+    /**
+     * GET /api/servers/{guildId}/qotd/stream-status
+     * Returns which channels/threads have configured or enabled streams (batch endpoint).
+     * Used to populate tree indicators without N+1 queries.
+     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     */
+    @GetMapping("/{guildId}/qotd/stream-status")
+    public ResponseEntity<List<ChannelStreamStatusDto>> getStreamStatus(
+            @PathVariable String guildId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/{}/qotd/stream-status", guildId);
+            return ResponseEntity.status(401).build();
+        }
+
+        // Check if user has permission to manage this guild
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            logger.warn("Unauthorized access attempt to guild stream status: {}", guildId);
+            return ResponseEntity.status(403).build();
+        }
+
+        List<ChannelStreamStatusDto> status = adminService.getStreamStatusForAllChannels(guildId);
+        return ResponseEntity.ok(status);
     }
 
     /**

@@ -38,7 +38,7 @@ class QotdSchedulerTest {
     }
 
     @Test
-    @DisplayName("tick: triggers post when due with valid cron and enabled config")
+    @DisplayName("tick: legacy configs no longer called after migration to streams")
     void tick_triggersPostWhenDue() {
         QotdConfig cfg = new QotdConfig("g1", "c1");
         cfg.setEnabled(true);
@@ -49,7 +49,8 @@ class QotdSchedulerTest {
         when(repo.findAll()).thenReturn(List.of(cfg));
 
         scheduler.tick();
-        verify(qotd, atLeastOnce()).postNextQuestion("g1", "c1");
+        // Legacy configs should NOT be called anymore - tickLegacyConfigs() is disabled
+        verify(qotd, never()).postNextQuestion("g1", "c1");
     }
 
     @Test

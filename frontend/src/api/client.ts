@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { GuildInfo, GachaRoleInfo, HealthResponse, BulkRoleCreationResult, RoleDeletionResult, BulkRoleDeletionResult, RoleHierarchyStatus } from '../types';
-import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult, QotdStreamDto, CreateStreamRequest, UpdateStreamRequest } from '../types/qotd';
+import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult, QotdStreamDto, CreateStreamRequest, UpdateStreamRequest, ChannelStreamStatusDto } from '../types/qotd';
 
 const api = axios.create({
   baseURL: '/api',
@@ -64,6 +64,10 @@ export const serverApi = {
     await api.post<{ message: string }>('/servers/refresh');
     return result;
   },
+  getChannelOptions: async (guildId: string): Promise<import('../types/qotd').ChannelTreeNodeDto[]> => {
+    const res = await api.get(`/servers/${guildId}/channel-options`);
+    return res.data;
+  },
   getRoles: (guildId: string) => api.get<GachaRoleInfo[]>(`/servers/${guildId}/roles`),
   createRole: (guildId: string, payload: { name: string; rarity: string; colorHex: string }) =>
     api.post<GachaRoleInfo>(`/servers/${guildId}/roles`, payload),
@@ -102,16 +106,17 @@ export const qotdApi = {
   getBannerMention: (guildId: string, channelId: string) => api.get<string | null>(`/servers/${guildId}/channels/${channelId}/qotd/banner/mention`),
   setBannerMention: (guildId: string, channelId: string, mention: string) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/banner/mention`, mention, { headers: { 'Content-Type': 'text/plain' } }),
   // Guild-level endpoints
-  listChannels: (guildId: string) => api.get<TextChannelInfo[]>(`/servers/${guildId}/qotd/channels`),
-  listConfigs: (guildId: string) => api.get<QotdConfigDto[]>(`/servers/${guildId}/qotd/configs`),
-  listPending: (guildId: string) => api.get<QotdSubmissionDto[]>(`/servers/${guildId}/qotd/submissions`),
+  listChannels: async (guildId: string) => (await api.get<TextChannelInfo[]>(`/servers/${guildId}/qotd/channels`)).data,
+  listConfigs: async (guildId: string) => (await api.get<QotdConfigDto[]>(`/servers/${guildId}/qotd/configs`)).data,
+  listPending: async (guildId: string) => (await api.get<QotdSubmissionDto[]>(`/servers/${guildId}/qotd/submissions`)).data,
+  getStreamStatus: async (guildId: string) => (await api.get<ChannelStreamStatusDto[]>(`/servers/${guildId}/qotd/stream-status`)).data,
   reject: (guildId: string, id: number) => api.post<QotdSubmissionDto>(`/servers/${guildId}/qotd/submissions/${id}/reject`),
   bulkReject: (guildId: string, ids: number[]) => api.post<BulkActionResult>(`/servers/${guildId}/qotd/submissions/bulk-reject`, { ids }),
 
   // Per-channel endpoints
-  getConfig: (guildId: string, channelId: string) => api.get<QotdConfigDto>(`/servers/${guildId}/channels/${channelId}/qotd/config`),
+  getConfig: async (guildId: string, channelId: string) => (await api.get<QotdConfigDto>(`/servers/${guildId}/channels/${channelId}/qotd/config`)).data,
   updateConfig: (guildId: string, channelId: string, req: UpdateQotdRequest) => api.put<QotdConfigDto>(`/servers/${guildId}/channels/${channelId}/qotd/config`, req),
-  listQuestions: (guildId: string, channelId: string) => api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/questions`),
+  listQuestions: async (guildId: string, channelId: string) => (await api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/questions`)).data,
   addQuestion: (guildId: string, channelId: string, text: string) => api.post<QotdQuestionDto>(`/servers/${guildId}/channels/${channelId}/qotd/questions`, { text }),
   deleteQuestion: (guildId: string, channelId: string, id: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/questions/${id}`),
   reorderQuestions: (guildId: string, channelId: string, orderedIds: number[]) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/questions/reorder`, { orderedIds }),
@@ -125,14 +130,14 @@ export const qotdApi = {
   bulkApprove: (guildId: string, channelId: string, ids: number[], streamId?: number) => api.post<BulkActionResult>(`/servers/${guildId}/channels/${channelId}/qotd/submissions/bulk-approve${streamId ? `?streamId=${streamId}` : ''}`, { ids }),
 
   // NEW: Stream management endpoints
-  listStreams: (guildId: string, channelId: string) => api.get<QotdStreamDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams`),
+  listStreams: async (guildId: string, channelId: string) => (await api.get<QotdStreamDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams`)).data,
   getStream: (guildId: string, channelId: string, streamId: number) => api.get<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`),
   createStream: (guildId: string, channelId: string, req: CreateStreamRequest) => api.post<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams`, req),
   updateStream: (guildId: string, channelId: string, streamId: number, req: UpdateStreamRequest) => api.put<QotdStreamDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`, req),
   deleteStream: (guildId: string, channelId: string, streamId: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}`),
 
   // Stream-scoped question management
-  listStreamQuestions: (guildId: string, channelId: string, streamId: number) => api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions`),
+  listStreamQuestions: async (guildId: string, channelId: string, streamId: number) => (await api.get<QotdQuestionDto[]>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions`)).data,
   addStreamQuestion: (guildId: string, channelId: string, streamId: number, text: string) => api.post<QotdQuestionDto>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions`, { text }),
   deleteStreamQuestion: (guildId: string, channelId: string, streamId: number, questionId: number) => api.delete<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions/${questionId}`),
   reorderStreamQuestions: (guildId: string, channelId: string, streamId: number, orderedIds: number[]) => api.put<void>(`/servers/${guildId}/channels/${channelId}/qotd/streams/${streamId}/questions/reorder`, { orderedIds }),

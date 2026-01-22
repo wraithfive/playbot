@@ -59,13 +59,13 @@ describe('authApi', () => {
   beforeEach(() => {
     originalLocation = window.location;
     delete (window as any).location;
-    window.location = { ...originalLocation, href: '' } as Location;
+    (window as any).location = { ...originalLocation, href: '' } as Location;
     vi.stubEnv('DEV', false);
     global.fetch = vi.fn();
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    (window as any).location = originalLocation;
     vi.unstubAllEnvs();
   });
 
@@ -156,6 +156,7 @@ describe('API modules exist', () => {
     expect(typeof serverApi.deleteRole).toBe('function');
     expect(typeof serverApi.bulkDeleteRoles).toBe('function');
     expect(typeof serverApi.refreshGuildsCache).toBe('function');
+    expect(typeof serverApi.getChannelOptions).toBe('function');
   });
 
   it('qotdApi has all required methods', () => {
