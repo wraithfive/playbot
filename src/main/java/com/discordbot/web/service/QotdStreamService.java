@@ -8,9 +8,11 @@ import com.discordbot.web.dto.qotd.QotdDtos.*;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.Permission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.support.CronExpression;
@@ -111,6 +113,14 @@ public class QotdStreamService {
         stream.setCreatedAt(Instant.now());
 
         QotdStream saved = streamRepository.save(stream);
+        // If enabled, ensure the bot can post to the target (join threads if needed)
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            boolean ok = ensureBotCanPost(saved.getGuildId(), saved.getChannelId());
+            if (!ok) {
+                log.warn("Stream {} enabled but bot cannot post to {}. Check permissions or thread membership.",
+                        saved.getStreamName(), saved.getChannelId());
+            }
+        }
         wsNotificationService.notifyQotdStreamChanged(guildId, channelId, saved.getId(), "created");
 
         return toDto(saved);
@@ -143,6 +153,14 @@ public class QotdStreamService {
         stream.setUpdatedAt(Instant.now());
 
         QotdStream saved = streamRepository.save(stream);
+        // If enabled, ensure the bot can post to the target (join threads if needed)
+        if (Boolean.TRUE.equals(saved.getEnabled())) {
+            boolean ok = ensureBotCanPost(saved.getGuildId(), saved.getChannelId());
+            if (!ok) {
+                log.warn("Stream {} enabled but bot cannot post to {}. Check permissions or thread membership.",
+                        saved.getStreamName(), saved.getChannelId());
+            }
+        }
         wsNotificationService.notifyQotdStreamChanged(stream.getGuildId(), stream.getChannelId(), streamId, "updated");
 
         return toDto(saved);
@@ -528,6 +546,56 @@ public class QotdStreamService {
         ThreadChannel threadChannel = guild.getThreadChannelById(channelId);
         if (textChannel == null && threadChannel == null) {
             throw new IllegalArgumentException("Channel not found or does not belong to this guild");
+        }
+    }
+
+    /**
+     * Ensure the bot can post to the given channel or thread.
+     * If target is a thread and bot is not joined, attempt to join.
+     * Returns true if posting should be possible; false otherwise.
+     */
+    private boolean ensureBotCanPost(String guildId, String channelId) {
+        try {
+            Guild guild = jda.getGuildById(guildId);
+            if (guild == null) {
+                log.error("Guild not found while ensuring postability: {}", guildId);
+                return false;
+            }
+
+            Member self = guild.getSelfMember();
+
+            TextChannel text = guild.getTextChannelById(channelId);
+            if (text != null) {
+                boolean canSend = self != null ? self.hasPermission(text, Permission.MESSAGE_SEND) : text.canTalk();
+                if (!canSend) {
+                    log.warn("Bot lacks MESSAGE_SEND in channel {} ({})", text.getName(), text.getId());
+                }
+                return canSend;
+            }
+
+            ThreadChannel thread = guild.getThreadChannelById(channelId);
+            if (thread != null) {
+                if (!thread.isJoined()) {
+                    try {
+                        log.info("Joining thread {} to enable stream posting", thread.getName());
+                        thread.join().complete();
+                    } catch (Exception e) {
+                        log.error("Failed to join thread {} ({}): {}", thread.getName(), thread.getId(), e.getMessage());
+                        return false;
+                    }
+                }
+                boolean canSend = self != null ? self.hasPermission(thread, Permission.MESSAGE_SEND_IN_THREADS) : thread.canTalk();
+                if (!canSend) {
+                    log.warn("Bot lacks MESSAGE_SEND_IN_THREADS in thread {} ({})", thread.getName(), thread.getId());
+                }
+                return canSend;
+            }
+
+            log.error("Target channel/thread not found: {}", channelId);
+            return false;
+        } catch (Exception e) {
+            log.error("Error while ensuring bot can post to {} in guild {}", channelId, guildId, e);
+            return false;
         }
     }
 
