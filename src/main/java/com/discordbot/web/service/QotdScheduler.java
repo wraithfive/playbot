@@ -47,9 +47,8 @@ public class QotdScheduler {
         // NEW: Process stream-based schedules (primary path)
         tickStreams();
 
-        // LEGACY: Process old config-based schedules (deprecated, for backward compatibility)
-        // TODO: Remove this after migration is complete and verified
-        tickLegacyConfigs();
+        // LEGACY: Disabled after full migration to stream-based system
+        // tickLegacyConfigs();
     }
 
     /**
@@ -110,7 +109,8 @@ public class QotdScheduler {
 
     /**
      * LEGACY: Process old config-based schedules.
-     * TODO: Remove this method after migration is complete and all channels use streams.
+     * DISABLED: No longer called after full migration to stream-based system.
+     * Kept for reference only.
      */
     @Deprecated
     private void tickLegacyConfigs() {

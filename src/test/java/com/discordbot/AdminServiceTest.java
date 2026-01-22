@@ -4,6 +4,7 @@ import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.GuildsCache;
 import com.discordbot.web.service.WebSocketNotificationService;
+import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -33,6 +34,7 @@ class AdminServiceTest {
     private OAuth2AuthorizedClientService authorizedClientService;
     private GuildsCache guildsCache;
     private WebSocketNotificationService webSocketService;
+    private QotdStreamRepository qotdStreamRepository;
 
     @BeforeEach
     void setUp() {
@@ -40,8 +42,9 @@ class AdminServiceTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         webSocketService = mock(WebSocketNotificationService.class);
+        qotdStreamRepository = mock(QotdStreamRepository.class);
 
-        adminService = new AdminService(jda, authorizedClientService, guildsCache, webSocketService);
+        adminService = new AdminService(jda, authorizedClientService, guildsCache, webSocketService, qotdStreamRepository);
     }
 
     @Test

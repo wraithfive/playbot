@@ -6,6 +6,7 @@ import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.GuildsCache;
 import com.discordbot.web.service.WebSocketNotificationService;
+import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
@@ -33,6 +34,7 @@ class AdminServiceMoreTest {
     private OAuth2AuthorizedClientService authorizedClientService;
     private GuildsCache guildsCache;
     private WebSocketNotificationService ws;
+    private QotdStreamRepository qotdStreamRepository;
 
     private AdminService service;
 
@@ -42,7 +44,8 @@ class AdminServiceMoreTest {
         authorizedClientService = mock(OAuth2AuthorizedClientService.class);
         guildsCache = mock(GuildsCache.class);
         ws = mock(WebSocketNotificationService.class);
-        service = new AdminService(jda, authorizedClientService, guildsCache, ws);
+        qotdStreamRepository = mock(QotdStreamRepository.class);
+        service = new AdminService(jda, authorizedClientService, guildsCache, ws, qotdStreamRepository);
     }
 
     @Test
@@ -155,7 +158,8 @@ class AdminServiceMoreTest {
             | net.dv8tion.jda.api.Permission.MESSAGE_SEND.getRawValue()
             | net.dv8tion.jda.api.Permission.MESSAGE_EMBED_LINKS.getRawValue()
             | net.dv8tion.jda.api.Permission.MESSAGE_HISTORY.getRawValue()
-            | net.dv8tion.jda.api.Permission.MESSAGE_ATTACH_FILES.getRawValue();
+            | net.dv8tion.jda.api.Permission.MESSAGE_ATTACH_FILES.getRawValue()
+            | net.dv8tion.jda.api.Permission.MANAGE_THREADS.getRawValue();
 
         String url = service.generateBotInviteUrl("g1");
         assertTrue(url.contains("permissions=" + expected), "URL should contain expected permissions mask");

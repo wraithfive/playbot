@@ -38,6 +38,16 @@ export interface UpdateQotdRequest {
 
 export interface TextChannelInfo { id: string; name: string; }
 
+export type ChannelType = 'CHANNEL' | 'THREAD';
+
+export interface ChannelTreeNodeDto {
+  id: string;
+  name: string;
+  type: ChannelType;
+  canPost: boolean; // whether bot has permission to send messages
+  children: ChannelTreeNodeDto[]; // empty for threads
+}
+
 export type SubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface QotdSubmissionDto {
@@ -102,4 +112,10 @@ export interface UpdateStreamRequest {
   timeOfDay?: string;
   randomize: boolean;
   autoApprove: boolean;
+}
+
+export interface ChannelStreamStatusDto {
+  channelId: string;
+  hasConfigured: boolean;
+  hasEnabled: boolean;
 }

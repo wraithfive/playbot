@@ -7,10 +7,18 @@ import com.discordbot.web.dto.GachaRoleInfo;
 import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.dto.RoleDeletionResult;
 import com.discordbot.web.dto.RoleHierarchyStatus;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
+import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
+import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.concrete.NewsChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;
+import net.dv8tion.jda.api.entities.channel.unions.IThreadContainerUnion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -25,8 +33,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminService {
@@ -40,14 +50,17 @@ public class AdminService {
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final GuildsCache guildsCache;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final QotdStreamRepository qotdStreamRepository;
 
     public AdminService(JDA jda, OAuth2AuthorizedClientService authorizedClientService, 
-                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService) {
+                       GuildsCache guildsCache, WebSocketNotificationService webSocketNotificationService,
+                       QotdStreamRepository qotdStreamRepository) {
         this.jda = jda;
         this.restTemplate = new RestTemplate();
         this.authorizedClientService = authorizedClientService;
         this.guildsCache = guildsCache;
         this.webSocketNotificationService = webSocketNotificationService;
+        this.qotdStreamRepository = qotdStreamRepository;
     }
 
     /**
@@ -63,12 +76,14 @@ public class AdminService {
     // - MESSAGE_EMBED_LINKS: Allow rich embed posts for QOTD
     // - MESSAGE_HISTORY: Read history (useful for context and avoiding duplicates)
     // - MESSAGE_ATTACH_FILES: Optional, allow sending attachments if needed later
+    // - MANAGE_THREADS: Access all threads in channels (public and private)
     long permissions = Permission.MANAGE_ROLES.getRawValue()
         | Permission.VIEW_CHANNEL.getRawValue()
         | Permission.MESSAGE_SEND.getRawValue()
         | Permission.MESSAGE_EMBED_LINKS.getRawValue()
         | Permission.MESSAGE_HISTORY.getRawValue()
-        | Permission.MESSAGE_ATTACH_FILES.getRawValue();
+        | Permission.MESSAGE_ATTACH_FILES.getRawValue()
+        | Permission.MANAGE_THREADS.getRawValue();
 
         String inviteUrl = String.format(
             "https://discord.com/api/oauth2/authorize?client_id=%s&permissions=%d&guild_id=%s&scope=bot%%20applications.commands",
@@ -130,13 +145,21 @@ public class AdminService {
             boolean isAdmin = (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
                              (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
 
-            if (!isAdmin) {
-                continue;
-            }
-
-            // Check if bot is in this guild
+            // Check if bot is in this guild first
             Guild guild = jda.getGuildById(guildId);
             boolean botPresent = guild != null;
+
+            // User can manage if they have admin permissions
+            // OR if bot is present AND user has Staff role
+            boolean hasStaff = false;
+            if (botPresent) {
+                hasStaff = hasStaffRole(userId, guildId);
+            }
+            boolean canManage = isAdmin || hasStaff;
+
+            if (!canManage) {
+                continue;
+            }
 
             logger.info("Checking guild - ID: {}, Name: {}, Bot present: {}", guildId, guildName, botPresent);
             if (!botPresent) {
@@ -192,16 +215,45 @@ public class AdminService {
     private boolean hasStaffRole(String userId, String guildId) {
         Guild guild = jda.getGuildById(guildId);
         if (guild == null) {
+            logger.debug("Guild {} not found in JDA cache for Staff role check", guildId);
             return false;
         }
 
         net.dv8tion.jda.api.entities.Member member = guild.getMemberById(userId);
         if (member == null) {
-            return false;
+            // Try to load the member if not cached
+            try {
+                logger.debug("Member {} not in cache, attempting to retrieve from guild {}", userId, guildId);
+                var restAction = guild.retrieveMemberById(userId);
+                if (restAction == null) {
+                    logger.debug("retrieveMemberById returned null for user {} in guild {}", userId, guildId);
+                    return false;
+                }
+                member = restAction.complete();
+                logger.debug("Successfully retrieved member {} from guild {}", userId, guildId);
+            } catch (net.dv8tion.jda.api.exceptions.ErrorResponseException e) {
+                // Member not found or bot lacks permission
+                logger.debug("Failed to retrieve member {} from guild {}: {}", userId, guildId, e.getMessage());
+                return false;
+            } catch (java.util.concurrent.RejectedExecutionException e) {
+                // Request execution rejected
+                logger.warn("Failed to retrieve member {} from guild {} due to rejection: {}", userId, guildId, e.getMessage());
+                return false;
+            }
+            
+            if (member == null) {
+                logger.debug("Member {} returned null after retrieve in guild {}", userId, guildId);
+                return false;
+            }
         }
 
-        return member.getRoles().stream()
+        boolean hasStaff = member.getRoles().stream()
             .anyMatch(role -> role.getName().equalsIgnoreCase("Staff"));
+        
+        logger.debug("User {} in guild {}: hasStaff={}, roles={}", userId, guildId, hasStaff,
+            member.getRoles().stream().map(r -> r.getName()).toList());
+        
+        return hasStaff;
     }
 
     /**
@@ -784,5 +836,156 @@ public class AdminService {
             .complete();
         logger.info("Created solid color role {} in guild {} (fallback)", fullName, guild.getName());
         return role;
+    }
+    
+    /**
+     * Get a tree structure of channels and their threads that the bot can send messages to.
+     * Returns channels as parent nodes with their active threads as children.
+     * 
+     * @param guildId The Discord guild ID
+     * @return List of channel tree nodes (channels with nested threads)
+     */
+    public List<ChannelTreeNodeDto> getChannelOptions(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return Collections.emptyList();
+        }
+        
+        // Fetch active threads from Discord API (cache may be incomplete)
+        List<ThreadChannel> activeThreads;
+        try {
+            activeThreads = guild.retrieveActiveThreads().complete();
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve active threads for guild {}: {}", guildId, e.getMessage());
+            activeThreads = Collections.emptyList();
+        }
+
+        // Group active threads by parent channel ID (exclude archived and orphaned)
+        Map<String, List<ThreadChannel>> threadsByParent = activeThreads.stream()
+            .filter(thread -> !thread.isArchived())
+            .filter(thread -> {
+                IThreadContainerUnion parent = thread.getParentChannel();
+                if (parent == null) {
+                    logger.warn("Orphaned thread detected (no parent): {} ({})", thread.getName(), thread.getId());
+                    return false;
+                }
+                return true;
+            })
+            .collect(Collectors.groupingBy(thread -> thread.getParentChannel().getId()));
+        
+        // Helper to build thread nodes for a channel
+        java.util.function.Function<String, List<ChannelTreeNodeDto>> getThreadNodes = channelId ->
+            threadsByParent.getOrDefault(channelId, Collections.emptyList()).stream()
+                .sorted((a, b) -> a.getName().compareTo(b.getName()))
+                .map(thread -> new ChannelTreeNodeDto(
+                    thread.getId(),
+                    thread.getName(),
+                    ChannelType.THREAD,
+                    thread.canTalk()  // canPost for threads
+                ))
+                .collect(Collectors.toList());
+
+        List<ChannelTreeNodeDto> result = new ArrayList<>();
+
+        // Add text channels (show all, include canPost status)
+        guild.getTextChannels().stream()
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
+            .forEach(channel -> result.add(new ChannelTreeNodeDto(
+                channel.getId(),
+                channel.getName(),
+                ChannelType.CHANNEL,
+                channel.canTalk(),  // canPost
+                getThreadNodes.apply(channel.getId())
+            )));
+
+        // Add news/announcement channels (show all, include canPost status)
+        guild.getNewsChannels().stream()
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
+            .forEach(channel -> result.add(new ChannelTreeNodeDto(
+                channel.getId(),
+                channel.getName(),
+                ChannelType.CHANNEL,
+                channel.canTalk(),  // canPost
+                getThreadNodes.apply(channel.getId())
+            )));
+
+        // Add forum channels (show all, include canPost status)
+        guild.getForumChannels().stream()
+            .sorted((a, b) -> Integer.compare(a.getPosition(), b.getPosition()))
+            .forEach(forum -> result.add(new ChannelTreeNodeDto(
+                forum.getId(),
+                forum.getName(),
+                ChannelType.CHANNEL,
+                guild.getSelfMember().hasPermission(forum, Permission.MESSAGE_SEND_IN_THREADS),  // canPost
+                getThreadNodes.apply(forum.getId())
+            )));
+
+        // Note: channels are sorted by Discord position order (via guild.getTextChannels() etc)
+        // This preserves the server's channel layout instead of alphabetical sorting
+        
+        return result;
+    }
+
+    /**
+     * Get stream status for all channels/threads in a guild (batch endpoint).
+     * Returns which channels/threads have configured or enabled streams.
+     * Uses database queries to determine status efficiently.
+     */
+    public List<ChannelStreamStatusDto> getStreamStatusForAllChannels(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            return Collections.emptyList();
+        }
+
+        // Get all streams for this guild from database
+        List<com.discordbot.entity.QotdStream> allStreams = qotdStreamRepository.findByGuildIdOrderByChannelIdAscIdAsc(guildId);
+        
+        // Group streams by channel ID and track which have enabled streams
+        Map<String, Boolean> channelHasEnabled = new java.util.HashMap<>();
+        for (com.discordbot.entity.QotdStream stream : allStreams) {
+            channelHasEnabled.put(stream.getChannelId(), 
+                channelHasEnabled.getOrDefault(stream.getChannelId(), false) || stream.getEnabled());
+        }
+
+        List<ChannelStreamStatusDto> statusList = new ArrayList<>();
+
+        // Check all text channels (no filter - show all)
+        for (TextChannel channel : guild.getTextChannels()) {
+            boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
+        }
+
+        // Check all news/announcement channels (no filter - show all)
+        for (NewsChannel channel : guild.getNewsChannels()) {
+            boolean hasConfigured = channelHasEnabled.containsKey(channel.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(channel.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(channel.getId(), hasConfigured, hasEnabled));
+        }
+
+        // Check all forum channels (no filter - show all)
+        for (var forum : guild.getForumChannels()) {
+            boolean hasConfigured = channelHasEnabled.containsKey(forum.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(forum.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(forum.getId(), hasConfigured, hasEnabled));
+        }
+
+        // Fetch active threads from Discord API (cache may be incomplete)
+        List<ThreadChannel> activeThreads;
+        try {
+            activeThreads = guild.retrieveActiveThreads().complete();
+        } catch (Exception e) {
+            logger.warn("Failed to retrieve active threads for guild {}: {}", guildId, e.getMessage());
+            activeThreads = Collections.emptyList();
+        }
+
+        // Check all threads (no filter - show all)
+        for (ThreadChannel thread : activeThreads) {
+            boolean hasConfigured = channelHasEnabled.containsKey(thread.getId());
+            boolean hasEnabled = channelHasEnabled.getOrDefault(thread.getId(), false);
+            statusList.add(new ChannelStreamStatusDto(thread.getId(), hasConfigured, hasEnabled));
+        }
+
+        return statusList;
     }
 }

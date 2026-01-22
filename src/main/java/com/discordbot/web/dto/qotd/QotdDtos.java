@@ -1,6 +1,7 @@
 package com.discordbot.web.dto.qotd;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 public class QotdDtos {
@@ -36,6 +37,27 @@ public class QotdDtos {
     ) {}
 
     public record TextChannelInfo(String id, String name) {}
+
+    // Channel selection for QOTD configuration - tree structure
+    public enum ChannelType { CHANNEL, THREAD }
+    
+    /**
+     * Tree structure for channel selection.
+     * Channels are parent nodes with threads as children.
+     * Threads have empty children list.
+     */
+    public record ChannelTreeNodeDto(
+            String id,
+            String name,
+            ChannelType type,
+            boolean canPost,  // whether bot has permission to send messages
+            List<ChannelTreeNodeDto> children  // empty for threads, contains threads for channels
+    ) {
+        // Constructor with empty children for leaf nodes (threads)
+        public ChannelTreeNodeDto(String id, String name, ChannelType type, boolean canPost) {
+            this(id, name, type, canPost, Collections.emptyList());
+        }
+    }
 
     // Submissions
     public enum SubmissionStatus { PENDING, APPROVED, REJECTED }
@@ -89,5 +111,12 @@ public class QotdDtos {
             String timeOfDay,
             boolean randomize,
             boolean autoApprove
+    ) {}
+
+    // Stream status for batch endpoint
+    public record ChannelStreamStatusDto(
+        String channelId,
+        boolean hasConfigured,  // whether any stream exists for this channel
+        boolean hasEnabled      // whether at least one stream is enabled
     ) {}
 }

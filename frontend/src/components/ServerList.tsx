@@ -96,7 +96,7 @@ export default function ServerList() {
   return (
     <div className="server-list-container">
       <h1>Your Servers</h1>
-      <p className="subtitle">Select a server to manage gacha roles</p>
+      <p className="subtitle">Select a server to manage gacha roles, QOTD streams, and more</p>
 
       {availableServers.length > 0 && (
         <div className="servers-section">
