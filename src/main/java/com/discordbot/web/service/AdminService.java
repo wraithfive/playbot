@@ -63,12 +63,14 @@ public class AdminService {
     // - MESSAGE_EMBED_LINKS: Allow rich embed posts for QOTD
     // - MESSAGE_HISTORY: Read history (useful for context and avoiding duplicates)
     // - MESSAGE_ATTACH_FILES: Optional, allow sending attachments if needed later
+    // - MANAGE_THREADS: Access all threads in channels (public and private)
     long permissions = Permission.MANAGE_ROLES.getRawValue()
         | Permission.VIEW_CHANNEL.getRawValue()
         | Permission.MESSAGE_SEND.getRawValue()
         | Permission.MESSAGE_EMBED_LINKS.getRawValue()
         | Permission.MESSAGE_HISTORY.getRawValue()
-        | Permission.MESSAGE_ATTACH_FILES.getRawValue();
+        | Permission.MESSAGE_ATTACH_FILES.getRawValue()
+        | Permission.MANAGE_THREADS.getRawValue();
 
         String inviteUrl = String.format(
             "https://discord.com/api/oauth2/authorize?client_id=%s&permissions=%d&guild_id=%s&scope=bot%%20applications.commands",
@@ -130,13 +132,26 @@ public class AdminService {
             boolean isAdmin = (permissions & Permission.ADMINISTRATOR.getRawValue()) != 0 ||
                              (permissions & Permission.MANAGE_SERVER.getRawValue()) != 0;
 
-            if (!isAdmin) {
-                continue;
-            }
-
-            // Check if bot is in this guild
+            // Check if bot is in this guild first
             Guild guild = jda.getGuildById(guildId);
             boolean botPresent = guild != null;
+
+            // User can manage if they have admin permissions
+            // OR if bot is present AND user has Staff role
+            boolean hasStaff = false;
+            if (botPresent) {
+                hasStaff = hasStaffRole(userId, guildId);
+            }
+            boolean canManage = isAdmin || hasStaff;
+
+            if (guildId.equals("559146288906764298") || botPresent) {
+                logger.info("Guild check - ID: {} ({}): isAdmin={}, botPresent={}, hasStaff={}, canManage={}", 
+                    guildId, guildName, isAdmin, botPresent, hasStaff, canManage);
+            }
+
+            if (!canManage) {
+                continue;
+            }
 
             logger.info("Checking guild - ID: {}, Name: {}, Bot present: {}", guildId, guildName, botPresent);
             if (!botPresent) {
@@ -192,16 +207,35 @@ public class AdminService {
     private boolean hasStaffRole(String userId, String guildId) {
         Guild guild = jda.getGuildById(guildId);
         if (guild == null) {
+            logger.info("Guild {} not found in JDA cache for Staff role check", guildId);
             return false;
         }
 
         net.dv8tion.jda.api.entities.Member member = guild.getMemberById(userId);
         if (member == null) {
-            return false;
+            // Try to load the member if not cached
+            try {
+                logger.info("Member {} not in cache, attempting to retrieve from guild {}", userId, guildId);
+                member = guild.retrieveMemberById(userId).complete();
+                logger.info("Successfully retrieved member {} from guild {}", userId, guildId);
+            } catch (Exception e) {
+                logger.info("Failed to retrieve member {} from guild {}: {} - {}", userId, guildId, e.getClass().getSimpleName(), e.getMessage());
+                return false;
+            }
+            
+            if (member == null) {
+                logger.info("Member {} returned null after retrieve in guild {}", userId, guildId);
+                return false;
+            }
         }
 
-        return member.getRoles().stream()
+        boolean hasStaff = member.getRoles().stream()
             .anyMatch(role -> role.getName().equalsIgnoreCase("Staff"));
+        
+        logger.info("User {} in guild {}: hasStaff={}, roles={}", userId, guildId, hasStaff,
+            member.getRoles().stream().map(r -> r.getName()).toList());
+        
+        return hasStaff;
     }
 
     /**
