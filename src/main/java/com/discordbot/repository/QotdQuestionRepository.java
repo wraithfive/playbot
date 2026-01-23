@@ -14,10 +14,4 @@ public interface QotdQuestionRepository extends JpaRepository<QotdQuestion, Long
     void deleteByIdAndStreamId(Long id, Long streamId);
     long countByStreamIdIsNull();  // For migration verification
     List<QotdQuestion> findByStreamIdIsNull();  // For cleanup of legacy questions
-
-    // DEPRECATED: Channel-based queries (legacy support - removed from QotdService after full stream migration)
-    // Kept only for backward compatibility if needed by external code. Can be removed if no external usage exists.
-    List<QotdQuestion> findByGuildIdAndChannelIdOrderByDisplayOrderAsc(String guildId, String channelId);
-    long countByGuildIdAndChannelId(String guildId, String channelId);
-    void deleteByIdAndGuildIdAndChannelId(Long id, String guildId, String channelId);
 }

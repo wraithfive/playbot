@@ -4,16 +4,12 @@ import com.discordbot.web.dto.qotd.QotdDtos;
 import com.discordbot.web.service.AdminService;
 import com.discordbot.web.service.QotdService;
 import com.discordbot.web.service.QotdSubmissionService;
-import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -65,69 +61,6 @@ public class QotdController {
         return ResponseEntity.ok(qotdService.listTextChannels(guildId));
     }
 
-    @GetMapping("/channels/{channelId}/qotd/questions")
-    public ResponseEntity<List<QotdDtos.QotdQuestionDto>> getQuestions(
-            @PathVariable String guildId,
-            @PathVariable String channelId,
-            Authentication authentication) {
-        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
-        return ResponseEntity.ok(qotdService.listQuestions(guildId, channelId));
-    }
-
-    @PostMapping("/channels/{channelId}/qotd/questions")
-    public ResponseEntity<QotdDtos.QotdQuestionDto> addQuestion(
-            @PathVariable String guildId,
-            @PathVariable String channelId,
-            @Valid @RequestBody QotdDtos.UpsertQuestionRequest request,
-            Authentication authentication) {
-        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
-        return ResponseEntity.ok(qotdService.addQuestion(guildId, channelId, request.text()));
-    }
-
-    @DeleteMapping("/channels/{channelId}/qotd/questions/{id}")
-    public ResponseEntity<?> deleteQuestion(
-            @PathVariable String guildId,
-            @PathVariable String channelId,
-            @PathVariable Long id,
-            Authentication authentication) {
-        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
-        qotdService.deleteQuestion(guildId, channelId, id);
-        return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/channels/{channelId}/qotd/questions/reorder")
-    public ResponseEntity<?> reorderQuestions(
-            @PathVariable String guildId,
-            @PathVariable String channelId,
-            @Valid @RequestBody QotdDtos.ReorderQuestionsRequest request,
-            Authentication authentication) {
-        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
-        qotdService.reorderQuestions(guildId, channelId, request.orderedIds());
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping(value = "/channels/{channelId}/qotd/upload-csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<QotdDtos.UploadCsvResult> uploadCsv(
-            @PathVariable String guildId,
-            @PathVariable String channelId,
-            @RequestParam("file") MultipartFile file,
-            Authentication authentication) {
-        if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
-        if (file.isEmpty()) return ResponseEntity.badRequest().build();
-        try {
-            String content = new String(file.getBytes(), StandardCharsets.UTF_8);
-            return ResponseEntity.ok(qotdService.uploadCsv(guildId, channelId, content));
-        } catch (Exception e) {
-            logger.error("Failed to process QOTD CSV: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
     // Submissions API (guild-wide, but approval targets a specific channel)
     @GetMapping("/qotd/submissions")
     public ResponseEntity<List<QotdDtos.QotdSubmissionDto>> listPending(
@@ -145,7 +78,6 @@ public class QotdController {
             @RequestParam(required = false) Long streamId,
             Authentication authentication) {
         if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
         String approverId = authentication.getName();
         String approverUsername = authentication.getName();
         return ResponseEntity.ok(submissionService.approve(guildId, channelId, id, streamId, approverId, approverUsername));
@@ -170,7 +102,6 @@ public class QotdController {
             @RequestParam(required = false) Long streamId,
             Authentication authentication) {
         if (!canManage(guildId, authentication)) return ResponseEntity.status(403).build();
-        qotdService.validateChannelBelongsToGuild(guildId, channelId);
         String approverId = authentication.getName();
         String approverUsername = authentication.getName();
         return ResponseEntity.ok(submissionService.approveBulk(guildId, channelId, req.ids(), streamId, approverId, approverUsername));

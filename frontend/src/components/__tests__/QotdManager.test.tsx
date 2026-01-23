@@ -27,18 +27,7 @@ vi.mock('../hooks/useWebSocket', () => ({
 
 // Mock the API
 vi.mock('../api/client', () => ({
-  qotdApi: {
-    getConfig: vi.fn(),
-    updateConfig: vi.fn(),
-    getQuestions: vi.fn(),
-    addQuestion: vi.fn(),
-    deleteQuestion: vi.fn(),
-    uploadCsv: vi.fn(),
-    getChannels: vi.fn(),
-    getSubmissions: vi.fn(),
-    approveSubmission: vi.fn(),
-    rejectSubmission: vi.fn(),
-  },
+  qotdApi: {},
 }));
 
 describe('QotdManager', () => {

@@ -778,13 +778,6 @@ export default function QotdManager() {
     }
   }, [streams, selectedStreamId]);
 
-  // Fetch config for selected channel (DEPRECATED - keeping for backward compat display)
-  const { data: config } = useQuery({
-    queryKey: ['qotd-config', guildId, selectedChannelId],
-    queryFn: async () => await qotdApi.getConfig(guildId!, selectedChannelId!),
-    enabled: false, // Disabled - config now comes from selected stream
-  });
-
   // Fetch questions for selected stream (WebSocket handles real-time updates)
   const { data: questions } = useQuery({
     queryKey: ['qotd-stream-questions', guildId, selectedChannelId, selectedStreamId],
@@ -894,6 +887,11 @@ export default function QotdManager() {
         ]);
       }
     }
+  }, [streams, selectedStreamId]);
+
+  // Get the currently selected stream
+  const selectedStream = useMemo(() => {
+    return streams?.find(s => s.id === selectedStreamId);
   }, [streams, selectedStreamId]);
 
   // Listen for real-time QOTD updates via WebSocket
@@ -1909,8 +1907,8 @@ export default function QotdManager() {
                     };
                     updateStreamMutation.mutate(clearRequest);
                   }}>Clear Schedule</button>
-                  {config?.nextRuns?.length && (form.enabled && (form.advancedCron || schedules.some(s => s.days.size > 0))) ? (
-                    <span className="selection-count">Next runs: {config.nextRuns.slice(0,3).join(', ')}</span>
+                  {selectedStream?.nextRuns?.length && (form.enabled && (form.advancedCron || schedules.some(s => s.days.size > 0))) ? (
+                    <span className="selection-count">Next runs: {selectedStream.nextRuns.slice(0,3).join(', ')}</span>
                   ) : null}
                 </div>
                 {configMessage && (
