@@ -37,15 +37,21 @@
                 <column name="enabled" type="BOOLEAN" defaultValueBoolean="false">
                     <constraints nullable="false"/>
                 </column>
-                <column name="schedule_cron" type="VARCHAR(255)"/>
-                <column name="timezone" type="VARCHAR(255)"/>
+                <column name="schedule_cron" type="VARCHAR(255)">
+                    <constraints nullable="true"/>
+                </column>
+                <column name="timezone" type="VARCHAR(255)" defaultValue="UTC">
+                    <constraints nullable="false"/>
+                </column>
                 <column name="randomize" type="BOOLEAN" defaultValueBoolean="false">
                     <constraints nullable="false"/>
                 </column>
                 <column name="auto_approve" type="BOOLEAN" defaultValueBoolean="false">
                     <constraints nullable="false"/>
                 </column>
-                <column name="last_posted_at" type="TIMESTAMP"/>
+                <column name="last_posted_at" type="TIMESTAMP">
+                    <constraints nullable="true"/>
+                </column>
                 <column name="next_index" type="INT" defaultValueNumeric="0">
                     <constraints nullable="false"/>
                 </column>
