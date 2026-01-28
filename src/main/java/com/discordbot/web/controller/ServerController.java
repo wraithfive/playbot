@@ -3,6 +3,7 @@ package com.discordbot.web.controller;
 import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
+import com.discordbot.web.dto.qotd.QotdDtos.MentionTargetDto;
 import com.discordbot.web.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,5 +200,30 @@ public class ServerController {
         adminService.evictGuildsCache(authentication);
         logger.info("Force-refreshed guilds cache for user");
         return ResponseEntity.ok(Map.of("message", "Guilds cache cleared"));
+    }
+
+    /**
+     * GET /api/servers/{guildId}/mention-targets
+     * Returns all mentionable targets (roles and special mentions) for QOTD autocomplete.
+     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     */
+    @GetMapping("/{guildId}/mention-targets")
+    public ResponseEntity<List<MentionTargetDto>> getMentionTargets(
+            @PathVariable String guildId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/{}/mention-targets", guildId);
+            return ResponseEntity.status(401).build();
+        }
+
+        // Check if user has permission to manage this guild
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            logger.warn("Unauthorized access attempt to guild mention targets: {}", guildId);
+            return ResponseEntity.status(403).build();
+        }
+
+        List<MentionTargetDto> targets = adminService.getMentionableTargets(guildId);
+        return ResponseEntity.ok(targets);
     }
 }

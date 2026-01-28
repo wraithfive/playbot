@@ -119,3 +119,14 @@ export interface ChannelStreamStatusDto {
   hasConfigured: boolean;
   hasEnabled: boolean;
 }
+
+// Mention target for autocomplete
+export type MentionTargetType = 'SPECIAL' | 'ROLE';
+
+export interface MentionTargetDto {
+  id: string;           // role ID or "everyone"/"here" for special mentions
+  name: string;         // display name (e.g., "everyone", "Moderators")
+  mention: string;      // the actual mention syntax (e.g., "@everyone", "<@&123456>")
+  type: MentionTargetType;
+  colorHex: string | null;  // role color hex, null for special mentions
+}

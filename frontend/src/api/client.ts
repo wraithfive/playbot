@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { GuildInfo, GachaRoleInfo, HealthResponse, BulkRoleCreationResult, RoleDeletionResult, BulkRoleDeletionResult, RoleHierarchyStatus } from '../types';
-import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult, QotdStreamDto, CreateStreamRequest, UpdateStreamRequest, ChannelStreamStatusDto } from '../types/qotd';
+import type { QotdConfigDto, QotdQuestionDto, UpdateQotdRequest, UploadCsvResult, TextChannelInfo, QotdSubmissionDto, BulkActionResult, QotdStreamDto, CreateStreamRequest, UpdateStreamRequest, ChannelStreamStatusDto, MentionTargetDto } from '../types/qotd';
 
 const api = axios.create({
   baseURL: '/api',
@@ -95,6 +95,10 @@ export const serverApi = {
    * Force refresh the backend guilds cache for the current user
    */
   refreshGuildsCache: () => api.post<{ message: string }>('/servers/refresh'),
+  /**
+   * Get all mentionable targets (roles and special mentions) for QOTD autocomplete
+   */
+  getMentionTargets: (guildId: string) => api.get<MentionTargetDto[]>(`/servers/${guildId}/mention-targets`),
 };
 
 export const qotdApi = {

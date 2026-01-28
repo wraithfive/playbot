@@ -333,11 +333,7 @@ public class QotdService {
                 String banner = getBanner(channelId);
                 embed.setTitle(banner);
                 String mention = getBannerMentionTarget(channelId);
-                String description = next.getText();
-                if (mention != null && !mention.isEmpty()) {
-                    description = mention + " " + description;
-                }
-                embed.setDescription(description);
+                embed.setDescription(next.getText());
                 Integer color = getBannerColor(channelId);
                 embed.setColor(color != null ? color : 0x9B59B6); // default purple
 
@@ -350,7 +346,12 @@ public class QotdService {
                     embed.setFooter(authorText);
                 }
 
-                channel.sendMessageEmbeds(embed.build()).complete();
+                // Mentions must be in message content (not embed) to actually ping
+                if (mention != null && !mention.trim().isEmpty()) {
+                    channel.sendMessage(mention.trim()).setEmbeds(embed.build()).complete();
+                } else {
+                    channel.sendMessageEmbeds(embed.build()).complete();
+                }
                 sent = true;
             } catch (Exception e) {
                 logger.warn("Failed to send QOTD embed to channel {}: {}. Falling back to plain text.", channelId, e.getMessage());

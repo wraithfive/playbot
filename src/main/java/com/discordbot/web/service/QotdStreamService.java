@@ -481,13 +481,11 @@ public class QotdStreamService {
             // Build embed
             String bannerText = stream.getBannerText() != null ? stream.getBannerText() : DEFAULT_BANNER;
             Integer embedColor = stream.getEmbedColor() != null ? stream.getEmbedColor() : DEFAULT_COLOR;
-            String mention = stream.getMentionTarget() != null ? stream.getMentionTarget() : "";
-
-            String description = mention.isEmpty() ? selectedQuestion.getText() : mention + " " + selectedQuestion.getText();
+            String mention = stream.getMentionTarget() != null ? stream.getMentionTarget().trim() : "";
 
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle(bannerText)
-                    .setDescription(description)
+                    .setDescription(selectedQuestion.getText())
                     .setColor(embedColor);
 
             if (selectedQuestion.getAuthorUsername() != null) {
@@ -495,12 +493,21 @@ public class QotdStreamService {
             }
 
             // Try embed first, fallback to plain text
+            // Mentions must be in message content (not embed) to actually ping
             try {
-                channel.sendMessageEmbeds(embed.build()).queue();
+                if (mention.isEmpty()) {
+                    channel.sendMessageEmbeds(embed.build()).queue();
+                } else {
+                    channel.sendMessage(mention).setEmbeds(embed.build()).queue();
+                }
             } catch (Exception e) {
                 log.warn("Failed to send embed, falling back to plain text", e);
-                String plainMessage = bannerText + "\n\n" + description;
-                channel.sendMessage(plainMessage).queue();
+                StringBuilder plainMessage = new StringBuilder();
+                if (!mention.isEmpty()) {
+                    plainMessage.append(mention).append("\n\n");
+                }
+                plainMessage.append(bannerText).append("\n\n").append(selectedQuestion.getText());
+                channel.sendMessage(plainMessage.toString()).queue();
             }
 
             // Update stream state
