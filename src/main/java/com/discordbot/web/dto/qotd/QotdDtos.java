@@ -119,4 +119,19 @@ public class QotdDtos {
         boolean hasConfigured,  // whether any stream exists for this channel
         boolean hasEnabled      // whether at least one stream is enabled
     ) {}
+
+    // Mentionable target for autocomplete
+    public enum MentionTargetType { SPECIAL, ROLE }
+
+    /**
+     * A mentionable target for QOTD streams.
+     * Can be a special mention (@everyone, @here) or a role.
+     */
+    public record MentionTargetDto(
+        String id,           // role ID or "everyone"/"here" for special mentions
+        String name,         // display name (e.g., "everyone", "Moderators")
+        String mention,      // the actual mention syntax (e.g., "@everyone", "<@&123456>")
+        MentionTargetType type,
+        String colorHex      // role color hex, null for special mentions
+    ) {}
 }

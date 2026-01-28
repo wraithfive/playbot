@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qotdApi, serverApi } from '../api/client';
-import type { CreateStreamRequest, UpdateStreamRequest, ChannelTreeNodeDto } from '../types/qotd';
+import type { CreateStreamRequest, UpdateStreamRequest, ChannelTreeNodeDto, MentionTargetDto } from '../types/qotd';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 function ChannelTreeNode({
@@ -810,6 +810,49 @@ export default function QotdManager() {
   const [mentionTarget, setMentionTarget] = useState<string>('');
   const [mentionError, setMentionError] = useState<string | null>(null);
   const [mentionWarnings, setMentionWarnings] = useState<string[]>([]);
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const mentionInputRef = useRef<HTMLInputElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch mentionable targets for autocomplete
+  const { data: mentionTargets } = useQuery<MentionTargetDto[]>({
+    queryKey: ['mention-targets', guildId],
+    queryFn: async () => {
+      if (!guildId) return [];
+      const res = await serverApi.getMentionTargets(guildId);
+      return res.data;
+    },
+    enabled: !!guildId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Filter mention targets based on search
+  const filteredMentionTargets = useMemo(() => {
+    if (!mentionTargets) return [];
+    if (!mentionSearch) return mentionTargets;
+    const search = mentionSearch.toLowerCase().replace(/^@/, '');
+    return mentionTargets.filter(t =>
+      t.name.toLowerCase().includes(search) ||
+      t.id.toLowerCase().includes(search)
+    );
+  }, [mentionTargets, mentionSearch]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        mentionDropdownRef.current &&
+        !mentionDropdownRef.current.contains(e.target as Node) &&
+        mentionInputRef.current &&
+        !mentionInputRef.current.contains(e.target as Node)
+      ) {
+        setShowMentionDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Parse cron expression back to days and time
   const parseCron = (cron: string | undefined): { days: string[], time: string } => {
@@ -1597,35 +1640,146 @@ export default function QotdManager() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="field">
+                  <div className="field" style={{ position: 'relative' }}>
                     <label className="field-label">
                       Mention Target
                       <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
-                        (@user, @role, @channel, or leave blank)
+                        (select a role or type @everyone/@here)
                       </span>
                     </label>
-                    <input
-                      className="input"
-                      type="text"
-                      value={mentionTarget}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setMentionTarget(val);
-                        const { error, warnings } = analyzeMention(val);
-                        setMentionError(error);
-                        setMentionWarnings(warnings);
-                      }}
-                      onBlur={() => {
-                        const normalized = normalizeMention(mentionTarget);
-                        setMentionTarget(normalized);
-                        const { error, warnings } = analyzeMention(normalized);
-                        setMentionError(error);
-                        setMentionWarnings(warnings);
-                      }}
-                      placeholder="e.g. @everyone, @admins, @general, @1234567890"
-                      maxLength={64}
-                      style={{ width: '220px' }}
-                    />
+                    <div style={{ position: 'relative', width: '280px' }}>
+                      <input
+                        ref={mentionInputRef}
+                        className="input"
+                        type="text"
+                        value={mentionTarget}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setMentionTarget(val);
+                          setMentionSearch(val);
+                          setShowMentionDropdown(true);
+                          const { error, warnings } = analyzeMention(val);
+                          setMentionError(error);
+                          setMentionWarnings(warnings);
+                        }}
+                        onFocus={() => {
+                          setMentionSearch(mentionTarget);
+                          setShowMentionDropdown(true);
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => {
+                            const normalized = normalizeMention(mentionTarget);
+                            setMentionTarget(normalized);
+                            const { error, warnings } = analyzeMention(normalized);
+                            setMentionError(error);
+                            setMentionWarnings(warnings);
+                          }, 150);
+                        }}
+                        placeholder="Type to search roles..."
+                        maxLength={64}
+                        style={{ width: '100%' }}
+                      />
+                      {mentionTarget && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMentionTarget('');
+                            setMentionSearch('');
+                            setMentionError(null);
+                            setMentionWarnings([]);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#999',
+                            fontSize: '1.2rem',
+                            padding: '0 4px',
+                          }}
+                          title="Clear mention"
+                        >
+                          ×
+                        </button>
+                      )}
+                      {showMentionDropdown && filteredMentionTargets.length > 0 && (
+                        <div
+                          ref={mentionDropdownRef}
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            backgroundColor: 'var(--card-bg)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                            zIndex: 1000,
+                          }}
+                        >
+                          {filteredMentionTargets.map((target) => (
+                            <div
+                              key={target.id}
+                              onClick={() => {
+                                setMentionTarget(target.mention);
+                                setMentionSearch('');
+                                setShowMentionDropdown(false);
+                                const { error, warnings } = analyzeMention(target.mention);
+                                setMentionError(error);
+                                setMentionWarnings(warnings);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                borderBottom: '1px solid var(--border)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(88, 101, 242, 0.1)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
+                            >
+                              {target.type === 'ROLE' && target.colorHex && (
+                                <span
+                                  style={{
+                                    width: '12px',
+                                    height: '12px',
+                                    borderRadius: '50%',
+                                    backgroundColor: target.colorHex,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                              {target.type === 'SPECIAL' && (
+                                <span style={{ color: '#ffcc00', fontWeight: 'bold' }}>@</span>
+                              )}
+                              <span style={{ flex: 1 }}>
+                                {target.type === 'SPECIAL' ? `@${target.name}` : `@${target.name}`}
+                              </span>
+                              <span style={{ color: '#666', fontSize: '0.85rem' }}>
+                                {target.type === 'ROLE' ? 'role' : 'special'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Show selected mention preview */}
+                    {mentionTarget && (
+                      <div style={{ marginTop: '4px', fontSize: '0.85rem', color: '#999' }}>
+                        Will mention: <code style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '3px' }}>{mentionTarget}</code>
+                      </div>
+                    )}
                   </div>
                   <div className="field">
                     <label className="field-label">Enabled</label>

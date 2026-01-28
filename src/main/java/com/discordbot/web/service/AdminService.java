@@ -10,6 +10,8 @@ import com.discordbot.web.dto.RoleHierarchyStatus;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelType;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
+import com.discordbot.web.dto.qotd.QotdDtos.MentionTargetDto;
+import com.discordbot.web.dto.qotd.QotdDtos.MentionTargetType;
 import com.discordbot.repository.QotdStreamRepository;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
@@ -987,5 +989,47 @@ public class AdminService {
         }
 
         return statusList;
+    }
+
+    /**
+     * Get all mentionable targets for a guild (for QOTD mention autocomplete).
+     * Returns special mentions (@everyone, @here) and all roles.
+     */
+    public List<MentionTargetDto> getMentionableTargets(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.warn("Guild not found for mention targets: {}", guildId);
+            return Collections.emptyList();
+        }
+
+        List<MentionTargetDto> targets = new ArrayList<>();
+
+        // Add special mentions first
+        targets.add(new MentionTargetDto("everyone", "everyone", "@everyone", MentionTargetType.SPECIAL, null));
+        targets.add(new MentionTargetDto("here", "here", "@here", MentionTargetType.SPECIAL, null));
+
+        // Add all roles (excluding @everyone role which is always position 0 and the default role)
+        for (Role role : guild.getRoles()) {
+            // Skip the @everyone role (it's the default guild role with position -1)
+            if (role.isPublicRole()) {
+                continue;
+            }
+
+            String colorHex = null;
+            if (role.getColor() != null) {
+                colorHex = String.format("#%06X", role.getColorRaw() & 0xFFFFFF);
+            }
+
+            targets.add(new MentionTargetDto(
+                role.getId(),
+                role.getName(),
+                "<@&" + role.getId() + ">",
+                MentionTargetType.ROLE,
+                colorHex
+            ));
+        }
+
+        logger.debug("Found {} mentionable targets for guild {}", targets.size(), guild.getName());
+        return targets;
     }
 }
