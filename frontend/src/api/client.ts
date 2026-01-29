@@ -95,6 +95,15 @@ export const serverApi = {
    * Force refresh the backend guilds cache for the current user
    */
   refreshGuildsCache: () => api.post<{ message: string }>('/servers/refresh'),
+  /**
+   * Get all roles in a guild for mention dropdown (excludes bot-managed roles and @everyone)
+   */
+  getAllRoles: (guildId: string) => api.get<import('../types').DiscordRoleDto[]>(`/servers/${guildId}/all-roles`),
+  /**
+   * Get guild members for mention dropdown (paginated)
+   */
+  getGuildMembers: (guildId: string, limit: number = 100) =>
+    api.get<import('../types').DiscordMemberDto[]>(`/servers/${guildId}/members`, { params: { limit } }),
 };
 
 export const qotdApi = {

@@ -377,6 +377,12 @@ public class QotdStreamService {
     @Transactional
     public void setBannerMention(String guildId, Long streamId, String mention) {
         validateStreamBelongsToGuild(streamId, guildId);
+
+        // Validate mention format if not empty
+        if (mention != null && !mention.trim().isEmpty()) {
+            validateMentionFormat(guildId, mention.trim());
+        }
+
         QotdStream stream = streamRepository.findById(streamId)
                 .orElseThrow(() -> new IllegalArgumentException("Stream not found: " + streamId));
         stream.setMentionTarget(mention);
@@ -483,7 +489,11 @@ public class QotdStreamService {
             Integer embedColor = stream.getEmbedColor() != null ? stream.getEmbedColor() : DEFAULT_COLOR;
             String mention = stream.getMentionTarget() != null ? stream.getMentionTarget() : "";
 
-            String description = mention.isEmpty() ? selectedQuestion.getText() : mention + " " + selectedQuestion.getText();
+            // Include mention in embed description (MEE6-style)
+            // Discord allows mentions in embed body with proper allowed_mentions configuration
+            String description = mention.isEmpty()
+                ? selectedQuestion.getText()
+                : mention + " " + selectedQuestion.getText();
 
             EmbedBuilder embed = new EmbedBuilder()
                     .setTitle(bannerText)
@@ -494,13 +504,49 @@ public class QotdStreamService {
                 embed.setFooter("Suggested by " + selectedQuestion.getAuthorUsername());
             }
 
-            // Try embed first, fallback to plain text
+            // Send embed with allowed mentions enabled (MEE6-style: mentions in embed trigger pings)
+            // Make channel final for lambda usage
+            final MessageChannel finalChannel = channel;
+            final String finalDescription = description;
+            final String finalBannerText = bannerText;
+
             try {
-                channel.sendMessageEmbeds(embed.build()).queue();
+                var action = finalChannel.sendMessageEmbeds(embed.build());
+
+                // Enable mentions for roles, users, and @everyone/@here
+                if (!mention.isEmpty()) {
+                    action = action.setAllowedMentions(java.util.List.of(
+                        net.dv8tion.jda.api.entities.Message.MentionType.ROLE,
+                        net.dv8tion.jda.api.entities.Message.MentionType.USER,
+                        net.dv8tion.jda.api.entities.Message.MentionType.EVERYONE
+                    ));
+                }
+
+                action.queue(
+                    success -> log.debug("Successfully posted QOTD embed for stream {} in channel {}",
+                                        streamId, finalChannel.getName()),
+                    error -> {
+                        log.error("Failed to send QOTD embed for stream {}: {}", streamId, error.getMessage(), error);
+                        // Fallback to plain text
+                        try {
+                            String plainMessage = finalBannerText + "\n\n" + finalDescription;
+                            finalChannel.sendMessage(plainMessage).queue();
+                            log.info("Sent QOTD as plain text fallback for stream {}", streamId);
+                        } catch (Exception fallbackError) {
+                            log.error("Failed to send QOTD even as plain text for stream {}: {}",
+                                     streamId, fallbackError.getMessage(), fallbackError);
+                        }
+                    }
+                );
             } catch (Exception e) {
-                log.warn("Failed to send embed, falling back to plain text", e);
-                String plainMessage = bannerText + "\n\n" + description;
-                channel.sendMessage(plainMessage).queue();
+                log.error("Exception building/sending QOTD embed for stream {}: {}", streamId, e.getMessage(), e);
+                // Fallback to plain text
+                try {
+                    String plainMessage = finalBannerText + "\n\n" + finalDescription;
+                    finalChannel.sendMessage(plainMessage).queue();
+                } catch (Exception fallbackError) {
+                    log.error("Failed plain text fallback for stream {}: {}", streamId, fallbackError.getMessage(), fallbackError);
+                }
             }
 
             // Update stream state
@@ -547,6 +593,43 @@ public class QotdStreamService {
         if (textChannel == null && threadChannel == null) {
             throw new IllegalArgumentException("Channel not found or does not belong to this guild");
         }
+    }
+
+    /**
+     * Validate mention format and optionally verify that mentioned roles/users exist.
+     * Accepts @everyone, @here, role mentions (<@&ID>), user mentions (<@ID> or <@!ID>), and channel links (<#ID>).
+     */
+    private void validateMentionFormat(String guildId, String mention) {
+        // Allow @everyone and @here (case-insensitive)
+        if (mention.equalsIgnoreCase("@everyone") || mention.equalsIgnoreCase("@here")) {
+            return; // Valid
+        }
+
+        // Validate role mention format: <@&SNOWFLAKE_ID>
+        if (mention.matches("^<@&\\d{15,22}>$")) {
+            String roleId = mention.substring(3, mention.length() - 1);
+            Guild guild = jda.getGuildById(guildId);
+            if (guild != null && guild.getRoleById(roleId) == null) {
+                throw new IllegalArgumentException("Role not found in this server. The role may have been deleted.");
+            }
+            return;
+        }
+
+        // Validate user mention format: <@USER_ID> or <@!USER_ID> (with or without nickname indicator)
+        if (mention.matches("^<@!?\\d{15,22}>$")) {
+            return; // Accept user mentions without verifying membership (too expensive to check)
+        }
+
+        // Validate channel link format: <#CHANNEL_ID>
+        if (mention.matches("^<#\\d{15,22}>$")) {
+            return; // Channel links don't ping but are valid Discord syntax
+        }
+
+        // If we reach here, the format is invalid
+        throw new IllegalArgumentException(
+            "Invalid mention format. Use @everyone, @here, <@&ROLE_ID> for roles, or <@USER_ID> for users. " +
+            "Tip: Use the role/member dropdown in the UI to auto-format mentions correctly."
+        );
     }
 
     /**

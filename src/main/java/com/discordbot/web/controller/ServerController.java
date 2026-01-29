@@ -1,5 +1,7 @@
 package com.discordbot.web.controller;
 
+import com.discordbot.web.dto.DiscordMemberDto;
+import com.discordbot.web.dto.DiscordRoleDto;
 import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelTreeNodeDto;
 import com.discordbot.web.dto.qotd.QotdDtos.ChannelStreamStatusDto;
@@ -199,5 +201,54 @@ public class ServerController {
         adminService.evictGuildsCache(authentication);
         logger.info("Force-refreshed guilds cache for user");
         return ResponseEntity.ok(Map.of("message", "Guilds cache cleared"));
+    }
+
+    /**
+     * GET /api/servers/{guildId}/all-roles
+     * Returns all roles in a guild (excluding bot-managed and @everyone) for mention dropdown
+     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     */
+    @GetMapping("/{guildId}/all-roles")
+    public ResponseEntity<List<DiscordRoleDto>> getAllRoles(
+            @PathVariable String guildId,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/{}/all-roles", guildId);
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            logger.warn("Unauthorized access attempt to guild roles: {}", guildId);
+            return ResponseEntity.status(403).build();
+        }
+
+        List<DiscordRoleDto> roles = adminService.getAllGuildRoles(guildId);
+        return ResponseEntity.ok(roles);
+    }
+
+    /**
+     * GET /api/servers/{guildId}/members
+     * Returns guild members (paginated) for mention dropdown
+     * SECURED: Requires OAuth2 authentication + user must be admin in that server
+     */
+    @GetMapping("/{guildId}/members")
+    public ResponseEntity<List<DiscordMemberDto>> getGuildMembers(
+            @PathVariable String guildId,
+            @RequestParam(defaultValue = "100") int limit,
+            Authentication authentication) {
+
+        if (authentication == null) {
+            logger.warn("Unauthenticated request to /api/servers/{}/members", guildId);
+            return ResponseEntity.status(401).build();
+        }
+
+        if (!adminService.canManageGuild(authentication, guildId)) {
+            logger.warn("Unauthorized access attempt to guild members: {}", guildId);
+            return ResponseEntity.status(403).build();
+        }
+
+        List<DiscordMemberDto> members = adminService.getGuildMembers(guildId, limit);
+        return ResponseEntity.ok(members);
     }
 }
