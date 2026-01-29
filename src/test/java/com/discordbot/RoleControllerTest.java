@@ -24,7 +24,6 @@ import static org.mockito.Mockito.*;
 /**
  * Tests for RoleController - focusing on security, rate limiting, and CSV handling
  */
-@SuppressWarnings("null")
 class RoleControllerTest {
 
     private RoleController roleController;

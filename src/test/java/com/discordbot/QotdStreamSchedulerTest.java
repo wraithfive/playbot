@@ -1,10 +1,8 @@
 package com.discordbot;
 
 import com.discordbot.entity.QotdStream;
-import com.discordbot.repository.QotdConfigRepository;
 import com.discordbot.repository.QotdStreamRepository;
 import com.discordbot.web.service.QotdScheduler;
-import com.discordbot.web.service.QotdService;
 import com.discordbot.web.service.QotdStreamService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collections;
 
 import static org.mockito.Mockito.*;
 
@@ -21,23 +18,16 @@ import static org.mockito.Mockito.*;
  */
 class QotdStreamSchedulerTest {
 
-    private QotdConfigRepository configRepo;
-    private QotdService qotdService;
     private QotdStreamRepository streamRepo;
     private QotdStreamService streamService;
     private QotdScheduler scheduler;
 
     @BeforeEach
     void setup() {
-        configRepo = mock(QotdConfigRepository.class);
-        qotdService = mock(QotdService.class);
         streamRepo = mock(QotdStreamRepository.class);
         streamService = mock(QotdStreamService.class);
 
-        // Default: no legacy configs
-        when(configRepo.findAll()).thenReturn(Collections.emptyList());
-
-        scheduler = new QotdScheduler(configRepo, qotdService, streamRepo, streamService);
+        scheduler = new QotdScheduler(streamRepo, streamService);
     }
 
     @Test
@@ -159,25 +149,6 @@ class QotdStreamSchedulerTest {
 
         // Should still process stream 2 despite stream 1 error
         verify(streamService, atLeastOnce()).postNextQuestion(2L);
-    }
-
-    @Test
-    @DisplayName("tick: processes both legacy and stream schedules during migration period")
-    void tick_processesBothLegacyAndStreams() {
-        // Mock legacy config
-        when(configRepo.findAll()).thenReturn(Collections.emptyList()); // No legacy for simplicity
-
-        // Mock new stream
-        QotdStream newStream = createStream(1L, "g1", "c1", "New", "* * * * * *", "UTC", true);
-        when(streamRepo.findByEnabledTrue()).thenReturn(Arrays.asList(newStream));
-
-        scheduler.tick();
-
-        // Should process new streams
-        verify(streamService, atLeastOnce()).postNextQuestion(1L);
-
-        // Legacy service not called (no legacy configs)
-        verify(qotdService, never()).postNextQuestion(anyString(), anyString());
     }
 
     // Helper method

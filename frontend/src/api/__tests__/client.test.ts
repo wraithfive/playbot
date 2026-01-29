@@ -173,13 +173,6 @@ describe('API modules exist', () => {
     expect(typeof qotdApi.listPending).toBe('function');
     expect(typeof qotdApi.reject).toBe('function');
     expect(typeof qotdApi.bulkReject).toBe('function');
-    expect(typeof qotdApi.getConfig).toBe('function');
-    expect(typeof qotdApi.updateConfig).toBe('function');
-    expect(typeof qotdApi.listQuestions).toBe('function');
-    expect(typeof qotdApi.addQuestion).toBe('function');
-    expect(typeof qotdApi.deleteQuestion).toBe('function');
-    expect(typeof qotdApi.reorderQuestions).toBe('function');
-    expect(typeof qotdApi.uploadCsv).toBe('function');
     expect(typeof qotdApi.postNow).toBe('function');
     expect(typeof qotdApi.approve).toBe('function');
     expect(typeof qotdApi.bulkApprove).toBe('function');
