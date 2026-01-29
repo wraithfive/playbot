@@ -993,7 +993,7 @@ public class AdminService {
 
     /**
      * Get all roles in a guild for mention purposes (excludes bot-managed roles and @everyone).
-     * Returns roles sorted by position (highest first).
+     * Returns roles sorted alphabetically by name.
      *
      * @param guildId The Discord guild ID
      * @return List of role DTOs suitable for mention dropdown
@@ -1020,7 +1020,7 @@ public class AdminService {
                     role.getPosition()
                 );
             })
-            .sorted((a, b) -> Integer.compare(b.position(), a.position())) // Sort by position (highest first)
+            .sorted((a, b) -> a.name().compareToIgnoreCase(b.name())) // Sort alphabetically by name
             .collect(Collectors.toList());
     }
 
