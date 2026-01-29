@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom';
 import App from '../App';
 import * as client from '../api/client';
 
@@ -99,6 +100,11 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByTestId('footer')).toBeInTheDocument();
+
+    // Wait for the async auth check to settle so React state updates stay inside act
+    await waitFor(() => {
+      expect(client.serverApi.getServers).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('prevents duplicate auth checks', async () => {

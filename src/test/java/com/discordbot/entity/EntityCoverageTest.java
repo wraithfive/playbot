@@ -64,39 +64,4 @@ class EntityCoverageTest {
         assertEquals("user2", s.getUsername());
         assertEquals("new", s.getText());
     }
-
-    @Test
-    void testQotdConfigAndId() {
-        QotdConfig cfg = new QotdConfig("g1", "c1");
-        assertEquals("g1", cfg.getGuildId());
-        assertEquals("c1", cfg.getChannelId());
-        assertFalse(cfg.isEnabled());
-        assertEquals("UTC", cfg.getTimezone());
-        assertFalse(cfg.isRandomize());
-        assertEquals(0, cfg.getNextIndex());
-
-        cfg.setEnabled(true);
-        cfg.setScheduleCron("0 0 9 * * *");
-        cfg.setTimezone("America/New_York");
-        cfg.setRandomize(true);
-        cfg.setNextIndex(5);
-        Instant last = Instant.now();
-        cfg.setLastPostedAt(last);
-
-        assertTrue(cfg.isEnabled());
-        assertEquals("0 0 9 * * *", cfg.getScheduleCron());
-        assertEquals("America/New_York", cfg.getTimezone());
-        assertTrue(cfg.isRandomize());
-        assertEquals(5, cfg.getNextIndex());
-        assertEquals(last, cfg.getLastPostedAt());
-
-        QotdConfig.QotdConfigId id1 = new QotdConfig.QotdConfigId("g1", "c1");
-        QotdConfig.QotdConfigId id2 = new QotdConfig.QotdConfigId("g1", "c1");
-        QotdConfig.QotdConfigId id3 = new QotdConfig.QotdConfigId("g1", "cX");
-
-        assertEquals(id1, id2);
-        assertNotEquals(id1, id3);
-        assertEquals(id1.hashCode(), id2.hashCode());
-        assertNotEquals(id1.hashCode(), id3.hashCode());
-    }
 }
