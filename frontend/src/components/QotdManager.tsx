@@ -711,6 +711,20 @@ export default function QotdManager() {
     return ids;
   }, [channelTree]);
 
+  // Fetch guild roles for mention dropdown
+  const { data: guildRoles } = useQuery({
+    queryKey: ['guild-roles', guildId],
+    queryFn: async () => (await serverApi.getAllRoles(guildId!)).data,
+    enabled: !!guildId,
+  });
+
+  // Fetch guild members for mention dropdown (limit to 100 for performance)
+  const { data: guildMembers } = useQuery({
+    queryKey: ['guild-members', guildId],
+    queryFn: async () => (await serverApi.getGuildMembers(guildId!, 100)).data,
+    enabled: !!guildId,
+  });
+
   // Fetch stream status for all nodes in one batch call
   const { data: streamStatus } = useQuery({
     queryKey: ['qotd-stream-status', guildId],
@@ -803,6 +817,7 @@ export default function QotdManager() {
   const [mentionTarget, setMentionTarget] = useState<string>('');
   const [mentionError, setMentionError] = useState<string | null>(null);
   const [mentionWarnings, setMentionWarnings] = useState<string[]>([]);
+  const [showAdvancedMention, setShowAdvancedMention] = useState<boolean>(false);
 
   // Parse cron expression back to days and time
   const parseCron = (cron: string | undefined): { days: string[], time: string } => {
@@ -1595,35 +1610,121 @@ export default function QotdManager() {
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="field">
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
                     <label className="field-label">
                       Mention Target
                       <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: 'normal', marginLeft: '0.5rem' }}>
-                        (@user, @role, @channel, or leave blank)
+                        (optional - ping a role, user, or @everyone/@here)
                       </span>
                     </label>
-                    <input
-                      className="input"
-                      type="text"
-                      value={mentionTarget}
-                      onChange={e => {
-                        const val = e.target.value;
-                        setMentionTarget(val);
-                        const { error, warnings } = analyzeMention(val);
-                        setMentionError(error);
-                        setMentionWarnings(warnings);
-                      }}
-                      onBlur={() => {
-                        const normalized = normalizeMention(mentionTarget);
-                        setMentionTarget(normalized);
-                        const { error, warnings } = analyzeMention(normalized);
-                        setMentionError(error);
-                        setMentionWarnings(warnings);
-                      }}
-                      placeholder="e.g. @everyone, @admins, @general, @1234567890"
-                      maxLength={64}
-                      style={{ width: '220px' }}
-                    />
+
+                    {/* Mention selector dropdown */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select
+                        className="input"
+                        style={{ width: '280px' }}
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setMentionTarget(e.target.value);
+                            const { error, warnings } = analyzeMention(e.target.value);
+                            setMentionError(error);
+                            setMentionWarnings(warnings);
+                          }
+                        }}
+                      >
+                        <option value="">-- Select a mention --</option>
+                        <optgroup label="Special">
+                          <option value="@everyone">@everyone (all members)</option>
+                          <option value="@here">@here (online members)</option>
+                        </optgroup>
+                        {guildRoles && guildRoles.length > 0 && (
+                          <optgroup label="Roles">
+                            {guildRoles.map(role => (
+                              <option key={role.id} value={`<@&${role.id}>`}>
+                                {role.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {guildMembers && guildMembers.length > 0 && (
+                          <optgroup label="Members (up to 100)">
+                            {guildMembers.map(member => (
+                              <option key={member.id} value={`<@${member.id}>`}>
+                                {member.displayName} (@{member.username})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+
+                      {mentionTarget && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setMentionTarget('');
+                            setMentionError(null);
+                            setMentionWarnings([]);
+                          }}
+                          style={{ padding: '0.25rem 0.5rem' }}
+                        >
+                          Clear
+                        </button>
+                      )}
+
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setShowAdvancedMention(!showAdvancedMention)}
+                        style={{ padding: '0.25rem 0.5rem' }}
+                      >
+                        {showAdvancedMention ? 'Hide' : 'Advanced'}
+                      </button>
+                    </div>
+
+                    {/* Current mention display */}
+                    {mentionTarget && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '0.4rem 0.6rem',
+                        background: 'rgba(88, 101, 242, 0.1)',
+                        borderRadius: '4px',
+                        fontSize: '0.85rem',
+                        border: '1px solid rgba(88, 101, 242, 0.3)',
+                      }}>
+                        <strong>Current:</strong> <code>{mentionTarget}</code>
+                      </div>
+                    )}
+
+                    {/* Advanced: Manual input field */}
+                    {showAdvancedMention && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <input
+                          className="input"
+                          type="text"
+                          value={mentionTarget}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setMentionTarget(val);
+                            const { error, warnings } = analyzeMention(val);
+                            setMentionError(error);
+                            setMentionWarnings(warnings);
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizeMention(mentionTarget);
+                            setMentionTarget(normalized);
+                            const { error, warnings } = analyzeMention(normalized);
+                            setMentionError(error);
+                            setMentionWarnings(warnings);
+                          }}
+                          placeholder="Enter mention manually (e.g., <@&123456789>, <@123456789>)"
+                          maxLength={64}
+                          style={{ width: '100%', maxWidth: '500px' }}
+                        />
+                        <div style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.25rem' }}>
+                          Format: <code>&lt;@&amp;ROLE_ID&gt;</code> for roles, <code>&lt;@USER_ID&gt;</code> for users
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="field">
                     <label className="field-label">Enabled</label>

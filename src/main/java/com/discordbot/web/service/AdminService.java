@@ -3,6 +3,8 @@ package com.discordbot.web.service;
 import com.discordbot.web.dto.BulkRoleCreationResult;
 import com.discordbot.web.dto.BulkRoleDeletionResult;
 import com.discordbot.web.dto.CreateRoleRequest;
+import com.discordbot.web.dto.DiscordMemberDto;
+import com.discordbot.web.dto.DiscordRoleDto;
 import com.discordbot.web.dto.GachaRoleInfo;
 import com.discordbot.web.dto.GuildInfo;
 import com.discordbot.web.dto.RoleDeletionResult;
@@ -987,5 +989,92 @@ public class AdminService {
         }
 
         return statusList;
+    }
+
+    /**
+     * Get all roles in a guild for mention purposes (excludes bot-managed roles and @everyone).
+     * Returns roles sorted by position (highest first).
+     *
+     * @param guildId The Discord guild ID
+     * @return List of role DTOs suitable for mention dropdown
+     */
+    public List<DiscordRoleDto> getAllGuildRoles(String guildId) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.warn("Guild not found: {}", guildId);
+            return new ArrayList<>();
+        }
+
+        return guild.getRoles().stream()
+            .filter(role -> !role.isManaged()) // Exclude bot-managed roles
+            .filter(role -> !role.isPublicRole()) // Exclude @everyone
+            .map(role -> {
+                net.dv8tion.jda.api.entities.RoleColors colors = role.getColors();
+                int colorRaw = (colors != null && colors.getPrimary() != null)
+                    ? colors.getPrimary().getRGB()
+                    : 0;
+                return new DiscordRoleDto(
+                    role.getId(),
+                    role.getName(),
+                    colorRaw,
+                    role.getPosition()
+                );
+            })
+            .sorted((a, b) -> Integer.compare(b.position(), a.position())) // Sort by position (highest first)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get guild members for mention purposes (paginated to avoid large responses).
+     * Returns up to 100 members sorted alphabetically by display name.
+     *
+     * @param guildId The Discord guild ID
+     * @param limit Maximum number of members to return (default 100, max 1000)
+     * @return List of member DTOs suitable for mention dropdown
+     */
+    public List<DiscordMemberDto> getGuildMembers(String guildId, int limit) {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            logger.warn("Guild not found: {}", guildId);
+            return new ArrayList<>();
+        }
+
+        // Clamp limit to reasonable range
+        int effectiveLimit = Math.min(Math.max(limit, 1), 1000);
+
+        try {
+            // Load members from cache or retrieve from Discord API
+            List<net.dv8tion.jda.api.entities.Member> members = guild.getMembers();
+
+            // If cache is empty or incomplete, try to load more members
+            if (members.isEmpty() || members.size() < effectiveLimit) {
+                try {
+                    members = guild.loadMembers().get().stream()
+                        .limit(effectiveLimit)
+                        .collect(Collectors.toList());
+                } catch (Exception e) {
+                    logger.warn("Failed to load members for guild {}: {}", guildId, e.getMessage());
+                    // Fall back to cached members
+                }
+            }
+
+            return members.stream()
+                .filter(member -> !member.getUser().isBot()) // Exclude bots
+                .limit(effectiveLimit)
+                .map(member -> {
+                    String avatarUrl = member.getUser().getEffectiveAvatarUrl();
+                    return new DiscordMemberDto(
+                        member.getId(),
+                        member.getUser().getName(),
+                        member.getEffectiveName(), // Nickname or username
+                        avatarUrl
+                    );
+                })
+                .sorted((a, b) -> a.displayName().compareToIgnoreCase(b.displayName())) // Sort alphabetically
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching members for guild {}: {}", guildId, e.getMessage());
+            return new ArrayList<>();
+        }
     }
 }

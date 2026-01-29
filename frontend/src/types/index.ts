@@ -63,3 +63,17 @@ export interface UserInfo {
   discriminator: string;
   avatar: string | null;
 }
+
+export interface DiscordRoleDto {
+  id: string;
+  name: string;
+  colorRaw: number;
+  position: number;
+}
+
+export interface DiscordMemberDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
