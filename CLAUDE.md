@@ -4,237 +4,135 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Playbot is a Discord bot with a web admin panel that allows users to roll for random colored name roles once per day. Built with Java 21 + Spring Boot backend and React 19 + TypeScript frontend.
+Playbot is a Discord bot with a web admin panel that allows users to roll for random colored name roles once per day. Built with Java 21 + Spring Boot 3.4 backend (JDA for Discord) and React 19 + TypeScript frontend.
 
 **Core Features:**
-- Discord bot with slash commands for color role gacha system
-- Question of the Day (QOTD) system with per-channel configuration
+- Discord bot with slash commands for a color role gacha system (with optional d20 risk/reward mechanic)
+- Question of the Day (QOTD) system with multiple independent streams per channel
 - Web-based admin panel with Discord OAuth2 authentication
-- H2 database persistence for cooldowns, QOTD questions, and submissions
+- H2 file-based database with Liquibase-managed schema
 
 ## Build and Development Commands
 
-### Build Commands
-
 ```bash
-# Build both backend and frontend
+# Build both backend and frontend (runs ALL tests by default)
 ./build.sh
-
-# Build with options
-./build.sh --skip-tests      # Skip running tests
+./build.sh --skip-tests      # Skip tests
 ./build.sh --clean           # Clean before building
-./build.sh --production      # Production build with optimization
+./build.sh --production      # Production build
 
 # Backend only
 mvn clean package            # With tests
-mvn clean package -DskipTests  # Skip tests
+mvn test                     # Backend tests only
+mvn test -Dtest=ClassName            # Single test class
+mvn test -Dtest=ClassName#methodName # Single test method
 
-# Frontend only
-cd frontend
-npm install
-npm run build
+# Frontend (from frontend/ directory)
+npm run dev              # Vite dev server on port 3000
+npm run build            # Production build (runs generate:legal + tsc first)
+npm run lint             # ESLint
+npm test                 # Vitest watch mode
+npm run test:unit        # Run once (CI mode)
+npm run test:coverage    # With coverage
+npm run test:e2e         # Playwright E2E tests
 
-# Run tests
-mvn test                     # Backend only
-cd frontend && npm test      # Frontend only (watch mode)
-cd frontend && npm run test:unit  # Frontend once
-cd frontend && npm run test:coverage  # Frontend with coverage
-cd frontend && npm run test:e2e      # Frontend E2E tests
+# Run the app
+./start.sh               # Both services (recommended)
+java -jar target/playbot-1.0.0.jar   # Backend only (port 8080)
 ```
 
-**Note:** The `./build.sh` script runs both backend and frontend tests automatically unless `--skip-tests` is specified.
+Notes:
+- `build.sh` auto-detects Java 21 on macOS via `/usr/libexec/java_home -v 21`.
+- `Bot.java` and `SlashCommandHandler*.class` are excluded from JaCoCo coverage (Discord bootstrap code), configured in `pom.xml`.
 
-### Run Commands
+## Database & Migrations (CRITICAL)
 
-```bash
-# Start both services (recommended)
-./start.sh
+**Liquibase owns ALL schema changes.** `spring.jpa.hibernate.ddl-auto=validate` — Hibernate only validates, never creates or alters tables.
 
-# Backend only (runs on port 8080)
-java -jar target/playbot-1.0.0.jar
-
-# Frontend only (runs on port 3000)
-cd frontend
-npm run dev
-```
-
-### Frontend-Specific Commands
-
-```bash
-cd frontend
-
-# Development
-npm run dev              # Start Vite dev server
-
-# Generate legal documents from templates
-npm run generate:legal   # Creates PrivacyPolicy.tsx and TermsOfService.tsx
-
-# Linting
-npm run lint            # Run ESLint
-```
+- **Never modify a JPA entity expecting DDL to follow.** Instead create a Liquibase changeset in `src/main/resources/db/changelog/changes/` (numbered `XXX-description.xml`) and add an `<include>` for it in `db/changelog/db.changelog-master.xml`.
+- **Never modify a deployed changeset** — always create a new one to fix issues.
+- **NOT NULL columns** require the 3-step process (add nullable → backfill → add constraint). See `DATABASE_MIGRATIONS.md`.
+- Liquibase also manages the `SPRING_SESSION*` and `oauth2_authorized_client` tables (`spring.session.jdbc.initialize-schema=never`, `spring.sql.init.mode=never`).
+- H2 database file lives at `./data/playbot.mv.db`.
 
 ## Architecture
 
-### Backend Structure
+### Backend Structure (`src/main/java/com/discordbot/`)
 
-**Main Entry Point:** `src/main/java/com/discordbot/Bot.java`
-- Spring Boot application that initializes both the Discord bot (JDA) and web server
-- Loads `.env` file and sets environment variables as system properties
-- Creates JDA bean with required gateway intents and event listeners
+**Main Entry Point:** `Bot.java` — Spring Boot application that initializes both the Discord bot (JDA) and web server. Loads `.env` and sets entries as system properties.
 
 **Discord Bot Layer:**
-- `SlashCommandHandler.java` - Handles all slash command interactions (/roll, /d20, /mycolor, /colors, /help, /testroll, /qotd commands)
-- `ColorGachaHandler.java` - Legacy message command handler (deprecated, kept for compatibility)
+- `SlashCommandHandler.java` — All slash commands: `/roll`, `/d20`, `/testroll` (admin, no cooldown), `/mycolor`, `/colors`, `/help`, `/qotd-submit`. Commands are registered per-guild in `onGuildReady()` and on guild join.
+- `ColorGachaHandler.java` — Gacha core logic (rarity enum/weights, role name parsing) plus legacy message command handling.
 
 **Web Layer:**
-- `web/controller/` - REST API controllers for admin panel
-  - `ServerController.java` - List and manage Discord servers
-  - `RoleController.java` - CRUD operations for gacha roles
-  - `QotdController.java` - QOTD management and submission handling
-  - `HealthController.java` - Bot health check endpoint
-  - `AuthRedirectController.java` - OAuth2 redirect handling
-- `web/service/` - Business logic
-  - `AdminService.java` - Core admin operations and permission validation
-  - `QotdService.java` - QOTD scheduling and management
-  - `QotdSubmissionService.java` - User submission handling
-  - `RateLimitService.java` - API rate limiting with Bucket4j
-  - `GuildsCache.java` - Caches Discord guild data
-  - `WebSocketNotificationService.java` - Real-time updates via WebSocket
-- `web/config/` - Configuration classes for WebSocket, etc.
-- `SecurityConfig.java` - Spring Security configuration with Discord OAuth2
+- `web/controller/` — REST controllers: `ServerController`, `RoleController`, `QotdController`, `QotdStreamController`, `CsrfController`, `DiagnosticsController`, `HealthController`, `AuthRedirectController`
+- `web/service/` — Business logic: `AdminService` (permission validation), `QotdService`, `QotdStreamService`, `QotdScheduler` (Spring `@Scheduled` posting), `QotdSubmissionService`, `RateLimitService` (Bucket4j), `GuildsCache`, `WebSocketNotificationService`
+- `SecurityConfig.java` — Spring Security with Discord OAuth2
 
 **Data Layer:**
-- `entity/` - JPA entities
-  - `UserCooldown` - Tracks user roll cooldowns per guild
-  - `QotdConfig` - Per-channel QOTD configuration
-  - `QotdQuestion` - Question bank for QOTD
-  - `QotdSubmission` - User answers to QOTD
-- `repository/` - Spring Data JPA repositories for entities
+- `entity/` — JPA entities: `UserCooldown` (roll cooldowns + d20 state), `QotdStream` (per-stream config), `QotdQuestion`, `QotdSubmission`
+- `repository/` — Spring Data JPA repositories
+- `web/dto/` — API DTOs as Java Records
 
-**DTOs:** `web/dto/` - Data Transfer Objects for API responses (using Java Records)
+### Frontend Structure (`frontend/src/`)
 
-### Frontend Structure
-
-**Main Files:**
-- `src/main.tsx` - App entry point with React Router
-- `src/App.tsx` - Main component with routing logic
-- `src/App.css` - All application styles (centralized)
-
-**Components:**
-- `Login.tsx` - Discord OAuth2 login page
-- `ServerList.tsx` - Grid view of user's Discord servers
-- `RoleManager.tsx` - Manage gacha roles (create, delete, bulk operations, CSV import)
-- `QotdManager.tsx` - Configure QOTD per channel (schedule, question bank, CSV import)
-- `Navbar.tsx` - Top navigation bar
-- `Footer.tsx` - Footer with legal links
-- `PrivacyPolicy.tsx` / `TermsOfService.tsx` - Legal documents (generated from .template.tsx files)
-
-**API Client:** `src/api/api.ts` - Axios instance with CSRF token handling and base URL configuration
-
-**State Management:** TanStack React Query for server state, local state for UI
-
-**Proxy Configuration:** Vite dev server proxies `/api`, `/oauth2`, `/login`, and `/ws` to backend (port 8080)
-
-### Database
-
-- **H2 file-based database** at `./data/playbot`
-- **Schema auto-updated** via JPA (ddl-auto=update)
-- **Spring Session JDBC** stores HTTP sessions (supports OAuth2 persistence across restarts)
-- **Initial schema:** `src/main/resources/schema.sql` creates oauth2_authorized_client table
+- `main.tsx` / `App.tsx` — Entry point and routing; all styles centralized in `App.css`
+- `components/` — `Login`, `ServerList`, `RoleManager`, `QotdManager`, `Navbar`, `Footer`, plus `PrivacyPolicy.tsx` / `TermsOfService.tsx` (generated — edit the `.template.tsx` files and run `npm run generate:legal`)
+- `api/client.ts` — Axios instance with CSRF token handling
+- State management: TanStack React Query for server state
 
 ### Authentication & Security
 
-- **Discord OAuth2** for web admin panel authentication
-- **Permission Model:** User must have ADMINISTRATOR or MANAGE_SERVER permission in a Discord server AND bot must be present in that server to manage it
-- **CSRF Protection:** Enabled for state-changing operations
-- **Rate Limiting:** Applied to API endpoints via `RateLimitService` (Bucket4j + Caffeine cache)
-- **Session Persistence:** 30-day sessions stored in H2 database
+- **Discord OAuth2** for the admin panel. Permission model: user must have ADMINISTRATOR or MANAGE_SERVER in a Discord server AND the bot must be present in that server to manage it.
+- **CSRF (non-standard flow):** the frontend must call `/api/csrf` BEFORE the first mutating request to receive the `XSRF-TOKEN` cookie, then echo it in the `X-XSRF-TOKEN` header (handled in `api/client.ts`). CSRF is disabled for `/ws/**`.
+- **Sessions:** Spring Session JDBC in H2, 30-day timeout, survives restarts.
+- **Rate limiting** on API endpoints via `RateLimitService` (Bucket4j + Caffeine).
 
 ### Real-Time Updates
 
-- **WebSocket** endpoint at `/ws` using STOMP over SockJS
-- Sends notifications when:
-  - New QOTD submissions are posted
-  - Role operations complete
-- Frontend subscribes to topics like `/topic/submissions/{guildId}/{channelId}`
+WebSocket at `/ws` using STOMP over SockJS (session-based auth, no CSRF). Notifications for new QOTD submissions and role operations. Frontend subscribes to topics like `/topic/submissions/{guildId}/{channelId}`.
+
+### Dev Server Quirks
+
+- Vite proxies `/api`, `/oauth2`, `/login`, and `/ws` to the backend (port 8080) — see `vite.config.ts`.
+- OAuth2 login in dev must use the full backend URL: `http://localhost:8080/oauth2/authorization/discord`.
+- `global: 'window'` is defined in `vite.config.ts` to fix sockjs-client expecting Node globals.
 
 ## Key Patterns and Conventions
 
-### Role Naming Convention
+### Gacha Role Naming Convention
 
-Gacha roles must follow this naming format:
-```
-gacha:rarity:ColorName
-```
-or
-```
-gacha:ColorName
-```
-
-Valid rarities: `legendary`, `epic`, `rare`, `uncommon`, `common`
-
-**Example:** `gacha:legendary:Rainbow` or `gacha:epic:Gold`
+Roles must be named `gacha:rarity:ColorName` or `gacha:ColorName` — the `gacha:` prefix is required for the bot to recognize them. Valid rarities: `legendary`, `epic`, `rare`, `uncommon`, `common`.
 
 ### Rarity Weights
 
-Defined in `ColorGachaHandler.java`:
-- LEGENDARY: 0.25 (0.5% drop rate)
-- EPIC: 1.25 (2.5% drop rate)
-- RARE: 2.33 (7% drop rate)
-- UNCOMMON: 4 (20% drop rate)
-- COMMON: 10 (70% drop rate)
+Defined in the `Rarity` enum in `ColorGachaHandler.java`:
+- LEGENDARY: 0.25 (0.5%), EPIC: 1.25 (2.5%), RARE: 2.33 (7%), UNCOMMON: 4 (20%), COMMON: 10 (70%)
 
 ### Role Hierarchy Requirement
 
-**Critical:** The bot's Discord role MUST be positioned ABOVE all gacha roles in the server's role hierarchy, otherwise the bot cannot assign/remove roles.
-
-### Slash Command Registration
-
-Commands are registered per-guild when:
-1. Bot starts up (for all guilds)
-2. Bot joins a new guild
-
-Commands are defined in `SlashCommandHandler.onGuildReady()`
+**Critical:** The bot's Discord role MUST be positioned ABOVE all gacha roles in the server's role hierarchy, otherwise role assignment fails. This is the #1 cause of "Failed to assign role" errors.
 
 ### Cooldown System
 
-- User can roll once per day (disabled in testing mode)
-- Cooldown stored in `UserCooldown` entity (per user, per guild)
-- Testing mode check in `SlashCommandHandler` (search for "TESTING MODE")
+Users roll once per day; cooldown stored in `UserCooldown` (per user, per guild). Admins can use `/testroll` to bypass the cooldown for testing.
 
 ### D20 Roll Mechanic
 
-- **Optional risk/reward system** - Users can roll a d20 after using `/roll` for bonuses or penalties
-- **Availability**: Only when server has 3+ Epic or Legendary gacha roles configured
-- **60-minute window**: Must use `/d20` within 60 minutes of using `/roll`
-- **One-time use**: Can only use `/d20` once per roll cycle
-- **Outcomes**:
-  - **Nat 20 (5%)**: Grants "Lucky Streak" buff - next roll guaranteed Epic or Legendary
-  - **Nat 1 (5%)**: "Critical Failure" - cooldown extended to 48 hours instead of 24
-  - **2-19 (90%)**: No effect
-- **State tracking**: `d20Used`, `guaranteedEpicPlus`, and `extendedCooldown` flags in `UserCooldown` entity (auto-created via JPA)
-- **Visual presentation**: Animated d20 GIF at `/images/d20-roll.gif` with progressive text reveal (6 frames, 500ms each)
-- **Status display**: `/mycolor` shows active buffs, d20 window availability, and extended cooldowns
-- **No admin configuration needed**: Feature automatically enables when 3+ Epic/Legendary roles exist
+- Auto-enables when a server has 3+ Epic or Legendary gacha roles — no admin configuration.
+- Users may roll `/d20` once, within 60 minutes of `/roll`: nat 20 grants a guaranteed Epic+ next roll ("Lucky Streak"), nat 1 extends the cooldown to 48 hours, 2–19 has no effect.
+- State tracked on `UserCooldown`: `d20Used`, `guaranteedEpicPlus`, `extendedCooldown`.
 
-### QOTD System
+### QOTD Multi-Stream System
 
-- **Multi-streams per channel**: Up to 5 independent QOTD streams per Discord channel
-- **Per-stream configuration**: Each stream has its own schedule, timezone, question bank, banner, and settings
-- **Scheduled posting** via `QotdScheduler` using Spring's `@Scheduled`
-- **Question bank** with approval workflow (pending → approved → posted)
-- **CSV import** for bulk question upload with optional author attribution
-- **User submissions**: `/qotd-submit` command with optional stream targeting via autocomplete
-  - Users can optionally select which stream their question is for (autocomplete shows banner text)
-  - If stream has `autoApprove` enabled, question is automatically added to that stream
-  - If no stream specified and multiple streams have `autoApprove`, question is added to all
-  - Otherwise, admin manually approves and routes to appropriate stream
-- **Submissions** stored in `QotdSubmission` entity with optional `targetStreamId`
-- **Real-time updates** via WebSocket notifications
+- Up to 5 independent streams per Discord channel; each stream (`QotdStream` entity) has its own cron schedule, timezone, question bank, banner, mentions, and auto-approve setting.
+- Posting handled by `QotdScheduler`; question bank uses an approval workflow (pending → approved → posted); CSV import supported with author attribution.
+- `/qotd-submit` lets users optionally target a stream via autocomplete (shows banner text). Auto-approve streams bypass moderation; with no target and multiple auto-approve streams, the question goes to all of them. Submissions stored in `QotdSubmission` with optional `targetStreamId`.
 
 ## Environment Variables
 
-Required in `.env` file:
+Required in `.env`:
 ```env
 DISCORD_TOKEN=your_bot_token_here
 DISCORD_CLIENT_ID=your_client_id_here
@@ -242,107 +140,50 @@ DISCORD_CLIENT_SECRET=your_client_secret_here
 ADMIN_PANEL_URL=http://localhost:8080
 ```
 
-Optional for production:
-```env
-COOKIE_SECURE=true           # HTTPS-only cookies
-COOKIE_SAME_SITE=strict      # Strict SameSite policy
-```
-
-## Testing
-
-- **Unit tests** in `src/test/java/com/discordbot/`
-- **Key test files:**
-  - `SlashCommandHandlerTest.java` - Slash command logic
-  - `RateLimitServiceTest.java` - Rate limiting
-  - `GradientProbabilityTest.java` - Gacha probability distribution
-- **Run tests:** `mvn test`
-- **Coverage:** Tests use JUnit 5 and Mockito
+Optional for production: `COOKIE_SECURE=true`, `COOKIE_SAME_SITE=strict`.
 
 ## Common Development Tasks
 
 ### Adding a New Slash Command
 
-1. Add command definition in `SlashCommandHandler.onGuildReady()`
-2. Handle command in `SlashCommandHandler.onSlashCommandInteraction()`
+1. Add the command definition in `SlashCommandHandler.onGuildReady()` (and the guild-join registration block)
+2. Handle it in `SlashCommandHandler.onSlashCommandInteraction()`
 3. Use `event.reply()` with `.setEphemeral(true)` for private responses
-4. Update help text in `handleHelp()` method
+4. Update help text in `handleHelp()`
 
 ### Adding a New API Endpoint
 
-1. Create controller in `web/controller/` package
-2. Create DTOs in `web/dto/` package (use Java Records)
-3. Add service logic in `web/service/` if needed
-4. Secure endpoint with `@PreAuthorize` or manual permission checks
-5. Update `WEB_API_README.md` documentation
+1. Create controller in `web/controller/`, DTOs as Records in `web/dto/`, service logic in `web/service/`
+2. Secure with `@PreAuthorize` or manual permission checks (see `AdminService`)
+3. Update `WEB_API_README.md`
 
 ### Modifying Gacha Probabilities
 
-Edit rarity weights in `ColorGachaHandler.java` in the `Rarity` enum, then rebuild.
+Edit the `Rarity` enum weights in `ColorGachaHandler.java`, then rebuild.
 
-### Enabling/Disabling Daily Cooldown
+## Code Style
 
-In `SlashCommandHandler.java`, find the "TESTING MODE" comment and toggle the cooldown check code.
+### Backend (Java)
+- Java 21 features (Records, pattern matching); 4-space indentation
+- SLF4J for logging (never System.out); JavaDoc for public methods
+- Constructor-based dependency injection (not field injection)
 
-### Customizing Legal Documents
-
-1. Edit `frontend/src/components/PrivacyPolicy.template.tsx` and `TermsOfService.template.tsx`
-2. Run `npm run generate:legal` in frontend directory
-3. Or set env vars during build: `ORGANIZATION_NAME`, `CONTACT_EMAIL`, `WEBSITE_URL`
+### Frontend (TypeScript/React)
+- TypeScript strict mode plus `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`
+- Functional components with hooks; props interfaces for all components; 2-space indentation
+- React Query for data fetching; Axios with CSRF support
+- Test files (`__tests__`, `*.test.ts(x)`, `e2e/`) are excluded from the app build
 
 ## Deployment Notes
 
-- **JAR location:** `target/playbot-1.0.0.jar`
-- **Frontend build:** `frontend/dist/` (served by Spring Boot)
-- **Database:** Automatically created at `./data/playbot.mv.db`
-- **Logs:** Written to `logs/` directory by startup script
-- **OAuth2 Redirect URI:** Must match in Discord Developer Portal (e.g., `https://your-domain.com/login/oauth2/code/discord`)
-- **Reverse proxy:** Configure headers for `X-Forwarded-For`, `X-Forwarded-Proto` (already supported in `application.properties`)
-
-## Discord Bot Permissions
-
-Required permissions when inviting bot:
-- **Manage Roles** - Assign/remove color roles
-- **Send Messages** - Respond to commands and post QOTD
-- **View Channels** - See channels for slash commands and QOTD
-- **Embed Links** - Send rich embeds for QOTD
-
-OAuth2 scopes for invite: `bot`, `applications.commands`
-
-## Code Style Notes
-
-### Backend (Java)
-- Java 21 features used (Records, pattern matching, modern syntax)
-- 4 spaces for indentation
-- SLF4J for logging (never System.out)
-- JavaDoc for public methods
-- Spring dependency injection via constructor (not field injection)
-
-### Frontend (TypeScript/React)
-- TypeScript strict mode enabled
-- Functional components with hooks
-- Props interfaces for all components
-- 2 spaces for indentation
-- React Query for data fetching
-- Axios for HTTP with CSRF token support
+- JAR at `target/playbot-1.0.0.jar`; frontend build in `frontend/dist/` (served by Spring Boot)
+- OAuth2 redirect URI must match the Discord Developer Portal exactly (e.g., `https://your-domain.com/login/oauth2/code/discord`)
+- Reverse proxy: `X-Forwarded-For` / `X-Forwarded-Proto` headers already supported in `application.properties`
+- Bot invite requires: Manage Roles, Send Messages, View Channels, Embed Links; OAuth2 scopes `bot`, `applications.commands`
 
 ## Troubleshooting
 
-### Bot won't assign roles
-- Check role hierarchy (bot role must be ABOVE gacha roles)
-- Verify bot has "Manage Roles" permission
-- Check logs for detailed error messages
-
-### OAuth2 login fails
-- Verify redirect URI matches exactly in Discord Developer Portal
-- Check `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` are correct
-- Ensure `ADMIN_PANEL_URL` points to backend
-
-### Frontend can't reach API
-- Check Vite proxy configuration in `vite.config.ts`
-- Verify backend is running on port 8080
-- Check browser console for CORS/CSRF errors
-
-### Database not persisting
-- Check `./data/` directory exists and is writable
-- Verify H2 database file created (`data/playbot.mv.db`)
-- Check logs for JPA/Hibernate errors
+- **Bot won't assign roles:** check role hierarchy (bot role above gacha roles), verify Manage Roles permission, check logs
+- **OAuth2 login fails:** verify redirect URI, client ID/secret, and `ADMIN_PANEL_URL`
+- **Frontend can't reach API:** check Vite proxy in `vite.config.ts`, confirm backend on 8080, check browser console for CORS/CSRF errors
+- **Schema validation errors on startup:** an entity changed without a matching Liquibase changeset — write the changeset, don't switch ddl-auto
