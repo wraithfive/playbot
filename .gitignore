@@ -4,6 +4,8 @@
 cookies.txt
 *.pem
 deploy.sh
+scripts/ssh-ec2.sh
+docs/PRODUCTION_INFRA.md
 
 # Claude AI assistant
 .claude/
